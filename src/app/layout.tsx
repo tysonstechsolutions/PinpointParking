@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   description: "Pinpoint Parking provides professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair in Mount Vernon, IL and throughout Southern Illinois. Free estimates! Call 618-214-7656.",
   keywords: "asphalt paving Mount Vernon IL, sealcoating Southern Illinois, parking lot striping, crack filling, pothole repair, driveway paving",
   authors: [{ name: "Pinpoint Parking" }],
+  verification: {
+    google: "eLdwuihfM48rnvIYtHCf1zR54Os4u0qUvR2kW_CVuM0",
+  },
   openGraph: {
     title: "Pinpoint Parking | Asphalt Paving & Sealcoating in Southern Illinois",
     description: "Professional asphalt paving, sealcoating, and pavement maintenance serving Mount Vernon and a 45-mile radius in Southern Illinois.",
