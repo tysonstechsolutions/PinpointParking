@@ -12,13 +12,16 @@ const locations = [
   { name: 'Marion', county: 'Williamson County', distance: '41 miles', href: '/locations/marion' },
   { name: 'Centralia', county: 'Marion County', distance: '19 miles', href: '/locations/centralia' },
   { name: 'Herrin', county: 'Williamson County', distance: '36 miles', href: '/locations/herrin' },
-  { name: 'Salem', county: 'Marion County', distance: '22 miles', href: '/locations/salem' },
-  { name: 'Benton', county: 'Franklin County', distance: '22 miles', href: '/locations/benton' },
-  { name: 'West Frankfort', county: 'Franklin County', distance: '29 miles', href: '/locations/west-frankfort' },
-  { name: 'Du Quoin', county: 'Perry County', distance: '25 miles', href: '/locations/du-quoin' },
-  { name: 'Pinckneyville', county: 'Perry County', distance: '32 miles', href: '/locations/pinckneyville' },
+  { name: 'Salem', county: 'Marion County', distance: '25 miles', href: '/locations/salem' },
+  { name: 'Benton', county: 'Franklin County', distance: '20 miles', href: '/locations/benton' },
+  { name: 'West Frankfort', county: 'Franklin County', distance: '25 miles', href: '/locations/west-frankfort' },
+  { name: 'Du Quoin', county: 'Perry County', distance: '30 miles', href: '/locations/du-quoin' },
+  { name: 'Nashville', county: 'Washington County', distance: '30 miles', href: '/locations/nashville' },
+  { name: 'Fairfield', county: 'Wayne County', distance: '30 miles', href: '/locations/fairfield' },
+  { name: 'Effingham', county: 'Effingham County', distance: '45 miles', href: '/locations/effingham' },
   { name: 'Murphysboro', county: 'Jackson County', distance: '40 miles', href: '/locations/murphysboro' },
-  { name: 'Carterville', county: 'Williamson County', distance: '38 miles', href: '/locations/carterville' },
+  { name: 'Carterville', county: 'Williamson County', distance: '35 miles', href: '/locations/carterville' },
+  { name: 'Harrisburg', county: 'Saline County', distance: '40 miles', href: '/locations/harrisburg' },
 ];
 
 export default function LocationsPage() {

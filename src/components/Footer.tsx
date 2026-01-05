@@ -13,8 +13,8 @@ const locations = [
   { name: 'Carbondale', href: '/locations/carbondale' },
   { name: 'Marion', href: '/locations/marion' },
   { name: 'Centralia', href: '/locations/centralia' },
-  { name: 'Herrin', href: '/locations/herrin' },
-  { name: 'All Areas', href: '/locations' },
+  { name: 'Salem', href: '/locations/salem' },
+  { name: 'All 15+ Areas', href: '/locations' },
 ];
 
 const company = [

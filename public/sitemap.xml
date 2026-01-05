@@ -47,7 +47,7 @@
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/mount-vernon</loc>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
@@ -67,6 +67,56 @@
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/herrin</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/salem</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/benton</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/west-frankfort</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/du-quoin</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/nashville</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/fairfield</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/effingham</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/carterville</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/murphysboro</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/locations/harrisburg</loc>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>

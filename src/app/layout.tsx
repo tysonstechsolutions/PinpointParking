@@ -40,6 +40,61 @@ export const metadata: Metadata = {
   },
 };
 
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "https://pinpointparking.net",
+  "name": "Pinpoint Parking",
+  "description": "Professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair serving Mount Vernon, IL and Southern Illinois.",
+  "url": "https://pinpointparking.net",
+  "telephone": "+1-618-214-7656",
+  "email": "pinpointparkingco@gmail.com",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Mount Vernon",
+    "addressRegion": "IL",
+    "addressCountry": "US"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": "38.3173",
+    "longitude": "-88.9031"
+  },
+  "areaServed": [
+    { "@type": "City", "name": "Mount Vernon", "addressRegion": "IL" },
+    { "@type": "City", "name": "Carbondale", "addressRegion": "IL" },
+    { "@type": "City", "name": "Marion", "addressRegion": "IL" },
+    { "@type": "City", "name": "Centralia", "addressRegion": "IL" },
+    { "@type": "City", "name": "Herrin", "addressRegion": "IL" },
+    { "@type": "City", "name": "Salem", "addressRegion": "IL" },
+    { "@type": "City", "name": "Benton", "addressRegion": "IL" },
+    { "@type": "City", "name": "West Frankfort", "addressRegion": "IL" },
+    { "@type": "City", "name": "Du Quoin", "addressRegion": "IL" },
+    { "@type": "City", "name": "Effingham", "addressRegion": "IL" },
+    { "@type": "City", "name": "Harrisburg", "addressRegion": "IL" },
+    { "@type": "City", "name": "Murphysboro", "addressRegion": "IL" },
+    { "@type": "City", "name": "Carterville", "addressRegion": "IL" },
+    { "@type": "City", "name": "Nashville", "addressRegion": "IL" },
+    { "@type": "City", "name": "Fairfield", "addressRegion": "IL" }
+  ],
+  "serviceType": [
+    "Asphalt Paving",
+    "Sealcoating",
+    "Line Striping",
+    "Crack Filling",
+    "Pothole Repair",
+    "Parking Lot Maintenance",
+    "Driveway Paving"
+  ],
+  "priceRange": "$$",
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "opens": "07:00",
+    "closes": "18:00"
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -47,6 +102,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+        />
+      </head>
       <body className={`${oswald.variable} ${sourceSans.variable}`} style={{ fontFamily: 'var(--font-source-sans), sans-serif' }}>
         <Header />
         <main>{children}</main>
