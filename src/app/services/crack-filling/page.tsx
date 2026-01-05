@@ -28,12 +28,55 @@ const serviceSchema = {
   "serviceType": "Asphalt Crack Filling"
 };
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much does crack filling cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Professional hot-pour crack filling typically costs $0.50-$1.50 per linear foot. DIY cold-pour products cost $10-$30 but only last 1-2 years compared to 3-5+ years for professional repairs."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I fill driveway cracks myself?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Small cracks under 1/4 inch can be filled with DIY products, but results are temporary. Professional hot-pour crack sealing provides longer-lasting repairs and is necessary for larger cracks or alligator cracking."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When should asphalt cracks be filled?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Cracks should be filled as soon as you notice them—before water can infiltrate and cause base damage. The best time is spring or fall before winter freeze-thaw cycles cause further deterioration."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the difference between crack filling and crack sealing?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Crack filling is used for non-working cracks with minimal movement. Crack sealing involves routing the crack wider and using rubberized materials for working cracks that expand and contract with temperature changes."
+      }
+    }
+  ]
+};
+
 export default function CrackFillingPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <ServicePageLayout
       title="Crack Filling"

@@ -28,12 +28,55 @@ const serviceSchema = {
   "serviceType": "Asphalt Sealcoating"
 };
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How often should I sealcoat my driveway?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You should sealcoat your asphalt driveway every 2-3 years for optimal protection. High-traffic commercial parking lots may need sealcoating more frequently. Regular sealcoating can double the lifespan of your asphalt."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long does sealcoating last?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A quality sealcoating application typically lasts 2-3 years depending on traffic levels, weather exposure, and the condition of the underlying asphalt. Commercial lots with heavy traffic may need recoating sooner."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When is the best time to sealcoat in Illinois?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The best time to sealcoat in Southern Illinois is May through September when temperatures are consistently above 50°F and there's no rain expected for 24-48 hours. Warm, dry conditions ensure proper curing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long after paving can you sealcoat?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You should wait at least 90 days after new asphalt installation before applying sealcoat. This allows the asphalt to fully cure and the oils to oxidize, ensuring proper adhesion of the sealcoat."
+      }
+    }
+  ]
+};
+
 export default function SealcoatingPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <ServicePageLayout
       title="Sealcoating"

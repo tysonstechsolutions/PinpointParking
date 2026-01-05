@@ -28,12 +28,55 @@ const serviceSchema = {
   "serviceType": "Pothole Repair"
 };
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much does pothole repair cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Pothole repair costs vary based on size and severity. Small potholes may cost $50-$150 each, while larger repairs requiring base work can cost $200-$500 or more. Multiple potholes are typically priced as a package."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How are potholes properly repaired?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Professional pothole repair involves squaring the edges, removing debris and water, applying tack coat, filling with hot-mix asphalt, and compacting for a smooth surface. Full-depth repairs may require rebuilding the base layer."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What causes potholes in asphalt?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Potholes form when water enters through cracks, erodes the base material, and the asphalt weakens under traffic. Freeze-thaw cycles accelerate this process as water expands when frozen, breaking apart the pavement."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can potholes be repaired in winter?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, temporary cold-patch repairs can be made in winter for safety. However, permanent hot-mix asphalt repairs should wait until temperatures are consistently above 50°F for proper compaction and bonding."
+      }
+    }
+  ]
+};
+
 export default function PotholeRepairPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <ServicePageLayout
       title="Pothole Repair"

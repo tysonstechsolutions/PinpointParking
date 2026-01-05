@@ -28,12 +28,55 @@ const serviceSchema = {
   "serviceType": "Parking Lot Line Striping"
 };
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How many ADA handicap parking spaces do I need?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The number of required ADA accessible spaces depends on your total parking lot size: 1-25 spaces need 1 accessible space, 26-50 need 2, 51-75 need 3, 76-100 need 4. At least 1 in every 6 accessible spaces must be van-accessible."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How often should parking lot lines be repainted?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Parking lot lines should be repainted every 18-24 months for high-traffic commercial lots, or whenever lines become faded and difficult to see. Lines must always be repainted after sealcoating."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What are the dimensions for ADA accessible parking spaces?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Standard ADA accessible spaces must be at least 8 feet wide with a 5-foot access aisle. Van-accessible spaces require an 8-foot space with an 8-foot access aisle, plus 98 inches of vertical clearance."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the penalty for non-compliant ADA parking?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Penalties for ADA parking violations can be severe: up to $75,000 for first violations and $150,000 for subsequent violations, plus potential private lawsuits with unlimited damages."
+      }
+    }
+  ]
+};
+
 export default function LineStripingPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <ServicePageLayout
       title="Line Striping"

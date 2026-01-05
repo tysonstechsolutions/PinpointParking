@@ -195,4 +195,56 @@
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
+
+  <!-- Blog Posts -->
+  <url>
+    <loc>https://pinpointparking.net/blog/how-much-does-asphalt-paving-cost</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/asphalt-vs-concrete-driveway</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/when-to-sealcoat-driveway</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/signs-you-need-new-driveway</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/how-long-does-asphalt-last</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/parking-lot-maintenance-guide</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/ada-parking-lot-requirements</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/best-time-to-pave-driveway</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/how-to-fix-driveway-cracks</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://pinpointparking.net/blog/commercial-parking-lot-costs</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>

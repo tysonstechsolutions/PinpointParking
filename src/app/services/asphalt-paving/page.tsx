@@ -45,12 +45,55 @@ const serviceSchema = {
   }
 };
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much does asphalt paving cost in Southern Illinois?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Asphalt paving in Southern Illinois typically costs $3-$7 per square foot for residential driveways, depending on size, site conditions, base work required, and thickness. Commercial projects are priced based on specific requirements. Contact Pinpoint Parking for a free detailed estimate."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long does an asphalt driveway last?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A properly installed asphalt driveway lasts 20-30 years with regular maintenance. This includes crack filling as needed and sealcoating every 2-3 years. Without maintenance, lifespan may be reduced to 12-15 years."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the best time of year to pave a driveway?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The best time to pave in Southern Illinois is late spring through early fall (May-October) when temperatures are consistently above 50°F. Asphalt requires warm temperatures for proper compaction and curing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How thick should asphalt be for a residential driveway?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Residential driveways typically need 2-3 inches of asphalt over a properly prepared 6-8 inch aggregate base. Commercial parking lots require 3-4 inches or more depending on expected traffic and vehicle weight."
+      }
+    }
+  ]
+};
+
 export default function AsphaltPavingPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <ServicePageLayout
       title="Asphalt Paving"
