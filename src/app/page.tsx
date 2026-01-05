@@ -1,65 +1,385 @@
-import Image from "next/image";
+import Link from 'next/link';
+
+const services = [
+  {
+    title: 'Asphalt Paving',
+    description: 'New driveways, parking lots, and roads built to last. Expert installation with proper base preparation and drainage.',
+    href: '/services/asphalt-paving',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2" y="6" width="20" height="12" rx="2"/>
+        <path d="M2 10h20"/>
+        <path d="M6 14h.01M10 14h.01M14 14h.01M18 14h.01"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Sealcoating',
+    description: 'Protect and extend the life of your asphalt with professional sealcoating. Guards against UV rays, water, and chemicals.',
+    href: '/services/sealcoating',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+        <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/>
+        <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Line Striping',
+    description: 'ADA-compliant parking lot striping, traffic markings, and custom layouts. Crisp, visible lines that last.',
+    href: '/services/line-striping',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Crack Filling',
+    description: 'Stop cracks before they spread. Professional crack sealing prevents water infiltration and costly repairs.',
+    href: '/services/crack-filling',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Pothole Repair',
+    description: 'Fast, permanent pothole repairs that eliminate hazards and restore smooth surfaces. Same-week service available.',
+    href: '/services/pothole-repair',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 12h8"/>
+        <path d="M12 8v8"/>
+      </svg>
+    ),
+  },
+];
+
+const areas = [
+  { name: 'Mount Vernon', description: 'Our home base at the crossroads of I-57 and I-64', href: '/locations/mount-vernon', featured: true },
+  { name: 'Carbondale', description: 'Home of SIU • 44 miles', href: '/locations/carbondale' },
+  { name: 'Marion', description: 'Williamson County • 41 miles', href: '/locations/marion' },
+  { name: 'Centralia', description: 'Railroad hub • 19 miles', href: '/locations/centralia' },
+  { name: 'Herrin', description: 'Williamson County • 36 miles', href: '/locations/herrin' },
+  { name: 'Salem', description: 'Marion County • 22 miles', href: '/locations/salem' },
+  { name: 'Benton', description: 'Franklin County • 22 miles', href: '/locations/benton' },
+  { name: 'West Frankfort', description: 'Franklin County • 29 miles', href: '/locations/west-frankfort' },
+];
+
+const faqs = [
+  {
+    question: 'How much does asphalt paving cost?',
+    answer: 'Asphalt paving typically costs $3-$7 per square foot for residential driveways in Southern Illinois. Commercial projects vary based on size and site preparation needs. Contact us for a free, accurate quote for your specific project.',
+  },
+  {
+    question: 'How long does sealcoating last?',
+    answer: 'Quality sealcoating typically lasts 2-3 years depending on traffic and weather exposure. We recommend sealcoating every 2-3 years to maximize your asphalt\'s lifespan and appearance.',
+  },
+  {
+    question: 'When is the best time to pave or sealcoat?',
+    answer: 'The ideal season is late spring through early fall when temperatures are consistently above 50°F. In Southern Illinois, this typically means May through September for optimal results.',
+  },
+  {
+    question: 'Do you work with commercial properties?',
+    answer: 'Absolutely! We work with HOAs, property managers, churches, schools, retail centers, and businesses of all sizes. We can schedule work during off-hours to minimize disruption.',
+  },
+  {
+    question: 'How far do you travel for projects?',
+    answer: 'We serve all communities within a 45-mile radius of Mount Vernon, including Carbondale, Marion, Centralia, Salem, Herrin, and many more. If you\'re in Southern Illinois, give us a call!',
+  },
+  {
+    question: 'How long before I can use my driveway after paving?',
+    answer: 'For new asphalt, we recommend waiting 24-48 hours before driving on it and 5-7 days before parking for extended periods. For sealcoating, you can typically walk on it in 24 hours and drive on it in 48-72 hours.',
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      {/* Hero Section */}
+      <section className="hero">
+        <div className="hero-overlay"></div>
+        <div className="hero-pattern"></div>
+        <div className="container hero-content">
+          <div className="hero-badge">Southern Illinois&apos; Trusted Paving Professionals</div>
+          <h1>Professional Asphalt Paving &amp; Pavement Maintenance</h1>
+          <p className="hero-subtitle">
+            Serving Mount Vernon and a 45-mile radius throughout Southern Illinois. From driveways to commercial parking lots, we deliver precision work that lasts.
           </p>
+          <div className="hero-cta">
+            <Link href="/contact" className="btn btn-primary btn-lg">
+              Get Your Free Estimate
+            </Link>
+            <a href="tel:6182147656" className="btn btn-outline btn-lg">
+              Call (618) 214-7656
+            </a>
+          </div>
+          <div className="hero-trust">
+            <div className="trust-item">
+              <span className="trust-number">100%</span>
+              <span className="trust-label">Satisfaction Guaranteed</span>
+            </div>
+            <div className="trust-divider"></div>
+            <div className="trust-item">
+              <span className="trust-number">Free</span>
+              <span className="trust-label">Estimates &amp; Consultations</span>
+            </div>
+            <div className="trust-divider"></div>
+            <div className="trust-item">
+              <span className="trust-number">45mi</span>
+              <span className="trust-label">Service Radius</span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="hero-scroll">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5v14M19 12l-7 7-7-7"/>
+          </svg>
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="services" id="services">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-label">What We Do</span>
+            <h2>Complete Pavement Solutions</h2>
+            <p>From new construction to maintenance and repairs, Pinpoint Parking delivers professional results for residential and commercial properties throughout Southern Illinois.</p>
+          </div>
+
+          <div className="services-grid">
+            {services.map((service) => (
+              <Link href={service.href} className="service-card" key={service.title}>
+                <div className="service-icon">{service.icon}</div>
+                <h3>{service.title}</h3>
+                <p>{service.description}</p>
+                <span className="service-link">
+                  Learn More
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </span>
+              </Link>
+            ))}
+
+            <div className="service-card service-card-cta">
+              <h3>Not Sure What You Need?</h3>
+              <p>Our experts will assess your pavement and recommend the best solution for your budget and goals.</p>
+              <Link href="/contact" className="btn btn-primary">
+                Get Free Assessment
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose Us */}
+      <section className="why-us">
+        <div className="container">
+          <div className="why-us-content">
+            <div className="why-us-text">
+              <span className="section-label">Why Pinpoint Parking</span>
+              <h2>Precision Work. Lasting Results.</h2>
+              <p>We&apos;re not just another paving company. Pinpoint Parking combines technical expertise with genuine care for every project—whether it&apos;s a residential driveway or a commercial parking lot.</p>
+
+              <div className="benefits-list">
+                <div className="benefit-item">
+                  <div className="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div className="benefit-content">
+                    <h4>Quality Materials</h4>
+                    <p>We use premium-grade asphalt and sealers that withstand Southern Illinois weather extremes.</p>
+                  </div>
+                </div>
+
+                <div className="benefit-item">
+                  <div className="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div className="benefit-content">
+                    <h4>Transparent Pricing</h4>
+                    <p>Detailed quotes with no hidden fees. You know exactly what you&apos;re paying for before work begins.</p>
+                  </div>
+                </div>
+
+                <div className="benefit-item">
+                  <div className="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div className="benefit-content">
+                    <h4>Local Expertise</h4>
+                    <p>We understand Southern Illinois soil conditions, drainage needs, and climate challenges.</p>
+                  </div>
+                </div>
+
+                <div className="benefit-item">
+                  <div className="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div className="benefit-content">
+                    <h4>On-Time Completion</h4>
+                    <p>We respect your schedule. Projects completed on time with minimal disruption to your property.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="why-us-image">
+              <div className="image-frame">
+                <div className="image-placeholder">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span>Professional Work Photo</span>
+                </div>
+              </div>
+              <div className="stats-box">
+                <div className="stat">
+                  <span className="stat-number">100%</span>
+                  <span className="stat-label">Satisfaction Rate</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-number">45mi</span>
+                  <span className="stat-label">Service Radius</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Service Areas */}
+      <section className="service-areas" id="areas">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-label">Where We Work</span>
+            <h2>Serving All of Southern Illinois</h2>
+            <p>Based in Mount Vernon, we proudly serve communities within a 45-mile radius. If you&apos;re in Southern Illinois, we&apos;ve got you covered.</p>
+          </div>
+
+          <div className="areas-grid">
+            {areas.map((area) => (
+              <Link
+                href={area.href}
+                className={`area-card ${area.featured ? 'area-card-featured' : ''}`}
+                key={area.name}
+              >
+                {area.featured && <div className="area-badge">Headquarters</div>}
+                <h3>{area.name}</h3>
+                <p>{area.description}</p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="areas-cta">
+            <p>Don&apos;t see your city? We likely serve your area too!</p>
+            <Link href="/locations" className="btn btn-outline">
+              View All Service Areas
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Process Section */}
+      <section className="process">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-label">How It Works</span>
+            <h2>Simple, Straightforward Process</h2>
+            <p>From first call to finished project, we make professional paving easy.</p>
+          </div>
+
+          <div className="process-steps">
+            <div className="process-step">
+              <div className="step-number">01</div>
+              <h3>Free Consultation</h3>
+              <p>Call us or fill out our form. We&apos;ll discuss your project and schedule a free on-site assessment.</p>
+            </div>
+
+            <div className="process-connector"></div>
+
+            <div className="process-step">
+              <div className="step-number">02</div>
+              <h3>Detailed Quote</h3>
+              <p>We&apos;ll provide a comprehensive, transparent quote with all costs clearly explained.</p>
+            </div>
+
+            <div className="process-connector"></div>
+
+            <div className="process-step">
+              <div className="step-number">03</div>
+              <h3>Professional Work</h3>
+              <p>Our experienced crew completes your project on schedule using quality materials.</p>
+            </div>
+
+            <div className="process-connector"></div>
+
+            <div className="process-step">
+              <div className="step-number">04</div>
+              <h3>Final Walkthrough</h3>
+              <p>We review the completed work with you to ensure your complete satisfaction.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section">
+        <div className="cta-pattern"></div>
+        <div className="container cta-content">
+          <h2>Ready to Transform Your Pavement?</h2>
+          <p>Get a free, no-obligation estimate for your paving project. We&apos;ll assess your needs and provide transparent pricing.</p>
+          <div className="cta-buttons">
+            <Link href="/contact" className="btn btn-dark btn-lg">
+              Request Free Estimate
+            </Link>
+            <a href="tel:6182147656" className="btn btn-outline-dark btn-lg">
+              Call (618) 214-7656
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="faq">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-label">Questions?</span>
+            <h2>Frequently Asked Questions</h2>
+          </div>
+
+          <div className="faq-grid">
+            {faqs.map((faq) => (
+              <div className="faq-item" key={faq.question}>
+                <h3>{faq.question}</h3>
+                <p>{faq.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
