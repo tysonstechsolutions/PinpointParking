@@ -2,13 +2,40 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Sealcoating Services | Pinpoint Parking',
-  description: 'Professional asphalt sealcoating in Mount Vernon, IL and Southern Illinois. Protect your driveway or parking lot from UV damage, water, and chemicals.',
+  title: 'Sealcoating Services in Mount Vernon, IL | Driveway & Parking Lot Sealing',
+  description: 'Professional asphalt sealcoating in Mount Vernon, IL and Southern Illinois. Protect your driveway or parking lot from UV damage, water, and chemicals. Free estimates! Call 618-214-7656.',
+  keywords: 'sealcoating Mount Vernon IL, driveway sealing Southern Illinois, parking lot sealcoating, asphalt sealer, driveway protection',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating',
+  },
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Sealcoating Services",
+  "description": "Professional asphalt sealcoating for driveways and parking lots in Southern Illinois. Protects against UV damage, water, and chemicals.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking",
+    "telephone": "+1-618-214-7656"
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
+    "geoRadius": "72000"
+  },
+  "serviceType": "Asphalt Sealcoating"
 };
 
 export default function SealcoatingPage() {
   return (
-    <ServicePageLayout
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <ServicePageLayout
       title="Sealcoating"
       description="Protect and extend the life of your asphalt with professional sealcoating. Guards against UV rays, water, and chemicals."
       currentService="sealcoating"
@@ -72,5 +99,6 @@ export default function SealcoatingPage() {
       <h2>Service Area</h2>
       <p>We provide sealcoating services throughout Southern Illinois, including Mount Vernon, Carbondale, Marion, Centralia, Salem, Herrin, and all communities within a 45-mile radius.</p>
     </ServicePageLayout>
+    </>
   );
 }

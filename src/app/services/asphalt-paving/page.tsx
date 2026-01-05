@@ -2,13 +2,57 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving Services | Pinpoint Parking',
-  description: 'Professional asphalt paving for driveways, parking lots, and roads in Mount Vernon, IL and Southern Illinois. Quality materials and expert installation.',
+  title: 'Asphalt Paving Services in Mount Vernon, IL | Driveways & Parking Lots',
+  description: 'Professional asphalt paving for driveways, parking lots, and roads in Mount Vernon, IL and Southern Illinois. Quality hot-mix asphalt, expert installation. Free estimates! Call 618-214-7656.',
+  keywords: 'asphalt paving Mount Vernon IL, driveway paving Southern Illinois, parking lot paving, asphalt contractor, new driveway installation',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving',
+  },
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Asphalt Paving Services",
+  "description": "Professional asphalt paving for driveways, parking lots, and roads in Southern Illinois. Quality hot-mix asphalt and expert installation.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking",
+    "telephone": "+1-618-214-7656",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Mount Vernon",
+      "addressRegion": "IL"
+    }
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": {
+      "@type": "GeoCoordinates",
+      "latitude": "38.3173",
+      "longitude": "-88.9031"
+    },
+    "geoRadius": "72000"
+  },
+  "serviceType": "Asphalt Paving",
+  "offers": {
+    "@type": "Offer",
+    "availability": "https://schema.org/InStock",
+    "priceSpecification": {
+      "@type": "PriceSpecification",
+      "priceCurrency": "USD"
+    }
+  }
 };
 
 export default function AsphaltPavingPage() {
   return (
-    <ServicePageLayout
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <ServicePageLayout
       title="Asphalt Paving"
       description="Professional asphalt paving for driveways, parking lots, and roads. Quality materials and expert installation that lasts."
       currentService="asphalt-paving"
@@ -71,5 +115,6 @@ export default function AsphaltPavingPage() {
       <h2>Service Area</h2>
       <p>We provide asphalt paving services throughout Southern Illinois, including Mount Vernon, Carbondale, Marion, Centralia, Salem, Herrin, and all communities within a 45-mile radius of Mount Vernon.</p>
     </ServicePageLayout>
+    </>
   );
 }

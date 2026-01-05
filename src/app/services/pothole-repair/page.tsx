@@ -2,13 +2,40 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Pothole Repair Services | Pinpoint Parking',
-  description: 'Fast, permanent pothole repairs in Mount Vernon, IL and Southern Illinois. Same-week service available for hazardous potholes.',
+  title: 'Pothole Repair in Mount Vernon, IL | Fast Asphalt Patching',
+  description: 'Fast, permanent pothole repairs in Mount Vernon, IL and Southern Illinois. Same-week service available. Eliminate hazards and liability. Free estimates! Call 618-214-7656.',
+  keywords: 'pothole repair Mount Vernon IL, asphalt patching Southern Illinois, pothole filling, parking lot pothole repair, driveway pothole fix',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/pothole-repair',
+  },
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Pothole Repair Services",
+  "description": "Fast, permanent pothole repairs. Same-week service available for hazardous potholes.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking",
+    "telephone": "+1-618-214-7656"
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
+    "geoRadius": "72000"
+  },
+  "serviceType": "Pothole Repair"
 };
 
 export default function PotholeRepairPage() {
   return (
-    <ServicePageLayout
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <ServicePageLayout
       title="Pothole Repair"
       description="Fast, permanent pothole repairs that eliminate hazards and restore smooth surfaces. Same-week service available."
       currentService="pothole-repair"
@@ -90,5 +117,6 @@ export default function PotholeRepairPage() {
       <h2>Service Area</h2>
       <p>We provide pothole repair services throughout Southern Illinois, including Mount Vernon, Carbondale, Marion, Centralia, Salem, Herrin, and all communities within a 45-mile radius.</p>
     </ServicePageLayout>
+    </>
   );
 }

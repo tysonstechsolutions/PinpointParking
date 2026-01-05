@@ -17,27 +17,67 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pinpointparking.net'),
   title: {
     default: "Pinpoint Parking | Asphalt Paving & Sealcoating in Mount Vernon, IL | Southern Illinois",
     template: "%s | Pinpoint Parking",
   },
   description: "Pinpoint Parking provides professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair in Mount Vernon, IL and throughout Southern Illinois. Free estimates! Call 618-214-7656.",
-  keywords: "asphalt paving Mount Vernon IL, sealcoating Southern Illinois, parking lot striping, crack filling, pothole repair, driveway paving",
-  authors: [{ name: "Pinpoint Parking" }],
+  keywords: [
+    "asphalt paving Mount Vernon IL",
+    "sealcoating Southern Illinois",
+    "parking lot striping",
+    "crack filling",
+    "pothole repair",
+    "driveway paving Mount Vernon",
+    "asphalt contractor Carbondale",
+    "parking lot paving Marion IL",
+    "asphalt repair Centralia",
+    "commercial paving Southern Illinois"
+  ],
+  authors: [{ name: "Pinpoint Parking", url: "https://pinpointparking.net" }],
+  creator: "Pinpoint Parking",
+  publisher: "Pinpoint Parking",
   verification: {
     google: "eLdwuihfM48rnvIYtHCf1zR54Os4u0qUvR2kW_CVuM0",
   },
   openGraph: {
     title: "Pinpoint Parking | Asphalt Paving & Sealcoating in Southern Illinois",
-    description: "Professional asphalt paving, sealcoating, and pavement maintenance serving Mount Vernon and a 45-mile radius in Southern Illinois.",
+    description: "Professional asphalt paving, sealcoating, and pavement maintenance serving Mount Vernon and a 45-mile radius in Southern Illinois. Free estimates!",
     type: "website",
     url: "https://pinpointparking.net",
     siteName: "Pinpoint Parking",
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Pinpoint Parking - Professional Asphalt Paving in Southern Illinois",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Pinpoint Parking | Asphalt Paving & Sealcoating",
+    description: "Professional asphalt paving, sealcoating, and pavement maintenance in Mount Vernon, IL and Southern Illinois. Free estimates!",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
+  alternates: {
+    canonical: "https://pinpointparking.net",
+  },
+  category: "Business",
 };
 
 const localBusinessSchema = {

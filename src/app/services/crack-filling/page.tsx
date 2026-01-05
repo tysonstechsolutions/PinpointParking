@@ -2,13 +2,40 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Crack Filling Services | Pinpoint Parking',
-  description: 'Professional asphalt crack filling and sealing in Mount Vernon, IL and Southern Illinois. Prevent costly repairs with timely crack maintenance.',
+  title: 'Crack Filling & Sealing in Mount Vernon, IL | Asphalt Repair',
+  description: 'Professional asphalt crack filling and sealing in Mount Vernon, IL and Southern Illinois. Prevent potholes and costly repairs. Free estimates! Call 618-214-7656.',
+  keywords: 'crack filling Mount Vernon IL, asphalt crack sealing Southern Illinois, crack repair, driveway crack filling, parking lot crack repair',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/crack-filling',
+  },
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Crack Filling Services",
+  "description": "Professional asphalt crack filling and sealing. Prevents water infiltration and costly repairs.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking",
+    "telephone": "+1-618-214-7656"
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
+    "geoRadius": "72000"
+  },
+  "serviceType": "Asphalt Crack Filling"
 };
 
 export default function CrackFillingPage() {
   return (
-    <ServicePageLayout
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <ServicePageLayout
       title="Crack Filling"
       description="Stop cracks before they spread. Professional crack sealing prevents water infiltration and costly repairs."
       currentService="crack-filling"
@@ -75,5 +102,6 @@ export default function CrackFillingPage() {
       <h2>Service Area</h2>
       <p>We provide crack filling services throughout Southern Illinois, including Mount Vernon, Carbondale, Marion, Centralia, Salem, Herrin, and all communities within a 45-mile radius.</p>
     </ServicePageLayout>
+    </>
   );
 }

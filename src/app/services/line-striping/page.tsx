@@ -2,13 +2,40 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Line Striping Services | Pinpoint Parking',
-  description: 'Professional parking lot striping and pavement marking services in Mount Vernon, IL and Southern Illinois. ADA compliant layouts.',
+  title: 'Parking Lot Striping in Mount Vernon, IL | ADA Compliant Line Marking',
+  description: 'Professional parking lot striping and pavement marking in Mount Vernon, IL and Southern Illinois. ADA compliant layouts, fire lanes, directional arrows. Free estimates! Call 618-214-7656.',
+  keywords: 'parking lot striping Mount Vernon IL, line striping Southern Illinois, ADA compliant parking, pavement marking, parking lot lines',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/line-striping',
+  },
+};
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Line Striping Services",
+  "description": "Professional parking lot striping and pavement marking services. ADA compliant layouts, fire lanes, directional arrows.",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking",
+    "telephone": "+1-618-214-7656"
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
+    "geoRadius": "72000"
+  },
+  "serviceType": "Parking Lot Line Striping"
 };
 
 export default function LineStripingPage() {
   return (
-    <ServicePageLayout
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <ServicePageLayout
       title="Line Striping"
       description="ADA-compliant parking lot striping, traffic markings, and custom layouts. Crisp, visible lines that last."
       currentService="line-striping"
@@ -75,5 +102,6 @@ export default function LineStripingPage() {
       <h2>Service Area</h2>
       <p>We provide line striping services throughout Southern Illinois, including Mount Vernon, Carbondale, Marion, Centralia, Salem, Herrin, and all communities within a 45-mile radius.</p>
     </ServicePageLayout>
+    </>
   );
 }
