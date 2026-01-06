@@ -89,6 +89,8 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   const [drawnArea, setDrawnArea] = useState<number | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [showAddOns, setShowAddOns] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [aiEstimate, setAiEstimate] = useState<{ sqft: number; confidence: string; description: string } | null>(null)
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
 
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -346,22 +348,111 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     addUserMessage(address)
     setInputValue('')
 
+    // Start AI analysis
+    setIsAnalyzing(true)
+    await addBotMessage(`📍 ${address}\n\n🛰️ Analyzing satellite imagery to measure your ${bookingData.projectTypeName.toLowerCase()}...`)
+
+    try {
+      const response = await fetch('/api/estimate-area', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address,
+          projectType: bookingData.projectType
+        })
+      })
+      const result = await response.json()
+
+      setIsAnalyzing(false)
+
+      if (result.success && result.squareFootage) {
+        // Update address with formatted version if available
+        if (result.formattedAddress) {
+          setBookingData(prev => ({ ...prev, address: result.formattedAddress }))
+        }
+
+        setAiEstimate({
+          sqft: result.squareFootage,
+          confidence: result.confidence,
+          description: result.description
+        })
+
+        const estimate = calculateEstimate(result.squareFootage, bookingData.service)
+
+        await addBotMessage(
+          `Found it! Here's what I measured:`,
+          'aiEstimateResult',
+          {
+            sqft: result.squareFootage,
+            confidence: result.confidence,
+            description: result.description,
+            estimateLow: estimate.low,
+            estimateHigh: estimate.high
+          }
+        )
+        setStep(STEPS.MAP_DRAW)
+      } else {
+        // Fallback to manual measurement
+        if (config.googleMaps.apiKey) {
+          await addBotMessage(
+            `I couldn't automatically measure from satellite imagery.\n\nLet's do it manually - draw the outline on the map.`,
+            'mapButton'
+          )
+        } else {
+          await addBotMessage("Enter the approximate square footage:")
+          setInputPlaceholder('Square footage (e.g., 1500)...')
+        }
+        setStep(STEPS.MAP_DRAW)
+      }
+    } catch (error) {
+      console.error('AI estimation error:', error)
+      setIsAnalyzing(false)
+
+      // Fallback to manual measurement
+      if (config.googleMaps.apiKey) {
+        await addBotMessage(
+          `Let's measure your ${bookingData.projectTypeName.toLowerCase()}. Draw the outline on the satellite map.`,
+          'mapButton'
+        )
+      } else {
+        await addBotMessage("Enter the approximate square footage:")
+        setInputPlaceholder('Square footage (e.g., 1500)...')
+      }
+      setStep(STEPS.MAP_DRAW)
+    }
+  }
+
+  const handleAcceptAiEstimate = async (sqft: number, estimateLow: number, estimateHigh: number) => {
+    setBookingData(prev => ({
+      ...prev,
+      squareFootage: sqft,
+      estimateLow,
+      estimateHigh
+    }))
+    addUserMessage(`✓ ${sqft.toLocaleString()} sq ft looks right`)
+    setAiEstimate(null)
+
+    await addBotMessage("What's the current condition of the asphalt?", 'conditions')
+    setStep(STEPS.CONDITION)
+  }
+
+  const handleAdjustEstimate = () => {
+    setAiEstimate(null)
     if (config.googleMaps.apiKey) {
-      await addBotMessage(
-        `Got it: ${address}\n\nNow let's measure your ${bookingData.projectTypeName.toLowerCase()}. Draw the outline on the satellite map.`,
+      addBotMessage(
+        `No problem! Draw the exact area on the map for a precise measurement.`,
         'mapButton'
       )
-      setStep(STEPS.MAP_DRAW)
     } else {
-      await addBotMessage("Enter the approximate square footage:")
+      addBotMessage("Enter the correct square footage:")
       setInputPlaceholder('Square footage (e.g., 1500)...')
-      setStep(STEPS.MAP_DRAW)
     }
   }
 
   const handleMapConfirm = async () => {
     if (!drawnArea) return
     setShowMap(false)
+    setAiEstimate(null)
     setBookingData(prev => ({ ...prev, squareFootage: drawnArea }))
     addUserMessage(`${drawnArea.toLocaleString()} sq ft measured`)
 
@@ -555,6 +646,69 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     </div>
   )
 
+  const renderAiEstimateResult = (data: { sqft: number; confidence: string; description: string; estimateLow: number; estimateHigh: number }) => {
+    const confidenceColors: Record<string, string> = {
+      high: 'bg-green-500',
+      medium: 'bg-yellow-500',
+      low: 'bg-orange-500'
+    }
+    const confidenceLabels: Record<string, string> = {
+      high: 'High confidence',
+      medium: 'Medium confidence',
+      low: 'Estimate - verify recommended'
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        {/* AI Measurement Card */}
+        <div className="bg-[#243447] rounded-xl overflow-hidden">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-white font-semibold">AI Measurement</span>
+              </div>
+              <span className={`${confidenceColors[data.confidence]} text-white text-xs px-2 py-1 rounded-full`}>
+                {confidenceLabels[data.confidence]}
+              </span>
+            </div>
+            <p className="text-gray-400 text-sm mb-3">{data.description}</p>
+            <div className="bg-[#1a2332] rounded-lg p-3">
+              <p className="text-gray-400 text-xs">Measured Area</p>
+              <p className="text-white text-2xl font-bold">{data.sqft.toLocaleString()} sq ft</p>
+            </div>
+          </div>
+
+          {/* Price Estimate */}
+          <div className="bg-gradient-to-r from-[#22c55e] to-[#16a34a] p-4">
+            <p className="text-green-100 text-xs mb-1">Your Estimate</p>
+            <p className="text-white text-xl font-bold">${data.estimateLow.toLocaleString()} - ${data.estimateHigh.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleAcceptAiEstimate(data.sqft, data.estimateLow, data.estimateHigh)}
+            className="flex-1 bg-[#22c55e] hover:bg-[#1ea550] text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
+            <Check className="w-5 h-5" />
+            Looks Right
+          </button>
+          <button
+            onClick={handleAdjustEstimate}
+            className="flex-1 bg-[#243447] hover:bg-[#2d4058] text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition-colors border border-gray-600"
+          >
+            <MapPin className="w-5 h-5" />
+            Adjust
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const renderConditions = () => (
     <div className="mt-3 grid grid-cols-2 gap-2">
       {config.conditions.map(condition => (
@@ -668,6 +822,7 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
             {message.component === 'services' && renderServices()}
             {message.component === 'projectTypes' && renderProjectTypes()}
             {message.component === 'mapButton' && renderMapButton()}
+            {message.component === 'aiEstimateResult' && renderAiEstimateResult(message.data)}
             {message.component === 'estimate' && renderEstimate(message.data)}
             {message.component === 'conditions' && renderConditions()}
             {message.component === 'datePicker' && renderDatePicker()}
@@ -682,6 +837,16 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        {isAnalyzing && (
+          <div className="flex justify-start">
+            <div className="bg-[#243447] rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-[#22c55e] animate-spin" />
+                <span className="text-gray-400 text-sm">Analyzing satellite imagery...</span>
               </div>
             </div>
           </div>
