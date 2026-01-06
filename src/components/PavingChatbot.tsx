@@ -4,10 +4,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { config } from '@/config/config'
 import {
-  X, MapPin, Calendar, Send, MessageCircle,
-  ArrowRight, ArrowLeft, Check, Home, Building2,
-  Phone, Plus, Minus, Mic, MicOff, ChevronDown, ChevronUp,
-  Loader2, Truck, ParkingSquare, Factory, Store, Church, Building
+  X, MapPin, Calendar, Send, Phone, Check, Home, Building2,
+  Plus, Minus, Mic, MicOff, Loader2, Heart, ChevronRight
 } from 'lucide-react'
 
 declare global {
@@ -19,31 +17,8 @@ declare global {
 }
 
 // ============================================
-// STEP DEFINITIONS
+// TYPES
 // ============================================
-const STEPS = {
-  WELCOME: 'welcome',
-  SERVICE: 'service',
-  PROJECT_TYPE: 'project_type',
-  ADDRESS: 'address',
-  MAP_DRAW: 'map_draw',
-  CONDITION: 'condition',
-  DATE: 'date',
-  CONTACT: 'contact',
-  SUMMARY: 'summary',
-  COMPLETE: 'complete',
-}
-
-// Icon mapping
-const projectIcons: Record<string, any> = {
-  'driveway': Home,
-  'parking-lot': ParkingSquare,
-  'church': Church,
-  'apartment': Building,
-  'retail': Store,
-  'industrial': Factory,
-}
-
 interface Message {
   id: number
   type: 'bot' | 'user'
@@ -57,6 +32,7 @@ interface BookingData {
   serviceName: string
   projectType: string
   projectTypeName: string
+  projectDiscount: number
   address: string
   squareFootage: number
   condition: string
@@ -74,44 +50,31 @@ interface PavingChatbotProps {
   onClose?: () => void
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function PavingChatbot({ onClose }: PavingChatbotProps) {
-  // ============================================
-  // STATE
-  // ============================================
-  const [step, setStep] = useState(STEPS.WELCOME)
+  const [step, setStep] = useState('service')
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [inputPlaceholder, setInputPlaceholder] = useState('Type a message...')
+  const [inputPlaceholder, setInputPlaceholder] = useState('Type here...')
   const [isTyping, setIsTyping] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [drawnArea, setDrawnArea] = useState<number | null>(null)
   const [isListening, setIsListening] = useState(false)
-  const [showAddOns, setShowAddOns] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [aiEstimate, setAiEstimate] = useState<{ sqft: number; confidence: string; description: string } | null>(null)
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  const [sessionId] = useState(() => `s_${Date.now()}`)
 
   const [bookingData, setBookingData] = useState<BookingData>({
-    service: '',
-    serviceName: '',
-    projectType: '',
-    projectTypeName: '',
-    address: '',
-    squareFootage: 0,
-    condition: '',
-    estimateLow: 0,
-    estimateHigh: 0,
-    selectedDate: null,
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    addOns: {},
-    notes: '',
+    service: '', serviceName: '', projectType: '', projectTypeName: '',
+    projectDiscount: 0, address: '', squareFootage: 0, condition: '',
+    estimateLow: 0, estimateHigh: 0, selectedDate: null,
+    customerName: '', customerPhone: '', customerEmail: '',
+    addOns: {}, notes: '',
   })
 
-  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -129,15 +92,13 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
 
   useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
 
-  const addBotMessage = useCallback(async (text: string, component?: string, data?: any) => {
-    setIsTyping(true)
-    await new Promise(resolve => setTimeout(resolve, config.chatbot.typingDelay))
-    setIsTyping(false)
-    setMessages(prev => [...prev, { id: Date.now(), type: 'bot', text, component, data }])
-  }, [])
-
-  const addUserMessage = useCallback((text: string) => {
-    setMessages(prev => [...prev, { id: Date.now(), type: 'user', text }])
+  const addMessage = useCallback(async (type: 'bot' | 'user', text: string, component?: string, data?: any) => {
+    if (type === 'bot') {
+      setIsTyping(true)
+      await new Promise(r => setTimeout(r, 400))
+      setIsTyping(false)
+    }
+    setMessages(prev => [...prev, { id: Date.now(), type, text, component, data }])
   }, [])
 
   // ============================================
@@ -145,132 +106,134 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   // ============================================
   useEffect(() => {
     if (typeof window !== 'undefined' && config.chatbot.enableVoiceInput) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition()
-        recognitionRef.current.continuous = false
-        recognitionRef.current.interimResults = false
-        recognitionRef.current.lang = 'en-US'
-
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript
-          setInputValue(prev => prev + (prev ? ' ' : '') + transcript)
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SR) {
+        const recognition = new SR()
+        recognition.continuous = false
+        recognition.interimResults = false
+        recognition.lang = 'en-US'
+        recognition.onresult = (e: any) => {
+          setInputValue(prev => prev + (prev ? ' ' : '') + e.results[0][0].transcript)
           setIsListening(false)
         }
-
-        recognitionRef.current.onerror = () => setIsListening(false)
-        recognitionRef.current.onend = () => setIsListening(false)
+        recognition.onerror = () => setIsListening(false)
+        recognition.onend = () => setIsListening(false)
+        recognitionRef.current = recognition
       }
     }
   }, [])
 
   const toggleVoice = () => {
     if (!recognitionRef.current) return
-    if (isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    } else {
-      recognitionRef.current.start()
-      setIsListening(true)
-    }
+    if (isListening) { recognitionRef.current.stop(); setIsListening(false) }
+    else { recognitionRef.current.start(); setIsListening(true) }
   }
 
   // ============================================
   // INITIALIZE
   // ============================================
   useEffect(() => {
-    const timer = setTimeout(() => {
-      addBotMessage(
-        `Hey! 👋 Need sealcoating or paving? I'll help you get an instant estimate.\n\nWhat service do you need?`,
-        'services'
-      )
-      setStep(STEPS.SERVICE)
+    setTimeout(() => {
+      addMessage('bot', `Hey there! 👋\n\nI'll help you get a quick estimate. What service do you need?`, 'services')
     }, 300)
-    return () => clearTimeout(timer)
-  }, [addBotMessage])
+  }, [addMessage])
 
   // ============================================
   // GOOGLE MAPS
   // ============================================
   useEffect(() => {
-    if (typeof window === 'undefined' || !config.googleMaps.apiKey) return
-    if (window.google?.maps) return
-
+    if (typeof window === 'undefined' || !config.googleMaps.apiKey || window.google?.maps) return
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMaps.apiKey}&libraries=places,geometry,drawing`
     script.async = true
     document.head.appendChild(script)
   }, [])
 
-  useEffect(() => {
-    if (!showMap || !mapContainerRef.current) return
+  const initializeMap = useCallback(async () => {
+    if (!mapContainerRef.current) return
 
-    const initMap = async () => {
-      if (!window.google?.maps) {
-        await new Promise<void>(resolve => {
-          const check = setInterval(() => {
-            if (window.google?.maps) { clearInterval(check); resolve() }
-          }, 100)
-          setTimeout(() => { clearInterval(check); resolve() }, 10000)
-        })
-      }
-      if (!window.google?.maps || !mapContainerRef.current) return
-
-      let center = config.googleMaps.defaultCenter
-      if (bookingData.address) {
-        try {
-          const geocoder = new window.google.maps.Geocoder()
-          const result: any = await new Promise((resolve, reject) => {
-            geocoder.geocode({ address: bookingData.address }, (results: any, status: string) => {
-              if (status === 'OK' && results[0]) resolve(results[0].geometry.location)
-              else reject(status)
-            })
-          })
-          center = { lat: result.lat(), lng: result.lng() }
-        } catch { /* use default */ }
-      }
-
-      const map = new window.google.maps.Map(mapContainerRef.current, {
-        center, zoom: config.googleMaps.defaultZoom, mapTypeId: 'hybrid',
-        disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
+    // Wait for Google Maps to load
+    if (!window.google?.maps) {
+      await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+          if (window.google?.maps) { clearInterval(check); resolve() }
+        }, 100)
+        setTimeout(() => { clearInterval(check); resolve() }, 10000)
       })
-      mapRef.current = map
-
-      const drawingManager = new window.google.maps.drawing.DrawingManager({
-        drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
-        drawingControl: false,
-        polygonOptions: {
-          fillColor: '#22c55e', fillOpacity: 0.35,
-          strokeColor: '#22c55e', strokeWeight: 3,
-          clickable: true, editable: true, draggable: true,
-        },
-      })
-      drawingManager.setMap(map)
-      drawingManagerRef.current = drawingManager
-
-      window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: any) => {
-        if (polygonRef.current) polygonRef.current.setMap(null)
-        polygonRef.current = polygon
-        const updateArea = () => {
-          const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
-          setDrawnArea(Math.round(area * 10.7639))
-        }
-        updateArea()
-        window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
-        window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
-        drawingManager.setDrawingMode(null)
-      })
-      setMapReady(true)
     }
-    initMap()
 
+    if (!window.google?.maps || !mapContainerRef.current) return
+
+    let center = config.googleMaps.defaultCenter
+
+    // Geocode address if available
+    if (bookingData.address) {
+      try {
+        const geocoder = new window.google.maps.Geocoder()
+        const result: any = await new Promise((resolve, reject) => {
+          geocoder.geocode({ address: bookingData.address }, (results: any, status: string) => {
+            if (status === 'OK' && results[0]) resolve(results[0].geometry.location)
+            else reject(status)
+          })
+        })
+        center = { lat: result.lat(), lng: result.lng() }
+      } catch { /* use default */ }
+    }
+
+    const map = new window.google.maps.Map(mapContainerRef.current, {
+      center,
+      zoom: 20,
+      mapTypeId: 'satellite',
+      disableDefaultUI: true,
+      zoomControl: true,
+      gestureHandling: 'greedy',
+    })
+    mapRef.current = map
+
+    const drawingManager = new window.google.maps.drawing.DrawingManager({
+      drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
+      drawingControl: false,
+      polygonOptions: {
+        fillColor: '#22c55e',
+        fillOpacity: 0.4,
+        strokeColor: '#22c55e',
+        strokeWeight: 3,
+        clickable: true,
+        editable: true,
+        draggable: true,
+      },
+    })
+    drawingManager.setMap(map)
+    drawingManagerRef.current = drawingManager
+
+    window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: any) => {
+      if (polygonRef.current) polygonRef.current.setMap(null)
+      polygonRef.current = polygon
+
+      const updateArea = () => {
+        const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
+        setDrawnArea(Math.round(area * 10.7639)) // Convert to sq ft
+      }
+      updateArea()
+      window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
+      window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
+      drawingManager.setDrawingMode(null)
+    })
+
+    setMapReady(true)
+  }, [bookingData.address])
+
+  useEffect(() => {
+    if (showMap) {
+      setMapReady(false)
+      initializeMap()
+    }
     return () => {
       if (polygonRef.current) { polygonRef.current.setMap(null); polygonRef.current = null }
       if (drawingManagerRef.current) { drawingManagerRef.current.setMap(null); drawingManagerRef.current = null }
       mapRef.current = null
-      setMapReady(false)
     }
-  }, [showMap, bookingData.address])
+  }, [showMap, initializeMap])
 
   const clearDrawing = () => {
     if (polygonRef.current) { polygonRef.current.setMap(null); polygonRef.current = null }
@@ -283,11 +246,15 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   // ============================================
   // CALCULATIONS
   // ============================================
-  const calculateEstimate = (sqft: number, serviceId: string) => {
+  const calculateEstimate = (sqft: number, serviceId: string, discount: number = 0) => {
     const service = config.services.find(s => s.id === serviceId)
     if (!service) return { low: 0, high: 0 }
     let base = sqft * service.pricePerSqFt
     base = Math.max(base, service.minPrice)
+
+    // Apply discount
+    if (discount > 0) base = base * (1 - discount)
+
     const buffer = service.estimateBuffer || 0.20
     return { low: Math.round(base * (1 - buffer)), high: Math.round(base * (1 + buffer)) }
   }
@@ -307,37 +274,40 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   const formatDate = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   const getAddOnTotal = () => {
-    let total = 0
-    Object.entries(bookingData.addOns).forEach(([id, count]) => {
+    return Object.entries(bookingData.addOns).reduce((total, [id, count]) => {
       const addon = config.addOns.find(a => a.id === id)
-      if (addon && count > 0) total += addon.fee * count
-    })
-    return total
+      return addon && count > 0 ? total + addon.fee * count : total
+    }, 0)
   }
 
   // ============================================
-  // HANDLERS
+  // STEP HANDLERS
   // ============================================
   const handleServiceSelect = async (serviceId: string) => {
     const service = config.services.find(s => s.id === serviceId)!
     setBookingData(prev => ({ ...prev, service: serviceId, serviceName: service.name }))
-    addUserMessage(`${service.emoji} ${service.name}`)
-
-    await addBotMessage(
-      `Great choice! ${service.name} ${service.description.toLowerCase()}.\n\nWhat type of property is this for?`,
-      'projectTypes'
-    )
-    setStep(STEPS.PROJECT_TYPE)
+    addMessage('user', service.name)
+    await addMessage('bot', `Great choice!\n\nWhat type of property is this for?`, 'projectTypes')
+    setStep('project')
   }
 
-  const handleProjectTypeSelect = async (projectId: string) => {
+  const handleProjectSelect = async (projectId: string) => {
     const project = config.projectTypes.find(p => p.id === projectId)!
-    setBookingData(prev => ({ ...prev, projectType: projectId, projectTypeName: project.label }))
-    addUserMessage(`${project.emoji} ${project.label}`)
+    const discount = (project as any).discount || 0
+    setBookingData(prev => ({
+      ...prev,
+      projectType: projectId,
+      projectTypeName: project.label,
+      projectDiscount: discount
+    }))
 
-    await addBotMessage("Perfect! What's the property address?")
-    setInputPlaceholder('Enter property address...')
-    setStep(STEPS.ADDRESS)
+    let response = project.label
+    if (discount > 0) response += ` (${Math.round(discount * 100)}% discount!)`
+    addMessage('user', response)
+
+    await addMessage('bot', `What's the property address?`)
+    setInputPlaceholder('Enter address...')
+    setStep('address')
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
@@ -345,174 +315,100 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     if (!inputValue.trim()) return
     const address = inputValue.trim()
     setBookingData(prev => ({ ...prev, address }))
-    addUserMessage(address)
+    addMessage('user', address)
     setInputValue('')
 
-    // Start AI analysis
+    // Try AI estimation first
     setIsAnalyzing(true)
-    await addBotMessage(`📍 ${address}\n\n🛰️ Analyzing satellite imagery to measure your ${bookingData.projectTypeName.toLowerCase()}...`)
+    await addMessage('bot', `🛰️ Analyzing satellite imagery...`)
 
     try {
       const response = await fetch('/api/estimate-area', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address,
-          projectType: bookingData.projectType
-        })
+        body: JSON.stringify({ address, projectType: bookingData.projectType })
       })
       const result = await response.json()
-
       setIsAnalyzing(false)
 
       if (result.success && result.squareFootage) {
-        // Update address with formatted version if available
         if (result.formattedAddress) {
           setBookingData(prev => ({ ...prev, address: result.formattedAddress }))
         }
+        const estimate = calculateEstimate(result.squareFootage, bookingData.service, bookingData.projectDiscount)
 
-        setAiEstimate({
+        await addMessage('bot', `Found it!`, 'aiResult', {
           sqft: result.squareFootage,
           confidence: result.confidence,
-          description: result.description
+          description: result.description,
+          low: estimate.low,
+          high: estimate.high,
+          discount: bookingData.projectDiscount
         })
-
-        const estimate = calculateEstimate(result.squareFootage, bookingData.service)
-
-        await addBotMessage(
-          `Found it! Here's what I measured:`,
-          'aiEstimateResult',
-          {
-            sqft: result.squareFootage,
-            confidence: result.confidence,
-            description: result.description,
-            estimateLow: estimate.low,
-            estimateHigh: estimate.high
-          }
-        )
-        setStep(STEPS.MAP_DRAW)
+        setStep('confirm-area')
       } else {
-        // Fallback to manual measurement
-        if (config.googleMaps.apiKey) {
-          await addBotMessage(
-            `I couldn't automatically measure from satellite imagery.\n\nLet's do it manually - draw the outline on the map.`,
-            'mapButton'
-          )
-        } else {
-          await addBotMessage("Enter the approximate square footage:")
-          setInputPlaceholder('Square footage (e.g., 1500)...')
-        }
-        setStep(STEPS.MAP_DRAW)
+        await addMessage('bot', `Let's measure it manually.\n\nDraw the outline on the satellite map:`, 'mapButton')
+        setStep('draw')
       }
-    } catch (error) {
-      console.error('AI estimation error:', error)
+    } catch {
       setIsAnalyzing(false)
-
-      // Fallback to manual measurement
-      if (config.googleMaps.apiKey) {
-        await addBotMessage(
-          `Let's measure your ${bookingData.projectTypeName.toLowerCase()}. Draw the outline on the satellite map.`,
-          'mapButton'
-        )
-      } else {
-        await addBotMessage("Enter the approximate square footage:")
-        setInputPlaceholder('Square footage (e.g., 1500)...')
-      }
-      setStep(STEPS.MAP_DRAW)
+      await addMessage('bot', `Let's measure it.\n\nDraw the outline on the satellite map:`, 'mapButton')
+      setStep('draw')
     }
   }
 
-  const handleAcceptAiEstimate = async (sqft: number, estimateLow: number, estimateHigh: number) => {
-    setBookingData(prev => ({
-      ...prev,
-      squareFootage: sqft,
-      estimateLow,
-      estimateHigh
-    }))
-    addUserMessage(`✓ ${sqft.toLocaleString()} sq ft looks right`)
-    setAiEstimate(null)
-
-    await addBotMessage("What's the current condition of the asphalt?", 'conditions')
-    setStep(STEPS.CONDITION)
+  const handleAcceptArea = async (sqft: number, low: number, high: number) => {
+    setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: low, estimateHigh: high }))
+    addMessage('user', `${sqft.toLocaleString()} sq ft ✓`)
+    await addMessage('bot', `What's the current condition?`, 'conditions')
+    setStep('condition')
   }
 
-  const handleAdjustEstimate = () => {
-    setAiEstimate(null)
-    if (config.googleMaps.apiKey) {
-      addBotMessage(
-        `No problem! Draw the exact area on the map for a precise measurement.`,
-        'mapButton'
-      )
-    } else {
-      addBotMessage("Enter the correct square footage:")
-      setInputPlaceholder('Square footage (e.g., 1500)...')
-    }
+  const handleAdjustArea = async () => {
+    await addMessage('bot', `Draw the exact area on the map:`, 'mapButton')
+    setStep('draw')
   }
 
   const handleMapConfirm = async () => {
     if (!drawnArea) return
     setShowMap(false)
-    setAiEstimate(null)
-    setBookingData(prev => ({ ...prev, squareFootage: drawnArea }))
-    addUserMessage(`${drawnArea.toLocaleString()} sq ft measured`)
 
-    const estimate = calculateEstimate(drawnArea, bookingData.service)
-    setBookingData(prev => ({ ...prev, estimateLow: estimate.low, estimateHigh: estimate.high }))
+    const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.projectDiscount)
+    setBookingData(prev => ({
+      ...prev,
+      squareFootage: drawnArea,
+      estimateLow: estimate.low,
+      estimateHigh: estimate.high
+    }))
+    addMessage('user', `${drawnArea.toLocaleString()} sq ft measured`)
 
-    await addBotMessage(`Based on ${drawnArea.toLocaleString()} sq ft:`, 'estimate', estimate)
-
+    await addMessage('bot', `Based on ${drawnArea.toLocaleString()} sq ft:`, 'estimate', { low: estimate.low, high: estimate.high })
     setTimeout(async () => {
-      await addBotMessage("What's the current condition of the asphalt?", 'conditions')
-      setStep(STEPS.CONDITION)
-    }, 800)
-  }
-
-  const handleManualSqft = async () => {
-    setShowMap(false)
-    await addBotMessage("Enter the approximate square footage:")
-    setInputPlaceholder('Square footage (e.g., 1500)...')
-  }
-
-  const handleSqftSubmit = async () => {
-    const sqft = parseInt(inputValue.replace(/,/g, ''))
-    if (isNaN(sqft) || sqft <= 0) return
-    setBookingData(prev => ({ ...prev, squareFootage: sqft }))
-    addUserMessage(`${sqft.toLocaleString()} sq ft`)
-    setInputValue('')
-
-    const estimate = calculateEstimate(sqft, bookingData.service)
-    setBookingData(prev => ({ ...prev, estimateLow: estimate.low, estimateHigh: estimate.high }))
-
-    await addBotMessage(`Based on ${sqft.toLocaleString()} sq ft:`, 'estimate', estimate)
-
-    setTimeout(async () => {
-      await addBotMessage("What's the current condition of the asphalt?", 'conditions')
-      setStep(STEPS.CONDITION)
-    }, 800)
+      await addMessage('bot', `What's the current condition?`, 'conditions')
+      setStep('condition')
+    }, 600)
   }
 
   const handleConditionSelect = async (conditionId: string) => {
     const condition = config.conditions.find(c => c.id === conditionId)!
     setBookingData(prev => ({ ...prev, condition: conditionId }))
-    addUserMessage(condition.label)
+    addMessage('user', condition.label)
 
-    // Adjust estimate if needed
     if (condition.adjustment > 0) {
       const adjustedHigh = Math.round(bookingData.estimateHigh * (1 + condition.adjustment))
       setBookingData(prev => ({ ...prev, estimateHigh: adjustedHigh }))
     }
 
-    await addBotMessage("When would you like us to come out for a free on-site estimate?", 'datePicker')
-    setStep(STEPS.DATE)
+    await addMessage('bot', `When works best for a free on-site estimate?`, 'dates')
+    setStep('date')
   }
 
   const handleDateSelect = async (date: Date) => {
     setBookingData(prev => ({ ...prev, selectedDate: date }))
-    addUserMessage(formatDate(date))
-
-    await addBotMessage(`${formatDate(date)} works great!\n\nLast step - what's your name and phone number?`)
-    setInputPlaceholder('Your name and phone number...')
-    setStep(STEPS.CONTACT)
+    addMessage('user', formatDate(date))
+    await addMessage('bot', `Last step - your name and phone number?`)
+    setInputPlaceholder('Name and phone...')
+    setStep('contact')
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
@@ -521,13 +417,13 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     const input = inputValue.trim()
     const phoneMatch = input.match(/[\d\-\(\)\s]{10,}/)
     const phone = phoneMatch ? phoneMatch[0].trim() : ''
-    const name = input.replace(phone, '').trim() || input
-    setBookingData(prev => ({ ...prev, customerName: name, customerPhone: phone }))
-    addUserMessage(input)
-    setInputValue('')
+    const name = input.replace(phone, '').replace(/[,\-]/g, '').trim() || input
 
-    await addBotMessage("Here's your quote summary:", 'summary')
-    setStep(STEPS.SUMMARY)
+    setBookingData(prev => ({ ...prev, customerName: name, customerPhone: phone }))
+    addMessage('user', input)
+    setInputValue('')
+    await addMessage('bot', `Here's your quote:`, 'summary')
+    setStep('summary')
   }
 
   const handleAddOnChange = (id: string, delta: number) => {
@@ -537,7 +433,7 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     }))
   }
 
-  const handleConfirmBooking = async () => {
+  const handleConfirm = async () => {
     setIsSubmitting(true)
     try {
       const response = await fetch('/api/paving-quote', {
@@ -562,234 +458,272 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       const result = await response.json()
 
       if (result.success) {
-        await addBotMessage(
-          `Booking confirmed! 🎉\n\n${config.businessName} will contact you at ${bookingData.customerPhone} to confirm your appointment on ${formatDate(bookingData.selectedDate!)}.\n\nThank you!`,
-          'confirmation'
-        )
+        await addMessage('bot', `Booked! 🎉\n\nWe'll call you at ${bookingData.customerPhone} to confirm your ${formatDate(bookingData.selectedDate!)} appointment.\n\nThank you!`, 'done')
       } else {
         throw new Error(result.error)
       }
-    } catch (error) {
-      console.error('Booking error:', error)
-      await addBotMessage(`There was an issue. Please call us at ${config.phone} and we'll help you right away!`)
+    } catch {
+      await addMessage('bot', `Something went wrong. Please call us at ${config.phone}`)
     } finally {
       setIsSubmitting(false)
-      setStep(STEPS.COMPLETE)
+      setStep('done')
     }
   }
 
-  const handleInputSubmit = () => {
+  const handleInput = () => {
     if (!inputValue.trim()) return
-    switch (step) {
-      case STEPS.ADDRESS: handleAddressSubmit(); break
-      case STEPS.MAP_DRAW: handleSqftSubmit(); break
-      case STEPS.CONTACT: handleContactSubmit(); break
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInputSubmit() }
+    if (step === 'address') handleAddressSubmit()
+    else if (step === 'contact') handleContactSubmit()
   }
 
   // ============================================
   // RENDER COMPONENTS
   // ============================================
-  const renderServices = () => (
-    <div className="mt-3 space-y-2">
-      {config.services.map(service => (
-        <button key={service.id} onClick={() => handleServiceSelect(service.id)}
-          className="w-full bg-[#243447] hover:bg-[#2d4058] border border-gray-600 rounded-xl p-4 flex items-center gap-3 transition-colors">
-          <div className="w-10 h-10 bg-[#22c55e] rounded-lg flex items-center justify-center text-lg">{service.emoji}</div>
-          <div className="flex-1 text-left">
-            <p className="text-white font-medium">{service.name}</p>
-            <p className="text-gray-400 text-xs">{service.description}</p>
-          </div>
-          <span className="text-[#22c55e] font-semibold text-sm">${service.pricePerSqFt}/sqft</span>
-        </button>
-      ))}
-    </div>
+  const ServiceButton = ({ service }: { service: typeof config.services[0] }) => (
+    <button
+      onClick={() => handleServiceSelect(service.id)}
+      className="w-full bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-green-500/50 rounded-xl p-4 text-left transition-all group"
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{service.emoji}</span>
+        <div className="flex-1">
+          <p className="text-white font-medium">{service.name}</p>
+          <p className="text-gray-400 text-sm">{service.description}</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-green-500 transition-colors" />
+      </div>
+    </button>
   )
 
-  const renderProjectTypes = () => (
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      {config.projectTypes.map(project => {
-        const IconComponent = projectIcons[project.id] || Building2
-        return (
-          <button key={project.id} onClick={() => handleProjectTypeSelect(project.id)}
-            className="bg-[#243447] hover:bg-[#2d4058] border border-gray-600 rounded-xl p-3 text-center transition-colors">
-            <IconComponent className="w-5 h-5 text-[#22c55e] mx-auto mb-1" />
-            <p className="text-white text-sm font-medium">{project.label}</p>
-            <p className="text-gray-400 text-xs">~{project.avgSqFt.toLocaleString()} sq ft</p>
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  const renderMapButton = () => (
-    <div className="mt-3 space-y-2">
-      <button onClick={() => setShowMap(true)}
-        className="w-full bg-[#22c55e] hover:bg-[#1ea550] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 transition-colors">
-        <MapPin className="w-5 h-5" />Draw Area on Map
-      </button>
-      <button onClick={handleManualSqft} className="w-full text-gray-400 hover:text-white text-sm py-2 transition-colors">
-        Or enter square footage manually
-      </button>
-    </div>
-  )
-
-  const renderEstimate = (data: { low: number; high: number }) => (
-    <div className="mt-3 bg-gradient-to-r from-[#22c55e] to-[#16a34a] rounded-xl p-4">
-      <p className="text-green-100 text-xs mb-1">Estimated Range</p>
-      <p className="text-white text-2xl font-bold">${data.low.toLocaleString()} - ${data.high.toLocaleString()}</p>
-      <p className="text-green-100 text-xs mt-1">Final price after on-site inspection</p>
-    </div>
-  )
-
-  const renderAiEstimateResult = (data: { sqft: number; confidence: string; description: string; estimateLow: number; estimateHigh: number }) => {
-    const confidenceColors: Record<string, string> = {
-      high: 'bg-green-500',
-      medium: 'bg-yellow-500',
-      low: 'bg-orange-500'
+  const ProjectButton = ({ project }: { project: typeof config.projectTypes[0] }) => {
+    const icons: Record<string, any> = {
+      'residential': Home,
+      'commercial': Building2,
+      'house-of-worship': Heart,
     }
-    const confidenceLabels: Record<string, string> = {
-      high: 'High confidence',
-      medium: 'Medium confidence',
-      low: 'Estimate - verify recommended'
-    }
+    const Icon = icons[project.id] || Building2
+    const discount = (project as any).discount || 0
 
     return (
-      <div className="mt-3 space-y-3">
-        {/* AI Measurement Card */}
-        <div className="bg-[#243447] rounded-xl overflow-hidden">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-white font-semibold">AI Measurement</span>
-              </div>
-              <span className={`${confidenceColors[data.confidence]} text-white text-xs px-2 py-1 rounded-full`}>
-                {confidenceLabels[data.confidence]}
-              </span>
-            </div>
-            <p className="text-gray-400 text-sm mb-3">{data.description}</p>
-            <div className="bg-[#1a2332] rounded-lg p-3">
-              <p className="text-gray-400 text-xs">Measured Area</p>
-              <p className="text-white text-2xl font-bold">{data.sqft.toLocaleString()} sq ft</p>
-            </div>
-          </div>
-
-          {/* Price Estimate */}
-          <div className="bg-gradient-to-r from-[#22c55e] to-[#16a34a] p-4">
-            <p className="text-green-100 text-xs mb-1">Your Estimate</p>
-            <p className="text-white text-xl font-bold">${data.estimateLow.toLocaleString()} - ${data.estimateHigh.toLocaleString()}</p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleAcceptAiEstimate(data.sqft, data.estimateLow, data.estimateHigh)}
-            className="flex-1 bg-[#22c55e] hover:bg-[#1ea550] text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 transition-colors"
-          >
-            <Check className="w-5 h-5" />
-            Looks Right
-          </button>
-          <button
-            onClick={handleAdjustEstimate}
-            className="flex-1 bg-[#243447] hover:bg-[#2d4058] text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition-colors border border-gray-600"
-          >
-            <MapPin className="w-5 h-5" />
-            Adjust
-          </button>
-        </div>
-      </div>
+      <button
+        onClick={() => handleProjectSelect(project.id)}
+        className="bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-green-500/50 rounded-xl p-4 text-center transition-all relative"
+      >
+        {discount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+            {Math.round(discount * 100)}% OFF
+          </span>
+        )}
+        <Icon className="w-8 h-8 text-green-500 mx-auto mb-2" />
+        <p className="text-white font-medium">{project.label}</p>
+        <p className="text-gray-500 text-xs mt-1">{project.description}</p>
+      </button>
     )
   }
 
-  const renderConditions = () => (
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      {config.conditions.map(condition => (
-        <button key={condition.id} onClick={() => handleConditionSelect(condition.id)}
-          className="bg-[#243447] hover:bg-[#2d4058] border border-gray-600 rounded-xl p-3 text-left transition-colors">
-          <p className="text-white text-sm font-medium">{condition.label}</p>
-          <p className="text-gray-400 text-xs">{condition.description}</p>
-        </button>
-      ))}
-    </div>
-  )
+  const renderComponent = (component: string, data: any) => {
+    switch (component) {
+      case 'services':
+        return (
+          <div className="mt-3 space-y-2">
+            {config.services.map(s => <ServiceButton key={s.id} service={s} />)}
+          </div>
+        )
 
-  const renderDatePicker = () => (
-    <div className="mt-3">
-      <p className="text-gray-400 text-xs mb-2">Pick a preferred date:</p>
-      <div className="grid grid-cols-3 gap-2">
-        {getAvailableDates().map((date, idx) => (
-          <button key={idx} onClick={() => handleDateSelect(date)}
-            className="bg-[#243447] hover:bg-[#22c55e] border border-gray-600 hover:border-[#22c55e] rounded-xl py-3 px-2 text-center transition-colors group">
-            <Calendar className="w-4 h-4 text-gray-400 group-hover:text-white mx-auto mb-1" />
-            <p className="text-white text-xs font-medium">{formatDate(date)}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+      case 'projectTypes':
+        return (
+          <div className="mt-3 grid grid-cols-1 gap-2">
+            {config.projectTypes.map(p => <ProjectButton key={p.id} project={p} />)}
+          </div>
+        )
 
-  const renderSummary = () => {
-    const addOnTotal = getAddOnTotal()
-    return (
-      <div className="mt-3 bg-[#243447] rounded-xl overflow-hidden">
-        <div className="divide-y divide-gray-700">
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Service</span><span className="text-white text-sm font-medium">{bookingData.serviceName}</span></div>
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Property</span><span className="text-white text-sm font-medium">{bookingData.projectTypeName}</span></div>
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Area</span><span className="text-white text-sm font-medium">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Condition</span><span className="text-white text-sm font-medium">{config.conditions.find(c => c.id === bookingData.condition)?.label}</span></div>
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Appointment</span><span className="text-white text-sm font-medium">{bookingData.selectedDate ? formatDate(bookingData.selectedDate) : 'TBD'}</span></div>
-          <div className="flex justify-between px-4 py-3"><span className="text-gray-400 text-sm">Contact</span><span className="text-white text-sm font-medium text-right">{bookingData.customerName}<br /><span className="text-gray-400">{bookingData.customerPhone}</span></span></div>
-        </div>
-
-        {bookingData.service === 'sealcoating' && (
-          <div className="border-t border-gray-700 px-4 py-3">
-            <button onClick={() => setShowAddOns(!showAddOns)} className="w-full flex items-center justify-between text-gray-300 text-sm font-medium">
-              Add-on services (optional)
-              {showAddOns ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      case 'mapButton':
+        return (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowMap(true)}
+              className="w-full bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 px-4 font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              <MapPin className="w-5 h-5" />
+              Open Satellite Map
             </button>
-            {showAddOns && (
-              <div className="mt-3 space-y-2">
-                {config.addOns.map(addon => (
-                  <div key={addon.id} className="flex items-center justify-between bg-[#1a2332] rounded-lg px-3 py-2">
-                    <div><p className="text-white text-sm">{addon.item}</p><p className="text-gray-400 text-xs">${addon.fee} {addon.unit}</p></div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => handleAddOnChange(addon.id, -1)} className="w-7 h-7 bg-[#243447] hover:bg-[#2d4058] text-gray-400 rounded flex items-center justify-center"><Minus className="w-4 h-4" /></button>
-                      <span className="text-white w-4 text-center">{bookingData.addOns[addon.id] || 0}</span>
-                      <button onClick={() => handleAddOnChange(addon.id, 1)} className="w-7 h-7 bg-[#22c55e] hover:bg-[#1ea550] text-white rounded flex items-center justify-center"><Plus className="w-4 h-4" /></button>
-                    </div>
+          </div>
+        )
+
+      case 'aiResult':
+        return (
+          <div className="mt-3 space-y-3">
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-green-500" />
                   </div>
-                ))}
+                  <span className="text-white font-medium">AI Measurement</span>
+                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
+                    data.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                    data.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                    'bg-orange-500/20 text-orange-400'
+                  }`}>
+                    {data.confidence} confidence
+                  </span>
+                </div>
+                <p className="text-gray-400 text-sm mb-3">{data.description}</p>
+                <div className="bg-gray-900/50 rounded-lg p-3 text-center">
+                  <p className="text-gray-500 text-xs">Measured Area</p>
+                  <p className="text-white text-2xl font-bold">{data.sqft.toLocaleString()} sq ft</p>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-green-600 to-green-500 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-xs">Estimated Price</p>
+                    {data.discount > 0 && (
+                      <p className="text-green-200 text-xs">Includes {Math.round(data.discount * 100)}% discount</p>
+                    )}
+                  </div>
+                  <p className="text-white text-xl font-bold">${data.low.toLocaleString()} - ${data.high.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleAcceptArea(data.sqft, data.low, data.high)}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check className="w-5 h-5" />
+                Looks Right
+              </button>
+              <button
+                onClick={handleAdjustArea}
+                className="flex-1 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-white rounded-xl py-3 font-medium transition-colors"
+              >
+                Adjust
+              </button>
+            </div>
+          </div>
+        )
+
+      case 'estimate':
+        return (
+          <div className="mt-3 bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4">
+            <p className="text-green-100 text-xs">Estimated Price</p>
+            <p className="text-white text-2xl font-bold">${data.low.toLocaleString()} - ${data.high.toLocaleString()}</p>
+          </div>
+        )
+
+      case 'conditions':
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {config.conditions.map(c => (
+              <button
+                key={c.id}
+                onClick={() => handleConditionSelect(c.id)}
+                className="bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-green-500/50 rounded-xl p-3 text-left transition-all"
+              >
+                <p className="text-white font-medium text-sm">{c.label}</p>
+                <p className="text-gray-500 text-xs">{c.description}</p>
+              </button>
+            ))}
+          </div>
+        )
+
+      case 'dates':
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {getAvailableDates().map((d, i) => (
+              <button
+                key={i}
+                onClick={() => handleDateSelect(d)}
+                className="bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-green-500/50 rounded-xl p-3 text-center transition-all"
+              >
+                <Calendar className="w-4 h-4 text-gray-500 mx-auto mb-1" />
+                <p className="text-white text-sm font-medium">{formatDate(d)}</p>
+              </button>
+            ))}
+          </div>
+        )
+
+      case 'summary':
+        const addOnTotal = getAddOnTotal()
+        return (
+          <div className="mt-3 bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+            <div className="divide-y divide-gray-700/50">
+              <Row label="Service" value={bookingData.serviceName} />
+              <Row label="Property" value={bookingData.projectTypeName} />
+              <Row label="Area" value={`${bookingData.squareFootage.toLocaleString()} sq ft`} />
+              <Row label="Condition" value={config.conditions.find(c => c.id === bookingData.condition)?.label || ''} />
+              <Row label="Date" value={bookingData.selectedDate ? formatDate(bookingData.selectedDate) : ''} />
+              <Row label="Contact" value={`${bookingData.customerName}\n${bookingData.customerPhone}`} />
+            </div>
+
+            {bookingData.service === 'sealcoating' && (
+              <div className="border-t border-gray-700/50 p-4">
+                <p className="text-gray-400 text-sm mb-3">Add-ons (optional)</p>
+                <div className="space-y-2">
+                  {config.addOns.map(addon => (
+                    <div key={addon.id} className="flex items-center justify-between bg-gray-900/50 rounded-lg px-3 py-2">
+                      <div>
+                        <p className="text-white text-sm">{addon.item}</p>
+                        <p className="text-gray-500 text-xs">${addon.fee}/{addon.unit}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleAddOnChange(addon.id, -1)} className="w-7 h-7 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center justify-center">
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-white w-5 text-center text-sm">{bookingData.addOns[addon.id] || 0}</span>
+                        <button onClick={() => handleAddOnChange(addon.id, 1)} className="w-7 h-7 bg-green-500 hover:bg-green-600 text-white rounded flex items-center justify-center">
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            <div className="bg-gray-900/50 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-white font-medium">Total Estimate</p>
+                {addOnTotal > 0 && <p className="text-gray-500 text-xs">+${addOnTotal} in add-ons</p>}
+              </div>
+              <p className="text-green-500 font-bold text-xl">
+                ${bookingData.estimateLow.toLocaleString()} - ${(bookingData.estimateHigh + addOnTotal).toLocaleString()}
+              </p>
+            </div>
+
+            <button
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white py-4 font-semibold flex items-center justify-center gap-2 transition-colors"
+            >
+              {isSubmitting ? (
+                <><Loader2 className="w-5 h-5 animate-spin" />Submitting...</>
+              ) : (
+                <>Confirm Booking<ChevronRight className="w-5 h-5" /></>
+              )}
+            </button>
           </div>
-        )}
+        )
 
-        <div className="bg-[#1a2332] px-4 py-4 flex justify-between items-center">
-          <div><p className="text-white font-bold text-lg">Estimate</p>{addOnTotal > 0 && <p className="text-gray-400 text-xs">Includes ${addOnTotal} in add-ons</p>}</div>
-          <p className="text-[#22c55e] font-bold text-xl">${bookingData.estimateLow.toLocaleString()} - ${(bookingData.estimateHigh + addOnTotal).toLocaleString()}</p>
-        </div>
+      case 'done':
+        return (
+          <div className="mt-3 flex justify-center">
+            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+              <Check className="w-8 h-8 text-white" />
+            </div>
+          </div>
+        )
 
-        <button onClick={handleConfirmBooking} disabled={isSubmitting}
-          className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-white py-4 font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
-          {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />Submitting...</> : <>Confirm Booking<ArrowRight className="w-5 h-5" /></>}
-        </button>
-      </div>
-    )
+      default:
+        return null
+    }
   }
 
-  const renderConfirmation = () => (
-    <div className="mt-3 text-center">
-      <div className="w-16 h-16 bg-[#22c55e] rounded-full flex items-center justify-center mx-auto mb-3">
-        <Check className="w-8 h-8 text-white" />
-      </div>
+  const Row = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex justify-between px-4 py-3">
+      <span className="text-gray-500 text-sm">{label}</span>
+      <span className="text-white text-sm text-right whitespace-pre-line">{value}</span>
     </div>
   )
 
@@ -797,110 +731,147 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   // MAIN RENDER
   // ============================================
   return (
-    <div className="paving-chatbot flex flex-col h-[600px] max-h-[85vh] bg-[#1a2332] rounded-2xl shadow-2xl overflow-hidden relative">
+    <div className="flex flex-col h-[550px] max-h-[80vh] bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
       {/* Header */}
-      <div className="bg-[#1a2332] px-4 py-3 flex items-center gap-3 border-b border-gray-700">
-        <div className="w-10 h-10 bg-[#22c55e] rounded-lg flex items-center justify-center">
-          <Truck className="w-5 h-5 text-white" />
+      <div className="bg-gray-900 px-4 py-3 flex items-center gap-3 border-b border-gray-800">
+        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+          <span className="text-lg">🚧</span>
         </div>
         <div className="flex-1">
-          <h2 className="text-white font-semibold text-base">{config.businessName}</h2>
-          <p className="text-gray-400 text-xs">Quick booking assistant</p>
+          <h2 className="text-white font-semibold">{config.businessName}</h2>
+          <p className="text-gray-500 text-xs">Get an instant estimate</p>
         </div>
-        {onClose && <button onClick={onClose} className="text-gray-400 hover:text-white p-1"><X className="w-5 h-5" /></button>}
+        {onClose && (
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map(message => (
-          <div key={message.id}>
-            <div className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${message.type === 'user' ? 'bg-[#22c55e] text-white rounded-br-md' : 'bg-[#243447] text-gray-100 rounded-bl-md'}`}>
-                <p className="whitespace-pre-wrap text-sm">{message.text}</p>
+        {messages.map(msg => (
+          <div key={msg.id}>
+            <div className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                msg.type === 'user'
+                  ? 'bg-green-500 text-white rounded-br-sm'
+                  : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+              }`}>
+                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>
-            {message.component === 'services' && renderServices()}
-            {message.component === 'projectTypes' && renderProjectTypes()}
-            {message.component === 'mapButton' && renderMapButton()}
-            {message.component === 'aiEstimateResult' && renderAiEstimateResult(message.data)}
-            {message.component === 'estimate' && renderEstimate(message.data)}
-            {message.component === 'conditions' && renderConditions()}
-            {message.component === 'datePicker' && renderDatePicker()}
-            {message.component === 'summary' && renderSummary()}
-            {message.component === 'confirmation' && renderConfirmation()}
+            {msg.component && renderComponent(msg.component, msg.data)}
           </div>
         ))}
-        {isTyping && (
+
+        {(isTyping || isAnalyzing) && (
           <div className="flex justify-start">
-            <div className="bg-[#243447] rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
-        {isAnalyzing && (
-          <div className="flex justify-start">
-            <div className="bg-[#243447] rounded-2xl rounded-bl-md px-4 py-3">
+            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-[#22c55e] animate-spin" />
-                <span className="text-gray-400 text-sm">Analyzing satellite imagery...</span>
+                <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
+                <span className="text-gray-400 text-sm">
+                  {isAnalyzing ? 'Analyzing...' : 'Typing...'}
+                </span>
               </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Map Overlay */}
       {showMap && (
-        <div className="absolute inset-0 bg-[#1a2332] z-20 flex flex-col">
-          <div className="bg-[#1a2332] px-4 py-3 border-b border-gray-700">
-            <div className="flex items-center justify-between mb-2">
+        <div className="absolute inset-0 bg-gray-900 z-20 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-800">
+            <div className="flex items-center justify-between">
               <h3 className="text-white font-semibold">Draw Your Area</h3>
-              <button onClick={() => setShowMap(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setShowMap(false)} className="text-gray-500 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <p className="text-gray-400 text-xs">Click corners to draw your {bookingData.projectTypeName.toLowerCase()} outline</p>
+            <p className="text-gray-500 text-xs mt-1">Tap corners to draw the outline</p>
           </div>
+
           <div className="flex-1 relative">
             <div ref={mapContainerRef} className="h-full w-full" />
             {!mapReady && (
-              <div className="absolute inset-0 bg-[#1a2332] flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-[#22c55e] animate-spin" />
+              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
               </div>
             )}
           </div>
-          <div className="bg-[#1a2332] border-t border-gray-700 p-4">
+
+          <div className="p-4 border-t border-gray-800">
             {drawnArea ? (
               <div className="flex items-center justify-between mb-3">
-                <div><p className="text-gray-400 text-xs">Area measured</p><p className="text-white text-xl font-bold">{drawnArea.toLocaleString()} sq ft</p></div>
-                <button onClick={clearDrawing} className="text-red-400 hover:text-red-300 text-sm">Clear & Redraw</button>
+                <div>
+                  <p className="text-gray-500 text-xs">Measured</p>
+                  <p className="text-white text-xl font-bold">{drawnArea.toLocaleString()} sq ft</p>
+                </div>
+                <button onClick={clearDrawing} className="text-red-400 hover:text-red-300 text-sm">
+                  Clear
+                </button>
               </div>
-            ) : <p className="text-gray-400 text-sm mb-3 text-center">Draw your area on the map above</p>}
+            ) : (
+              <p className="text-gray-500 text-sm mb-3 text-center">Draw on the map above</p>
+            )}
             <div className="flex gap-2">
-              <button onClick={() => setShowMap(false)} className="flex-1 bg-[#243447] hover:bg-[#2d4058] text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2"><ArrowLeft className="w-4 h-4" />Back</button>
-              <button onClick={handleMapConfirm} disabled={!drawnArea} className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 ${drawnArea ? 'bg-[#22c55e] hover:bg-[#1ea550] text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}><Check className="w-4 h-4" />Confirm</button>
+              <button
+                onClick={() => setShowMap(false)}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-medium transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleMapConfirm}
+                disabled={!drawnArea}
+                className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                  drawnArea
+                    ? 'bg-green-500 hover:bg-green-600 text-white'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Confirm
+              </button>
             </div>
-            <button onClick={handleManualSqft} className="w-full text-gray-400 hover:text-white text-sm py-2 mt-2">Enter square footage manually</button>
           </div>
         </div>
       )}
 
       {/* Input */}
-      {[STEPS.ADDRESS, STEPS.MAP_DRAW, STEPS.CONTACT].includes(step) && !showMap && (
-        <div className="border-t border-gray-700 p-3 bg-[#1a2332]">
+      {['address', 'contact'].includes(step) && !showMap && (
+        <div className="border-t border-gray-800 p-3">
           <div className="flex gap-2">
             {config.chatbot.enableVoiceInput && recognitionRef.current && (
-              <button onClick={toggleVoice} className={`p-3 rounded-xl transition-colors ${isListening ? 'bg-red-500 text-white' : 'bg-[#243447] text-gray-400 hover:text-white'}`}>
+              <button
+                onClick={toggleVoice}
+                className={`p-3 rounded-xl transition-colors ${
+                  isListening ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                }`}
+              >
                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
             )}
-            <input ref={inputRef} type="text" value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={handleKeyDown}
-              placeholder={inputPlaceholder} className="flex-1 bg-[#243447] text-white placeholder-gray-500 px-4 py-3 rounded-xl border border-gray-600 focus:border-[#22c55e] focus:outline-none text-sm" />
-            <button onClick={handleInputSubmit} disabled={!inputValue.trim()}
-              className={`p-3 rounded-xl transition-colors ${inputValue.trim() ? 'bg-[#22c55e] hover:bg-[#1ea550] text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleInput()}
+              placeholder={inputPlaceholder}
+              className="flex-1 bg-gray-800 text-white placeholder-gray-500 px-4 py-3 rounded-xl border border-gray-700 focus:border-green-500 focus:outline-none text-sm"
+            />
+            <button
+              onClick={handleInput}
+              disabled={!inputValue.trim()}
+              className={`p-3 rounded-xl transition-colors ${
+                inputValue.trim()
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              }`}
+            >
               <Send className="w-5 h-5" />
             </button>
           </div>
@@ -908,9 +879,10 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       )}
 
       {/* Footer */}
-      <div className="bg-[#1a2332] border-t border-gray-700 py-2 px-4 text-center">
-        <a href={`tel:${config.phoneRaw}`} className="text-gray-400 hover:text-[#22c55e] text-xs inline-flex items-center gap-1">
-          Need help? <Phone className="w-3 h-3" />{config.phone}
+      <div className="border-t border-gray-800 py-2 px-4 text-center">
+        <a href={`tel:${config.phoneRaw}`} className="text-gray-500 hover:text-green-500 text-xs inline-flex items-center gap-1 transition-colors">
+          <Phone className="w-3 h-3" />
+          {config.phone}
         </a>
       </div>
     </div>

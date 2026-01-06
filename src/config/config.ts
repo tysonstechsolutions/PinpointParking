@@ -132,56 +132,29 @@ export const config = {
   ],
 
   // ============================================
-  // PROJECT TYPES (for recommendations)
+  // PROJECT TYPES
   // ============================================
   projectTypes: [
     {
-      id: "driveway",
-      label: "Driveway",
+      id: "residential",
+      label: "Residential",
       emoji: "🏠",
-      description: "Residential driveway",
-      avgSqFt: 600,
-      recommendedService: null, // User selects
+      description: "Driveways & home properties",
+      discount: 0,
     },
     {
-      id: "parking-lot",
-      label: "Parking Lot",
-      emoji: "🅿️",
-      description: "Commercial parking",
-      avgSqFt: 10000,
-      recommendedService: null,
-    },
-    {
-      id: "church",
-      label: "Church",
-      emoji: "⛪",
-      description: "Church parking lot",
-      avgSqFt: 8000,
-      recommendedService: null,
-    },
-    {
-      id: "apartment",
-      label: "Apartment",
+      id: "commercial",
+      label: "Commercial",
       emoji: "🏢",
-      description: "Multi-family complex",
-      avgSqFt: 15000,
-      recommendedService: null,
+      description: "Businesses & parking lots",
+      discount: 0,
     },
     {
-      id: "retail",
-      label: "Retail/Business",
-      emoji: "🏪",
-      description: "Store or office",
-      avgSqFt: 12000,
-      recommendedService: null,
-    },
-    {
-      id: "industrial",
-      label: "Industrial",
-      emoji: "🏭",
-      description: "Warehouse or factory",
-      avgSqFt: 25000,
-      recommendedService: null,
+      id: "house-of-worship",
+      label: "House of Worship",
+      emoji: "🙏",
+      description: "Churches, mosques, temples & more",
+      discount: 0.10, // 10% discount
     },
   ],
 
