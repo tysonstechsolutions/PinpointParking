@@ -212,6 +212,50 @@ export const config = {
     skipSundays: true,
     skipHolidays: true,
   },
+
+  // ============================================
+  // ADMIN SETTINGS
+  // ============================================
+  admin: {
+    password: process.env.ADMIN_PASSWORD || "pinpoint2024",
+  },
+
+  // ============================================
+  // JOB STATUSES
+  // ============================================
+  jobStatuses: [
+    { id: "quote", label: "Quote Sent", color: "#f3f4f6", textColor: "#374151" },
+    { id: "approved", label: "Approved", color: "#dbeafe", textColor: "#1d4ed8" },
+    { id: "scheduled", label: "Scheduled", color: "#f3e8ff", textColor: "#7c3aed" },
+    { id: "in_progress", label: "In Progress", color: "#fef3c7", textColor: "#d97706" },
+    { id: "completed", label: "Completed", color: "#dcfce7", textColor: "#16a34a" },
+    { id: "cancelled", label: "Cancelled", color: "#fee2e2", textColor: "#dc2626" },
+  ],
+
+  // ============================================
+  // EXPENSE CATEGORIES
+  // ============================================
+  expenseCategories: [
+    { id: "materials", label: "Materials", icon: "📦" },
+    { id: "fuel", label: "Fuel", icon: "⛽" },
+    { id: "equipment", label: "Equipment", icon: "🚜" },
+    { id: "labor", label: "Labor", icon: "👷" },
+    { id: "insurance", label: "Insurance", icon: "🛡️" },
+    { id: "permits", label: "Permits", icon: "📄" },
+    { id: "other", label: "Other", icon: "📁" },
+  ],
+
+  // ============================================
+  // DOCUMENT CATEGORIES
+  // ============================================
+  documentCategories: [
+    { id: "invoice", label: "Invoice", icon: "📄" },
+    { id: "receipt", label: "Receipt", icon: "🧾" },
+    { id: "contract", label: "Contract", icon: "📝" },
+    { id: "photo", label: "Photo", icon: "📷" },
+    { id: "permit", label: "Permit", icon: "📋" },
+    { id: "other", label: "Other", icon: "📁" },
+  ],
 }
 
 export default config

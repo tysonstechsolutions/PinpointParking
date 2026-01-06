@@ -58,12 +58,20 @@ async function getImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
-// Use Claude Vision to analyze satellite image
+// Use Claude Vision to analyze satellite image and return polygon coordinates
 async function analyzeWithClaude(
   imageBase64: string,
   projectType: string,
-  address: string
-): Promise<{ squareFootage: number; confidence: string; description: string } | null> {
+  address: string,
+  centerLat: number,
+  centerLng: number,
+  zoom: number
+): Promise<{
+  squareFootage: number
+  confidence: string
+  description: string
+  polygonPoints: Array<{lat: number, lng: number}>
+} | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     console.error('ANTHROPIC_API_KEY not configured')
@@ -83,10 +91,16 @@ async function analyzeWithClaude(
 
   const targetDescription = projectDescriptions[projectType] || 'paved asphalt area'
 
+  // Calculate meters per pixel based on zoom level
+  // At zoom 20: ~0.15m/pixel, at zoom 19: ~0.30m/pixel
+  const metersPerPixel = 156543.03392 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom)
+  const imageSize = 640 // pixels
+  const halfImageMeters = (imageSize / 2) * metersPerPixel
+
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [
         {
           role: 'user',
@@ -101,27 +115,40 @@ async function analyzeWithClaude(
             },
             {
               type: 'text',
-              text: `You are an expert at analyzing satellite imagery to estimate paved surface areas for asphalt paving quotes.
+              text: `You are an expert at analyzing satellite imagery to identify and trace paved surface areas for asphalt paving quotes.
 
 Address: ${address}
 Looking for: ${targetDescription}
+Image center coordinates: ${centerLat}, ${centerLng}
+Zoom level: ${zoom}
+Scale: ${metersPerPixel.toFixed(4)} meters per pixel
+Image size: 640x640 pixels (center is at pixel 320, 320)
 
-Analyze this satellite image and estimate the square footage of the ${targetDescription}.
+IMPORTANT TASK: Analyze this satellite image and:
+1. Identify the ${targetDescription}
+2. Trace the OUTLINE/BOUNDARY of the paved area
+3. Return polygon coordinates as pixel positions (x, y from 0-640)
 
 Guidelines:
-- For driveways: Look for the paved path from street to house/garage. Typical residential driveways are 300-800 sq ft.
-- For parking lots: Include all paved parking areas and driving lanes. Can range from 5,000 to 100,000+ sq ft.
-- Consider the scale: At zoom level 20, each pixel is roughly 0.15 meters.
-- The image is 640x640 pixels, covering approximately 96x96 meters (10,000 sq meters total visible area).
+- For driveways: Trace the paved path from street to garage. Usually rectangular or L-shaped.
+- For parking lots: Trace the entire paved parking area boundary, including driving lanes.
+- Be precise with the corners and edges of the paved surface.
+- Include 4-8 points for simple shapes, up to 12 points for complex shapes.
+- Points should trace the boundary clockwise starting from the top-left area.
 
 Respond in this exact JSON format only, no other text:
 {
-  "squareFootage": <number>,
+  "squareFootage": <estimated square feet as number>,
   "confidence": "<low|medium|high>",
-  "description": "<brief description of what you identified, e.g., 'Two-car driveway approximately 20ft x 35ft'>"
+  "description": "<brief description, e.g., 'Two-car driveway approximately 20ft x 35ft'>",
+  "polygonPixels": [
+    {"x": <0-640>, "y": <0-640>},
+    {"x": <0-640>, "y": <0-640>},
+    ...more points tracing the boundary
+  ]
 }
 
-If you cannot identify the target area clearly, estimate based on typical sizes for that project type and set confidence to "low".`
+If you can see a paved area, trace it even if confidence is low. The customer will verify and adjust.`
             }
           ],
         }
@@ -137,10 +164,31 @@ If you cannot identify the target area clearly, estimate based on typical sizes 
     if (!jsonMatch) return null
 
     const result = JSON.parse(jsonMatch[0])
+
+    // Convert pixel coordinates to lat/lng
+    const polygonPoints: Array<{lat: number, lng: number}> = []
+    if (result.polygonPixels && Array.isArray(result.polygonPixels)) {
+      for (const pixel of result.polygonPixels) {
+        // Convert pixel offset from center to meters, then to lat/lng
+        const xOffset = (pixel.x - 320) * metersPerPixel
+        const yOffset = (320 - pixel.y) * metersPerPixel // Y is inverted in image coords
+
+        // Convert meters to degrees (approximate for small distances)
+        const latOffset = yOffset / 111320 // meters per degree latitude
+        const lngOffset = xOffset / (111320 * Math.cos(centerLat * Math.PI / 180))
+
+        polygonPoints.push({
+          lat: centerLat + latOffset,
+          lng: centerLng + lngOffset
+        })
+      }
+    }
+
     return {
       squareFootage: Math.round(result.squareFootage),
       confidence: result.confidence,
-      description: result.description
+      description: result.description,
+      polygonPoints: polygonPoints.length >= 3 ? polygonPoints : []
     }
   } catch (error) {
     console.error('Claude API error:', error)
@@ -192,23 +240,32 @@ export async function POST(request: Request) {
     const analysis = await analyzeWithClaude(
       imageBase64,
       projectType || 'driveway',
-      geocodeResult.formattedAddress
+      geocodeResult.formattedAddress,
+      geocodeResult.lat,
+      geocodeResult.lng,
+      zoom
     )
 
     if (!analysis) {
       return NextResponse.json({
         success: false,
         error: 'Could not analyze image',
-        fallback: true
+        fallback: true,
+        coordinates: {
+          lat: geocodeResult.lat,
+          lng: geocodeResult.lng
+        },
+        formattedAddress: geocodeResult.formattedAddress
       })
     }
 
-    // 5. Return results
+    // 5. Return results with polygon points for map display
     return NextResponse.json({
       success: true,
       squareFootage: analysis.squareFootage,
       confidence: analysis.confidence,
       description: analysis.description,
+      polygonPoints: analysis.polygonPoints,
       formattedAddress: geocodeResult.formattedAddress,
       coordinates: {
         lat: geocodeResult.lat,

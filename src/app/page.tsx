@@ -114,8 +114,8 @@ export default function Home() {
             Serving Mount Vernon and a 45-mile radius throughout Southern Illinois. From driveways to commercial parking lots, we deliver precision work that lasts.
           </p>
           <div className="hero-cta">
-            <Link href="/contact" className="btn btn-primary btn-lg">
-              Get Your Free Estimate
+            <Link href="/book" className="btn btn-primary btn-lg">
+              Get Instant Estimate
             </Link>
             <a href="tel:6182147656" className="btn btn-outline btn-lg">
               Call (618) 214-7656
@@ -172,8 +172,8 @@ export default function Home() {
             <div className="service-card service-card-cta">
               <h3>Not Sure What You Need?</h3>
               <p>Our experts will assess your pavement and recommend the best solution for your budget and goals.</p>
-              <Link href="/contact" className="btn btn-primary">
-                Get Free Assessment
+              <Link href="/book" className="btn btn-primary">
+                Get Instant Estimate
               </Link>
             </div>
           </div>
@@ -350,10 +350,10 @@ export default function Home() {
         <div className="cta-pattern"></div>
         <div className="container cta-content">
           <h2>Ready to Transform Your Pavement?</h2>
-          <p>Get a free, no-obligation estimate for your paving project. We&apos;ll assess your needs and provide transparent pricing.</p>
+          <p>Get an instant estimate for your paving project. We&apos;ll measure your property using satellite imagery and provide transparent pricing.</p>
           <div className="cta-buttons">
-            <Link href="/contact" className="btn btn-dark btn-lg">
-              Request Free Estimate
+            <Link href="/book" className="btn btn-dark btn-lg">
+              Get Instant Estimate
             </Link>
             <a href="tel:6182147656" className="btn btn-outline-dark btn-lg">
               Call (618) 214-7656
