@@ -217,7 +217,7 @@ export const config = {
   // ADMIN SETTINGS
   // ============================================
   admin: {
-    password: process.env.ADMIN_PASSWORD || "pinpoint2024",
+    password: process.env.ADMIN_PASSWORD || "pinpointparking",
   },
 
   // ============================================
