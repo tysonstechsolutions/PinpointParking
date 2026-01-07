@@ -4,11 +4,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { config } from '@/config/config'
 
+// Google Maps type declarations
+declare global {
+  interface Window {
+    google: any
+  }
+}
+
 const STEPS = {
   SERVICE: 'service',
   PROJECT_TYPE: 'project_type',
   ADDRESS: 'address',
-  MEASURING: 'measuring',
+  MAP_MEASURING: 'map_measuring',
   CONDITION: 'condition',
   DATE: 'date',
   CONTACT: 'contact',
@@ -18,11 +25,12 @@ const STEPS = {
 
 interface PavingChatbotProps {
   onClose?: () => void
+  embedded?: boolean // When true, don't show floating button
 }
 
-export default function PavingChatbot({ onClose }: PavingChatbotProps) {
+export default function PavingChatbot({ onClose, embedded = false }: PavingChatbotProps) {
   // UI State
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(embedded) // Auto-open if embedded
   const [step, setStep] = useState(STEPS.SERVICE)
   const [messages, setMessages] = useState<{type: string, text: string}[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -30,14 +38,12 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   // Map State
-  const [showMap, setShowMap] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [drawnArea, setDrawnArea] = useState<number | null>(null)
   const [aiPolygonPoints, setAiPolygonPoints] = useState<Array<{lat: number, lng: number}>>([])
   const [mapCoordinates, setMapCoordinates] = useState<{lat: number, lng: number} | null>(null)
 
   // Calendar State
-  const [showCalendar, setShowCalendar] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState(new Date())
 
   // Booking Data
@@ -107,34 +113,26 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     return { low: Math.round(base * (1 - buffer)), high: Math.round(base * (1 + buffer)) }
   }
 
-  const getAvailableDates = () => {
-    const dates: { label: string; value: string }[] = []
-    const today = new Date()
-    for (let i = 2; i <= 30 && dates.length < 6; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() + i)
-      if (date.getDay() !== 0) {
-        dates.push({
-          label: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          value: date.toISOString().split('T')[0]
-        })
-      }
-    }
-    return dates
-  }
-
   // ==========================================
-  // GOOGLE MAPS WITH POLYGON DRAWING
+  // GOOGLE MAPS WITH EDITABLE POLYGON
   // ==========================================
-  const loadMap = async (presetPolygon?: Array<{lat: number, lng: number}>) => {
+  const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>) => {
+    // Load Google Maps script if not present
     if (!window.google?.maps) {
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMaps.apiKey}&libraries=geometry,drawing`
-      script.async = true
-      document.head.appendChild(script)
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
+      if (!existingScript) {
+        const script = document.createElement('script')
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMaps.apiKey}&libraries=geometry,drawing`
+        script.async = true
+        document.head.appendChild(script)
+      }
+
       await new Promise<void>(resolve => {
         const check = setInterval(() => {
-          if (window.google?.maps) { clearInterval(check); resolve() }
+          if (window.google?.maps?.drawing) {
+            clearInterval(check)
+            resolve()
+          }
         }, 100)
         setTimeout(() => { clearInterval(check); resolve() }, 10000)
       })
@@ -145,7 +143,7 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     // Use stored coordinates or geocode
     let center = mapCoordinates || config.googleMaps.defaultCenter
 
-    if (!mapCoordinates) {
+    if (!mapCoordinates && bookingData.address) {
       const geocoder = new window.google.maps.Geocoder()
       try {
         const result: any = await new Promise((resolve, reject) => {
@@ -155,10 +153,11 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
           })
         })
         center = { lat: result.lat(), lng: result.lng() }
+        setMapCoordinates(center)
       } catch { /* use default */ }
     }
 
-    // Create map
+    // Create map with satellite view
     const map = new window.google.maps.Map(mapContainerRef.current, {
       center,
       zoom: 20,
@@ -169,9 +168,24 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     })
     mapRef.current = map
 
+    // Address marker
+    new window.google.maps.Marker({
+      position: center,
+      map: map,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: '#ffffff',
+        fillOpacity: 1,
+        strokeColor: '#22c55e',
+        strokeWeight: 3,
+      },
+      title: 'Address'
+    })
+
     // Drawing manager for polygon
     const drawingManager = new window.google.maps.drawing.DrawingManager({
-      drawingMode: null, // Start with no drawing mode - user clicks "Draw New" if needed
+      drawingMode: null,
       drawingControl: false,
       polygonOptions: {
         fillColor: '#22c55e',
@@ -186,11 +200,11 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     drawingManager.setMap(map)
     drawingManagerRef.current = drawingManager
 
-    // If we have AI polygon points, draw them
-    const polygonToUse = presetPolygon || aiPolygonPoints
-    if (polygonToUse && polygonToUse.length >= 3) {
+    // If we have polygon points (from AI or previous), draw them
+    const pointsToUse = polygonPoints || aiPolygonPoints
+    if (pointsToUse && pointsToUse.length >= 3) {
       const polygon = new window.google.maps.Polygon({
-        paths: polygonToUse,
+        paths: pointsToUse,
         fillColor: '#22c55e',
         fillOpacity: 0.4,
         strokeColor: '#22c55e',
@@ -204,12 +218,30 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
 
       // Calculate and set initial area
       const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
-      setDrawnArea(Math.round(area * 10.7639))
+      const sqft = Math.round(area * 10.7639)
+      setDrawnArea(sqft)
 
-      // Listen for edits
+      // Update estimate based on area
+      const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
+      setBookingData(prev => ({
+        ...prev,
+        squareFootage: sqft,
+        estimateLow: estimate.low,
+        estimateHigh: estimate.high
+      }))
+
+      // Listen for polygon edits
       const updateArea = () => {
         const newArea = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
-        setDrawnArea(Math.round(newArea * 10.7639))
+        const newSqft = Math.round(newArea * 10.7639)
+        setDrawnArea(newSqft)
+        const newEstimate = calculateEstimate(newSqft, bookingData.service, bookingData.discount)
+        setBookingData(prev => ({
+          ...prev,
+          squareFootage: newSqft,
+          estimateLow: newEstimate.low,
+          estimateHigh: newEstimate.high
+        }))
       }
       window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
       window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
@@ -220,20 +252,30 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       polygon.getPath().forEach((latLng: any) => bounds.extend(latLng))
       map.fitBounds(bounds, 50)
     } else {
-      // No preset polygon - enable drawing mode
+      // No polygon - enable drawing mode
       drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON)
     }
 
-    // Listen for new polygon complete
+    // Listen for new polygon drawn by user
     window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: any) => {
+      // Remove old polygon
       if (polygonRef.current) polygonRef.current.setMap(null)
       polygonRef.current = polygon
 
       const updateArea = () => {
         const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
-        setDrawnArea(Math.round(area * 10.7639))
+        const sqft = Math.round(area * 10.7639)
+        setDrawnArea(sqft)
+        const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
+        setBookingData(prev => ({
+          ...prev,
+          squareFootage: sqft,
+          estimateLow: estimate.low,
+          estimateHigh: estimate.high
+        }))
       }
       updateArea()
+
       window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
       window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
       window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
@@ -242,14 +284,6 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
 
     setMapLoaded(true)
   }
-
-  useEffect(() => {
-    if (showMap && bookingData.address) {
-      setMapLoaded(false)
-      setDrawnArea(null)
-      loadMap()
-    }
-  }, [showMap])
 
   const clearDrawing = () => {
     if (polygonRef.current) {
@@ -274,7 +308,6 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     const startPadding = firstDay.getDay()
     const days: Array<{ date: Date | null; isAvailable: boolean }> = []
 
-    // Padding for days before month starts
     for (let i = 0; i < startPadding; i++) {
       days.push({ date: null, isAvailable: false })
     }
@@ -282,14 +315,13 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const minDate = new Date(today)
-    minDate.setDate(today.getDate() + 2) // At least 2 days from now
+    minDate.setDate(today.getDate() + config.booking.minDaysOut)
 
-    // Days of the month
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d)
       const dayOfWeek = date.getDay()
       const isPast = date < minDate
-      const isSunday = dayOfWeek === 0
+      const isSunday = dayOfWeek === 0 && config.booking.skipSundays
       days.push({
         date,
         isAvailable: !isPast && !isSunday
@@ -301,13 +333,6 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
 
   const formatMonthYear = (date: Date) => {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  }
-
-  const handleCalendarDateSelect = async (date: Date) => {
-    const label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-    const value = date.toISOString().split('T')[0]
-    setShowCalendar(false)
-    handleDateSelect(label, value)
   }
 
   // ==========================================
@@ -323,7 +348,7 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
 
   const handleProjectSelect = async (projectId: string) => {
     const project = config.projectTypes.find(p => p.id === projectId)!
-    const discount = (project as any).discount || 0
+    const discount = project.discount || 0
     setBookingData(prev => ({
       ...prev,
       projectType: projectId,
@@ -346,9 +371,9 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     addUserMessage(address)
     setInputValue('')
 
-    // Try AI estimation
+    // Analyze with AI
     setIsAnalyzing(true)
-    await addBotMessage("🛰️ Analyzing satellite imagery...")
+    await addBotMessage("🛰️ Analyzing satellite imagery to outline your area...")
 
     try {
       const response = await fetch('/api/estimate-area', {
@@ -359,12 +384,14 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       const result = await response.json()
       setIsAnalyzing(false)
 
-      // Store coordinates for map centering
+      // Store coordinates
       if (result.coordinates) {
         setMapCoordinates(result.coordinates)
       }
 
-      if (result.success && result.squareFootage) {
+      if (result.success && result.polygonPoints && result.polygonPoints.length >= 3) {
+        // AI found and traced the area
+        setAiPolygonPoints(result.polygonPoints)
         const sqft = result.squareFootage
         const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
         setBookingData(prev => ({
@@ -375,42 +402,28 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
           address: result.formattedAddress || address
         }))
 
-        // Store AI polygon points and show map for verification
-        if (result.polygonPoints && result.polygonPoints.length >= 3) {
-          setAiPolygonPoints(result.polygonPoints)
-          await addBotMessage(`🎯 Found it! ${result.description}\n\nPlease verify the outlined area on the map.`)
-        } else {
-          await addBotMessage(`Found the location! Verify or adjust the area on the map.`)
-        }
-        setShowMap(true)
-        setStep(STEPS.MEASURING)
+        await addBotMessage(`🎯 Found it! ${result.description}\n\n📐 ~${sqft.toLocaleString()} sq ft\n💰 $${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nI've outlined the area on the map. Please verify it's correct - you can drag the corners to adjust.`)
+        setStep(STEPS.MAP_MEASURING)
+        // Load map with AI polygon after step change
+        setTimeout(() => loadMap(result.polygonPoints), 100)
+      } else if (result.coordinates) {
+        // Have coordinates but no polygon
+        await addBotMessage("📍 Found the location! Draw the area you need serviced on the map.")
+        setStep(STEPS.MAP_MEASURING)
+        setTimeout(() => loadMap(), 100)
       } else {
-        // Even if analysis fails, we might have coordinates
-        await addBotMessage("Draw the area on the map to get your estimate.")
-        setShowMap(true)
-        setStep(STEPS.MEASURING)
+        await addBotMessage("Couldn't find that address. Please try again with a full address.")
       }
     } catch {
       setIsAnalyzing(false)
-      await addBotMessage("Let's measure it. Draw the area on the map.")
-      setShowMap(true)
-      setStep(STEPS.MEASURING)
+      await addBotMessage("Let's find it on the map. Draw the area you need serviced.")
+      setStep(STEPS.MAP_MEASURING)
+      setTimeout(() => loadMap(), 100)
     }
-  }
-
-  const handleAcceptMeasurement = async () => {
-    addUserMessage(`${bookingData.squareFootage.toLocaleString()} sq ft ✓`)
-    await addBotMessage("What's the pavement condition?")
-    setStep(STEPS.CONDITION)
-  }
-
-  const handleOpenMap = () => {
-    setShowMap(true)
   }
 
   const handleMapConfirm = async () => {
     if (!drawnArea) return
-    setShowMap(false)
 
     const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
     setBookingData(prev => ({
@@ -420,8 +433,8 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       estimateHigh: estimate.high
     }))
 
-    addUserMessage(`${drawnArea.toLocaleString()} sq ft measured`)
-    await addBotMessage(`📐 ${drawnArea.toLocaleString()} sq ft\n💰 $${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nWhat's the pavement condition?`)
+    addUserMessage(`${drawnArea.toLocaleString()} sq ft confirmed`)
+    await addBotMessage("What's the current pavement condition?")
     setStep(STEPS.CONDITION)
   }
 
@@ -439,10 +452,12 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     setStep(STEPS.DATE)
   }
 
-  const handleDateSelect = async (label: string, value: string) => {
+  const handleDateSelect = async (date: Date) => {
+    const label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    const value = date.toISOString().split('T')[0]
     setBookingData(prev => ({ ...prev, deliveryDate: value, deliveryDateLabel: label }))
     addUserMessage(label)
-    await addBotMessage("Last step - your name and phone?")
+    await addBotMessage("Last step - your name and phone number?")
     setStep(STEPS.CONTACT)
   }
 
@@ -458,10 +473,10 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     if (name && phone) {
       setBookingData(prev => ({ ...prev, name, phone }))
       addUserMessage(`${name}, ${phone}`)
-      await addBotMessage("Here's your quote:")
+      await addBotMessage("Here's your quote summary:")
       setStep(STEPS.SUMMARY)
     } else {
-      await addBotMessage("Please include name and phone.\nExample: John Smith 555-123-4567")
+      await addBotMessage("Please include both name and phone.\nExample: John Smith 555-123-4567")
     }
   }
 
@@ -491,13 +506,13 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       setIsTyping(false)
 
       if (result.success) {
-        await addBotMessage(`Booked! 🎉\n\nWe'll call you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment.\n\nThank you!`)
+        await addBotMessage(`Booked! 🎉\n\nWe'll call you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment.\n\nThank you for choosing ${config.businessName}!`)
       } else {
         await addBotMessage(`Something went wrong. Please call us at ${config.phone}`)
       }
     } catch {
       setIsTyping(false)
-      await addBotMessage(`Couldn't submit. Please call ${config.phone}`)
+      await addBotMessage(`Couldn't submit online. Please call ${config.phone}`)
     }
 
     setStep(STEPS.COMPLETE)
@@ -509,10 +524,22 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
     else if (step === STEPS.CONTACT) handleContactSubmit()
   }
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      setIsOpen(false)
+    }
+  }
+
   // ==========================================
   // RENDER
   // ==========================================
-  const selectedService = config.services.find(s => s.id === bookingData.service)
+
+  // If embedded (in ChatWidget), don't show floating button
+  if (embedded) {
+    return renderChatWindow()
+  }
 
   return (
     <div>
@@ -520,560 +547,323 @@ export default function PavingChatbot({ onClose }: PavingChatbotProps) {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            backgroundColor: '#22c55e',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '28px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            zIndex: 1000,
-          }}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-[#22c55e] hover:bg-[#1ea550] rounded-full shadow-lg flex items-center justify-center z-50 transition-all duration-200 hover:scale-110"
+          aria-label="Open chat"
         >
-          💬
+          <span className="text-2xl">💬</span>
         </button>
       )}
 
       {/* Chat Window */}
-      {isOpen && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '380px',
-          maxWidth: 'calc(100vw - 48px)',
-          height: '600px',
-          maxHeight: 'calc(100vh - 48px)',
-          backgroundColor: '#1a1714',
-          borderRadius: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 1000,
-          overflow: 'hidden',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-        }}>
+      {isOpen && renderChatWindow()}
+    </div>
+  )
 
-          {/* Header */}
-          <div style={{
-            padding: '16px 20px',
-            backgroundColor: '#22c55e',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <div>
-              <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px' }}>{config.businessName}</div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>Get an instant estimate</div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '24px', padding: '4px' }}
-            >
-              ✕
-            </button>
+  function renderChatWindow() {
+    return (
+      <div className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[380px] max-w-[calc(100vw-48px)] h-[600px] max-h-[calc(100vh-48px)]'} bg-[#1a1714] rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl`}>
+        {/* Header */}
+        <div className="p-4 bg-[#22c55e] flex justify-between items-center flex-shrink-0">
+          <div>
+            <div className="font-bold text-white text-base">{config.businessName}</div>
+            <div className="text-sm text-white/80">Get an instant estimate</div>
           </div>
+          <button
+            onClick={handleClose}
+            className="text-white/80 hover:text-white text-2xl p-1"
+            aria-label="Close chat"
+          >
+            ✕
+          </button>
+        </div>
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: '12px',
-              }}>
-                <div style={{
-                  maxWidth: '85%',
-                  padding: '12px 16px',
-                  borderRadius: msg.type === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  backgroundColor: msg.type === 'user' ? '#22c55e' : '#222',
-                  color: 'white',
-                  whiteSpace: 'pre-line',
-                  fontSize: '14px',
-                  lineHeight: '1.4',
-                }}>
-                  {msg.text}
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-3`}
+            >
+              <div
+                className={`max-w-[85%] px-4 py-3 whitespace-pre-line text-sm leading-relaxed ${
+                  msg.type === 'user'
+                    ? 'bg-[#22c55e] text-white rounded-[18px] rounded-br-[4px]'
+                    : 'bg-[#252220] text-white rounded-[18px] rounded-bl-[4px]'
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))}
+
+          {(isTyping || isAnalyzing) && (
+            <div className="text-[#6B665F] py-2 text-sm">
+              {isAnalyzing ? '🛰️ Analyzing satellite image...' : (
+                <span className="flex gap-1">
+                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* SERVICE SELECTION */}
+          {!isTyping && step === STEPS.SERVICE && messages.length > 0 && (
+            <div className="space-y-2">
+              {config.services.map(service => (
+                <button
+                  key={service.id}
+                  onClick={() => handleServiceSelect(service.id)}
+                  className="w-full p-4 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e]"
+                >
+                  <div className="text-2xl mb-1">{service.emoji}</div>
+                  <div className="font-bold text-white mb-1">{service.name}</div>
+                  <div className="text-xs text-[#9C9690]">{service.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* PROJECT TYPE SELECTION */}
+          {!isTyping && step === STEPS.PROJECT_TYPE && (
+            <div className="space-y-2">
+              {config.projectTypes.map(project => (
+                <button
+                  key={project.id}
+                  onClick={() => handleProjectSelect(project.id)}
+                  className="w-full p-4 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e] relative"
+                >
+                  {project.discount > 0 && (
+                    <span className="absolute -top-2 right-3 bg-[#22c55e] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {Math.round(project.discount * 100)}% OFF
+                    </span>
+                  )}
+                  <div className="text-2xl mb-1">{project.emoji}</div>
+                  <div className="font-bold text-white mb-1">{project.label}</div>
+                  <div className="text-xs text-[#9C9690]">{project.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* MAP MEASURING STEP */}
+          {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
+            <div className="space-y-3">
+              {/* Map Container */}
+              <div className="bg-[#252220] rounded-xl overflow-hidden">
+                <div className="p-3 border-b border-[#302d2a]">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white font-medium text-sm">
+                        {aiPolygonPoints.length > 0 ? '🎯 AI Outlined Area' : 'Draw Your Area'}
+                      </div>
+                      <div className="text-[#9C9690] text-xs">
+                        {aiPolygonPoints.length > 0
+                          ? 'Drag corners to adjust the boundary'
+                          : 'Tap to place corners, double-tap to finish'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div ref={mapContainerRef} className="h-[200px] bg-[#1a1714]" />
+
+                <div className="p-3 border-t border-[#302d2a]">
+                  {drawnArea ? (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-[#9C9690] text-xs">
+                          {aiPolygonPoints.length > 0 ? '🤖 AI Measured' : '📐 Measured'}
+                        </div>
+                        <div className="text-white text-xl font-bold">
+                          {drawnArea.toLocaleString()} sq ft
+                        </div>
+                        <div className="text-[#22c55e] text-sm font-medium">
+                          ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={clearDrawing}
+                        className="px-3 py-2 bg-[#302d2a] text-[#ef4444] rounded-lg text-sm hover:bg-[#3a3733]"
+                      >
+                        Redraw
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[#9C9690] text-center text-sm">
+                      {mapLoaded ? 'Tap corners to outline the area' : 'Loading map...'}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
 
-            {(isTyping || isAnalyzing) && (
-              <div style={{ color: '#6B665F', padding: '8px', fontSize: '14px' }}>
-                {isAnalyzing ? '🛰️ Analyzing...' : 'Typing...'}
-              </div>
-            )}
+              {/* Confirm Button */}
+              <button
+                onClick={handleMapConfirm}
+                disabled={!drawnArea}
+                className={`w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 ${
+                  drawnArea
+                    ? 'bg-[#22c55e] text-white hover:bg-[#1ea550]'
+                    : 'bg-[#3a3733] text-[#6B665F] cursor-not-allowed'
+                }`}
+              >
+                ✓ Confirm Area
+              </button>
+            </div>
+          )}
 
-            {/* SERVICE SELECTION */}
-            {!isTyping && step === STEPS.SERVICE && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {config.services.map(service => (
-                  <button
-                    key={service.id}
-                    onClick={() => handleServiceSelect(service.id)}
-                    style={{
-                      padding: '16px',
-                      backgroundColor: '#252220',
-                      border: '1px solid #302d2a',
-                      borderRadius: '12px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onMouseOver={e => (e.currentTarget.style.borderColor = '#22c55e')}
-                    onMouseOut={e => (e.currentTarget.style.borderColor = '#302d2a')}
-                  >
-                    <div style={{ fontSize: '24px', marginBottom: '4px' }}>{service.emoji}</div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{service.name}</div>
-                    <div style={{ fontSize: '12px', color: '#9C9690' }}>{service.description}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* PROJECT TYPE SELECTION */}
-            {!isTyping && step === STEPS.PROJECT_TYPE && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {config.projectTypes.map(project => {
-                  const discount = (project as any).discount || 0
-                  return (
-                    <button
-                      key={project.id}
-                      onClick={() => handleProjectSelect(project.id)}
-                      style={{
-                        padding: '16px',
-                        backgroundColor: '#252220',
-                        border: '1px solid #302d2a',
-                        borderRadius: '12px',
-                        color: 'white',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        position: 'relative',
-                      }}
-                      onMouseOver={e => (e.currentTarget.style.borderColor = '#22c55e')}
-                      onMouseOut={e => (e.currentTarget.style.borderColor = '#302d2a')}
-                    >
-                      {discount > 0 && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '12px',
-                          backgroundColor: '#22c55e',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                        }}>
-                          {Math.round(discount * 100)}% OFF
-                        </span>
-                      )}
-                      <div style={{ fontSize: '24px', marginBottom: '4px' }}>{project.emoji}</div>
-                      <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{project.label}</div>
-                      <div style={{ fontSize: '12px', color: '#9C9690' }}>{project.description}</div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* MEASURING - AI Result or Map Button */}
-            {!isTyping && !isAnalyzing && step === STEPS.MEASURING && !showMap && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {bookingData.squareFootage > 0 && (
-                  <button
-                    onClick={handleAcceptMeasurement}
-                    style={{
-                      padding: '16px',
-                      backgroundColor: '#22c55e',
-                      border: 'none',
-                      borderRadius: '12px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      fontSize: '15px',
-                    }}
-                  >
-                    ✓ Looks Right
-                  </button>
-                )}
+          {/* CONDITION SELECTION */}
+          {!isTyping && step === STEPS.CONDITION && (
+            <div className="grid grid-cols-2 gap-2">
+              {config.conditions.map(condition => (
                 <button
-                  onClick={handleOpenMap}
-                  style={{
-                    padding: '16px',
-                    backgroundColor: '#252220',
-                    border: '1px solid #302d2a',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
+                  key={condition.id}
+                  onClick={() => handleConditionSelect(condition.id)}
+                  className="p-3 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e]"
                 >
-                  📍 {bookingData.squareFootage > 0 ? 'Adjust on Map' : 'Open Map to Measure'}
+                  <div className="font-bold text-white text-sm">{condition.label}</div>
+                  <div className="text-xs text-[#9C9690]">{condition.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* DATE SELECTION - Calendar */}
+          {!isTyping && step === STEPS.DATE && (
+            <div className="bg-[#252220] rounded-xl p-4 border border-[#302d2a]">
+              {/* Month Navigation */}
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                  className="text-[#9C9690] hover:text-white text-lg px-2"
+                >
+                  ‹
+                </button>
+                <span className="text-white font-bold">
+                  {formatMonthYear(calendarMonth)}
+                </span>
+                <button
+                  onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                  className="text-[#9C9690] hover:text-white text-lg px-2"
+                >
+                  ›
                 </button>
               </div>
-            )}
 
-            {/* CONDITION SELECTION */}
-            {!isTyping && step === STEPS.CONDITION && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {config.conditions.map(condition => (
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                  <div key={day} className="text-center text-[#6B665F] text-xs font-semibold py-1">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-1">
+                {getCalendarDays().map((day, i) => (
                   <button
-                    key={condition.id}
-                    onClick={() => handleConditionSelect(condition.id)}
-                    style={{
-                      padding: '14px 12px',
-                      backgroundColor: '#252220',
-                      border: '1px solid #302d2a',
-                      borderRadius: '12px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                    onMouseOver={e => (e.currentTarget.style.borderColor = '#22c55e')}
-                    onMouseOut={e => (e.currentTarget.style.borderColor = '#302d2a')}
+                    key={i}
+                    onClick={() => day.date && day.isAvailable && handleDateSelect(day.date)}
+                    disabled={!day.date || !day.isAvailable}
+                    className={`aspect-square rounded-lg text-sm font-medium transition-colors ${
+                      day.date
+                        ? day.isAvailable
+                          ? 'bg-[#302d2a] text-white hover:bg-[#22c55e]'
+                          : 'text-[#4a4540] cursor-default'
+                        : ''
+                    }`}
                   >
-                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{condition.label}</div>
-                    <div style={{ fontSize: '11px', color: '#9C9690' }}>{condition.description}</div>
+                    {day.date?.getDate() || ''}
                   </button>
                 ))}
               </div>
-            )}
 
-            {/* DATE SELECTION - Calendar */}
-            {!isTyping && step === STEPS.DATE && (
-              <div style={{
-                backgroundColor: '#252220',
-                borderRadius: '12px',
-                padding: '16px',
-                border: '1px solid #302d2a',
-              }}>
-                {/* Month Navigation */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '16px',
-                }}>
-                  <button
-                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#9C9690',
-                      fontSize: '18px',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                    }}
-                  >
-                    ‹
-                  </button>
-                  <span style={{ color: 'white', fontWeight: 'bold', fontSize: '15px' }}>
-                    {formatMonthYear(calendarMonth)}
-                  </span>
-                  <button
-                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#9C9690',
-                      fontSize: '18px',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                    }}
-                  >
-                    ›
-                  </button>
-                </div>
-
-                {/* Day Headers */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gap: '4px',
-                  marginBottom: '8px',
-                }}>
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                    <div key={day} style={{
-                      textAlign: 'center',
-                      color: '#6B665F',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      padding: '4px',
-                    }}>
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Calendar Days */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gap: '4px',
-                }}>
-                  {getCalendarDays().map((day, i) => (
-                    <button
-                      key={i}
-                      onClick={() => day.date && day.isAvailable && handleCalendarDateSelect(day.date)}
-                      disabled={!day.date || !day.isAvailable}
-                      style={{
-                        aspectRatio: '1',
-                        backgroundColor: day.isAvailable ? '#302d2a' : 'transparent',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: day.date
-                          ? day.isAvailable
-                            ? 'white'
-                            : '#4a4540'
-                          : 'transparent',
-                        cursor: day.isAvailable ? 'pointer' : 'default',
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseOver={e => {
-                        if (day.isAvailable) {
-                          e.currentTarget.style.backgroundColor = '#22c55e'
-                        }
-                      }}
-                      onMouseOut={e => {
-                        if (day.isAvailable) {
-                          e.currentTarget.style.backgroundColor = '#302d2a'
-                        }
-                      }}
-                    >
-                      {day.date?.getDate() || ''}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Legend */}
-                <div style={{
-                  marginTop: '12px',
-                  paddingTop: '12px',
-                  borderTop: '1px solid #302d2a',
-                  display: 'flex',
-                  gap: '16px',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  color: '#6B665F',
-                }}>
-                  <span>🟢 Available</span>
-                  <span>⚫ Unavailable</span>
-                </div>
+              <div className="mt-3 pt-3 border-t border-[#302d2a] flex gap-4 justify-center text-xs text-[#6B665F]">
+                <span>🟢 Available</span>
+                <span>⚫ Unavailable</span>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* SUMMARY */}
-            {!isTyping && step === STEPS.SUMMARY && (
-              <div>
-                <div style={{ backgroundColor: '#252220', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #302d2a' }}>
-                    <span style={{ color: '#9C9690' }}>Service</span>
-                    <span style={{ color: 'white', fontWeight: '500' }}>{bookingData.serviceName}</span>
+          {/* SUMMARY */}
+          {!isTyping && step === STEPS.SUMMARY && (
+            <div>
+              <div className="bg-[#252220] rounded-xl p-4 mb-3">
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
+                    <span className="text-[#9C9690]">Service</span>
+                    <span className="text-white font-medium">{bookingData.serviceName}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #302d2a' }}>
-                    <span style={{ color: '#9C9690' }}>Property</span>
-                    <span style={{ color: 'white', fontWeight: '500' }}>{bookingData.projectTypeName}</span>
+                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
+                    <span className="text-[#9C9690]">Property</span>
+                    <span className="text-white font-medium">{bookingData.projectTypeName}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #302d2a' }}>
-                    <span style={{ color: '#9C9690' }}>Area</span>
-                    <span style={{ color: 'white', fontWeight: '500' }}>{bookingData.squareFootage.toLocaleString()} sq ft</span>
+                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
+                    <span className="text-[#9C9690]">Area</span>
+                    <span className="text-white font-medium">{bookingData.squareFootage.toLocaleString()} sq ft</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #302d2a' }}>
-                    <span style={{ color: '#9C9690' }}>Date</span>
-                    <span style={{ color: 'white', fontWeight: '500' }}>{bookingData.deliveryDateLabel}</span>
+                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
+                    <span className="text-[#9C9690]">Date</span>
+                    <span className="text-white font-medium">{bookingData.deliveryDateLabel}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #302d2a' }}>
-                    <span style={{ color: '#9C9690' }}>Contact</span>
-                    <span style={{ color: 'white', fontWeight: '500', textAlign: 'right' }}>{bookingData.name}<br/><span style={{color:'#888'}}>{bookingData.phone}</span></span>
+                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
+                    <span className="text-[#9C9690]">Contact</span>
+                    <span className="text-white font-medium text-right">
+                      {bookingData.name}<br/>
+                      <span className="text-[#888]">{bookingData.phone}</span>
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px' }}>
-                    <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>Estimate</span>
-                    <span style={{ color: '#22c55e', fontWeight: 'bold', fontSize: '20px' }}>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-white font-bold text-base">Estimate</span>
+                    <span className="text-[#22c55e] font-bold text-xl">
                       ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={handleConfirmBooking}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    backgroundColor: '#f59e0b',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                  }}
-                >
-                  Confirm Booking →
-                </button>
               </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Map Overlay */}
-          {showMap && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: '#1a1714',
-              display: 'flex',
-              flexDirection: 'column',
-              zIndex: 10,
-            }}>
-              <div style={{ padding: '16px', borderBottom: '1px solid #302d2a' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ color: 'white', fontWeight: 'bold' }}>
-                      {aiPolygonPoints.length > 0 ? '🎯 Verify Area' : 'Draw Your Area'}
-                    </div>
-                    <div style={{ color: '#9C9690', fontSize: '12px' }}>
-                      {aiPolygonPoints.length > 0
-                        ? 'Drag corners to adjust the boundary'
-                        : 'Tap corners to outline the area'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowMap(false)}
-                    style={{ background: 'none', border: 'none', color: '#9C9690', cursor: 'pointer', fontSize: '20px' }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <div ref={mapContainerRef} style={{ flex: 1, backgroundColor: '#252220' }} />
-
-              <div style={{ padding: '16px', borderTop: '1px solid #302d2a' }}>
-                {drawnArea ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <div>
-                      <div style={{ color: '#9C9690', fontSize: '12px' }}>
-                        {aiPolygonPoints.length > 0 ? '🤖 AI Measured' : 'Measured'}
-                      </div>
-                      <div style={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>{drawnArea.toLocaleString()} sq ft</div>
-                    </div>
-                    <button
-                      onClick={clearDrawing}
-                      style={{
-                        padding: '8px 12px',
-                        backgroundColor: '#302d2a',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                      }}
-                    >
-                      Redraw
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ color: '#9C9690', textAlign: 'center', marginBottom: '12px', fontSize: '14px' }}>
-                    {mapLoaded ? 'Tap corners to draw the area' : 'Loading map...'}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={() => setShowMap(false)}
-                    style={{
-                      flex: 1,
-                      padding: '14px',
-                      backgroundColor: '#302d2a',
-                      border: 'none',
-                      borderRadius: '10px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleMapConfirm}
-                    disabled={!drawnArea}
-                    style={{
-                      flex: 1,
-                      padding: '14px',
-                      backgroundColor: drawnArea ? '#22c55e' : '#3A3733',
-                      border: 'none',
-                      borderRadius: '10px',
-                      color: drawnArea ? 'white' : '#888',
-                      cursor: drawnArea ? 'pointer' : 'not-allowed',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    ✓ Confirm Area
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={handleConfirmBooking}
+                className="w-full py-4 bg-[#f59e0b] hover:bg-[#d97706] text-white rounded-xl font-bold text-base"
+              >
+                Confirm Booking →
+              </button>
             </div>
           )}
 
-          {/* Input Area */}
-          {(step === STEPS.ADDRESS || step === STEPS.CONTACT) && !showMap && (
-            <div style={{ padding: '16px', borderTop: '1px solid #222' }}>
-              <form onSubmit={handleInputSubmit}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder={step === STEPS.ADDRESS ? "Enter address..." : "Name and phone..."}
-                    style={{
-                      flex: 1,
-                      padding: '14px 16px',
-                      backgroundColor: '#252220',
-                      border: '1px solid #302d2a',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '14px',
-                      outline: 'none',
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '14px 20px',
-                      backgroundColor: '#22c55e',
-                      border: 'none',
-                      borderRadius: '12px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                    }}
-                  >
-                    →
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div style={{ padding: '10px', textAlign: 'center', borderTop: '1px solid #222' }}>
-            <a href={`tel:${config.phoneRaw}`} style={{ color: '#22c55e', textDecoration: 'none', fontSize: '13px' }}>
-              📞 {config.phone}
-            </a>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
-      )}
-    </div>
-  )
+
+        {/* Input Area */}
+        {(step === STEPS.ADDRESS || step === STEPS.CONTACT) && (
+          <div className="p-4 border-t border-[#222] flex-shrink-0">
+            <form onSubmit={handleInputSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={step === STEPS.ADDRESS ? "Enter full address..." : "Name and phone..."}
+                className="flex-1 px-4 py-3 bg-[#252220] border border-[#302d2a] rounded-xl text-white text-sm placeholder-[#6B665F] outline-none focus:border-[#22c55e]"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-5 py-3 bg-[#22c55e] hover:bg-[#1ea550] rounded-xl text-white font-bold text-lg"
+              >
+                →
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="p-3 text-center border-t border-[#222] flex-shrink-0">
+          <a href={`tel:${config.phoneRaw}`} className="text-[#22c55e] text-sm">
+            📞 {config.phone}
+          </a>
+        </div>
+      </div>
+    )
+  }
 }

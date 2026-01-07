@@ -73,7 +73,7 @@ export default function ChatWidget() {
             animation: 'slideUp 0.2s ease-out',
           }}
         >
-          <PavingChatbot onClose={() => setIsOpen(false)} />
+          <PavingChatbot onClose={() => setIsOpen(false)} embedded />
         </div>
       )}
 
