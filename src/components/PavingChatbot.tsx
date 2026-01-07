@@ -428,7 +428,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
-                className="max-w-[85%] px-4 py-3 whitespace-pre-line text-base leading-relaxed rounded-2xl"
+                className="max-w-[90%] px-5 py-4 whitespace-pre-line text-lg leading-relaxed rounded-2xl"
                 style={msg.type === 'user'
                   ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderBottomRightRadius: '4px', border: `2px solid ${COLORS.yellowDark}` }
                   : { backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }
@@ -441,7 +441,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {(isTyping || isAnalyzing) && (
             <div className="flex justify-start">
-              <div className="rounded-2xl px-4 py-3 text-base" style={{ backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }}>
+              <div className="rounded-2xl px-5 py-4 text-lg" style={{ backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }}>
                 {isAnalyzing ? 'Analyzing satellite imagery...' : '...'}
               </div>
             </div>
@@ -449,14 +449,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {/* SERVICE SELECTION */}
           {!isTyping && step === STEPS.SERVICE && messages.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-base" style={{ color: COLORS.gray }}>What kind of service do you need?</p>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
+              <p className="text-lg" style={{ color: COLORS.gray }}>What kind of service do you need?</p>
+              <div className="flex flex-col gap-3">
                 {config.services.map(service => (
                   <button
                     key={service.id}
                     onClick={() => handleServiceSelect(service.id)}
-                    className="rounded-lg p-4 text-left transition-all border-2"
+                    className="rounded-lg p-5 text-left transition-all border-2"
                     style={{
                       backgroundColor: COLORS.blackLight,
                       borderColor: COLORS.yellow,
@@ -464,8 +464,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
-                    <p className="font-semibold text-white text-base">{service.name}</p>
-                    <p className="text-sm mt-1" style={{ color: COLORS.gray }}>{service.description}</p>
+                    <p className="font-semibold text-white text-lg">{service.name}</p>
+                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{service.description}</p>
                   </button>
                 ))}
               </div>
@@ -474,28 +474,28 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {/* PROJECT TYPE */}
           {!isTyping && step === STEPS.PROJECT_TYPE && (
-            <div className="space-y-3">
-              <p className="text-base" style={{ color: COLORS.gray }}>What type of property?</p>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
+              <p className="text-lg" style={{ color: COLORS.gray }}>What type of property?</p>
+              <div className="flex flex-col gap-3">
                 {config.projectTypes.map(project => (
                   <button
                     key={project.id}
                     onClick={() => handleProjectSelect(project.id)}
-                    className="rounded-lg p-4 text-left transition-all border-2 relative"
+                    className="rounded-lg p-5 text-left transition-all border-2 relative"
                     style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
                     {project.discount > 0 && (
                       <span
-                        className="absolute -top-2 -right-2 text-xs font-bold px-2 py-1 rounded-full"
+                        className="absolute -top-2 -right-2 text-sm font-bold px-3 py-1 rounded-full"
                         style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
                       >
                         {Math.round(project.discount * 100)}% OFF
                       </span>
                     )}
-                    <p className="font-semibold text-white text-base">{project.label}</p>
-                    <p className="text-sm mt-1" style={{ color: COLORS.gray }}>{project.description}</p>
+                    <p className="font-semibold text-white text-lg">{project.label}</p>
+                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{project.description}</p>
                   </button>
                 ))}
               </div>
@@ -521,7 +521,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               <div className="flex gap-3">
                 <button
                   onClick={clearDrawing}
-                  className="flex-1 rounded-lg py-3 text-base font-medium text-white transition-colors border-2"
+                  className="flex-1 rounded-lg py-4 text-lg font-medium text-white transition-colors border-2"
                   style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
@@ -531,7 +531,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                 <button
                   onClick={handleMapConfirm}
                   disabled={!drawnArea}
-                  className="flex-[2] rounded-lg py-3 text-base font-semibold transition-colors border-2"
+                  className="flex-[2] rounded-lg py-4 text-lg font-semibold transition-colors border-2"
                   style={drawnArea
                     ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }
                     : { backgroundColor: COLORS.blackMedium, color: COLORS.gray, cursor: 'not-allowed', borderColor: COLORS.gray }
@@ -545,20 +545,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {/* CONDITION */}
           {!isTyping && step === STEPS.CONDITION && (
-            <div className="space-y-3">
-              <p className="text-base" style={{ color: COLORS.gray }}>Current pavement condition:</p>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
+              <p className="text-lg" style={{ color: COLORS.gray }}>Current pavement condition:</p>
+              <div className="flex flex-col gap-3">
                 {config.conditions.map(condition => (
                   <button
                     key={condition.id}
                     onClick={() => handleConditionSelect(condition.id)}
-                    className="rounded-lg p-4 text-left transition-all border-2"
+                    className="rounded-lg p-5 text-left transition-all border-2"
                     style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
-                    <p className="font-semibold text-white text-base">{condition.label}</p>
-                    <p className="text-sm mt-1" style={{ color: COLORS.gray }}>{condition.description}</p>
+                    <p className="font-semibold text-white text-lg">{condition.label}</p>
+                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{condition.description}</p>
                   </button>
                 ))}
               </div>
@@ -613,20 +613,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           {/* SUMMARY */}
           {!isTyping && step === STEPS.SUMMARY && (
             <div className="space-y-4">
-              <div className="rounded-lg p-4 space-y-3 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
-                <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Service</span><span className="text-white">{bookingData.serviceName}</span></div>
-                <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Property</span><span className="text-white">{bookingData.projectTypeName}</span></div>
-                <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Area</span><span className="text-white">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
-                <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Date</span><span className="text-white">{bookingData.deliveryDateLabel}</span></div>
-                <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Contact</span><span className="text-white text-right">{bookingData.name}<br/>{bookingData.phone}</span></div>
-                <div className="pt-3 flex justify-between items-center" style={{ borderTop: `1px solid ${COLORS.blackMedium}` }}>
-                  <span className="text-white font-semibold text-base">Estimate</span>
-                  <span className="font-bold text-xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}</span>
+              <div className="rounded-lg p-5 space-y-4 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
+                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Service</span><span className="text-white">{bookingData.serviceName}</span></div>
+                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Property</span><span className="text-white">{bookingData.projectTypeName}</span></div>
+                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Area</span><span className="text-white">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
+                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Date</span><span className="text-white">{bookingData.deliveryDateLabel}</span></div>
+                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Contact</span><span className="text-white text-right">{bookingData.name}<br/>{bookingData.phone}</span></div>
+                <div className="pt-4 flex justify-between items-center" style={{ borderTop: `1px solid ${COLORS.blackMedium}` }}>
+                  <span className="text-white font-semibold text-lg">Estimate</span>
+                  <span className="font-bold text-2xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}</span>
                 </div>
               </div>
               <button
                 onClick={handleConfirmBooking}
-                className="w-full rounded-lg py-4 font-semibold text-lg transition-colors border-2"
+                className="w-full rounded-lg py-5 font-semibold text-xl transition-colors border-2"
                 style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
@@ -648,7 +648,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={step === STEPS.ADDRESS ? "Enter full address..." : "Name and phone number..."}
-                className="flex-1 px-4 py-3 rounded-lg text-base outline-none"
+                className="flex-1 px-5 py-4 rounded-lg text-lg outline-none"
                 style={{
                   backgroundColor: COLORS.blackLight,
                   color: '#fff',
@@ -658,7 +658,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               />
               <button
                 type="submit"
-                className="px-6 py-3 rounded-lg font-semibold text-base transition-colors border-2"
+                className="px-8 py-4 rounded-lg font-semibold text-lg transition-colors border-2"
                 style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
