@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { config } from '@/config/config'
+import { Truck, Phone, Check, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
 
 // Google Maps type declarations
 declare global {
@@ -23,14 +24,28 @@ const STEPS = {
   COMPLETE: 'complete'
 }
 
+// Icon components for services
+const ServiceIcons: Record<string, string> = {
+  sealcoating: '🛡️',
+  paving: '🚧',
+  linestriping: '🅿️',
+}
+
+// Icon components for project types
+const ProjectIcons: Record<string, string> = {
+  residential: '🏠',
+  commercial: '🏢',
+  'house-of-worship': '⛪',
+}
+
 interface PavingChatbotProps {
   onClose?: () => void
-  embedded?: boolean // When true, don't show floating button
+  embedded?: boolean
 }
 
 export default function PavingChatbot({ onClose, embedded = false }: PavingChatbotProps) {
   // UI State
-  const [isOpen, setIsOpen] = useState(embedded) // Auto-open if embedded
+  const [isOpen, setIsOpen] = useState(embedded)
   const [step, setStep] = useState(STEPS.SERVICE)
   const [messages, setMessages] = useState<{type: string, text: string}[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -96,7 +111,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   // ==========================================
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      addBotMessage("Hey! 👋 What service do you need?", 300)
+      addBotMessage("Hey! Need paving work? Tell me about your project and I'll give you an instant estimate.", 300)
     }
   }, [isOpen, messages.length])
 
@@ -117,7 +132,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   // GOOGLE MAPS WITH EDITABLE POLYGON
   // ==========================================
   const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>) => {
-    // Load Google Maps script if not present
     if (!window.google?.maps) {
       const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
       if (!existingScript) {
@@ -140,7 +154,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     if (!window.google?.maps || !mapContainerRef.current) return
 
-    // Use stored coordinates or geocode
     let center = mapCoordinates || config.googleMaps.defaultCenter
 
     if (!mapCoordinates && bookingData.address) {
@@ -157,11 +170,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       } catch { /* use default */ }
     }
 
-    // Create map with satellite view
     const map = new window.google.maps.Map(mapContainerRef.current, {
       center,
       zoom: 20,
-      mapTypeId: 'satellite',
+      mapTypeId: 'hybrid',
       disableDefaultUI: true,
       zoomControl: true,
       gestureHandling: 'greedy',
@@ -174,7 +186,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       map: map,
       icon: {
         path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 8,
+        scale: 10,
         fillColor: '#ffffff',
         fillOpacity: 1,
         strokeColor: '#22c55e',
@@ -183,13 +195,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       title: 'Address'
     })
 
-    // Drawing manager for polygon
     const drawingManager = new window.google.maps.drawing.DrawingManager({
       drawingMode: null,
       drawingControl: false,
       polygonOptions: {
         fillColor: '#22c55e',
-        fillOpacity: 0.4,
+        fillOpacity: 0.5,
         strokeColor: '#22c55e',
         strokeWeight: 3,
         clickable: true,
@@ -200,13 +211,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     drawingManager.setMap(map)
     drawingManagerRef.current = drawingManager
 
-    // If we have polygon points (from AI or previous), draw them
     const pointsToUse = polygonPoints || aiPolygonPoints
     if (pointsToUse && pointsToUse.length >= 3) {
       const polygon = new window.google.maps.Polygon({
         paths: pointsToUse,
         fillColor: '#22c55e',
-        fillOpacity: 0.4,
+        fillOpacity: 0.5,
         strokeColor: '#22c55e',
         strokeWeight: 3,
         clickable: true,
@@ -216,12 +226,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       polygon.setMap(map)
       polygonRef.current = polygon
 
-      // Calculate and set initial area
       const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
       const sqft = Math.round(area * 10.7639)
       setDrawnArea(sqft)
 
-      // Update estimate based on area
       const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
       setBookingData(prev => ({
         ...prev,
@@ -230,7 +238,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         estimateHigh: estimate.high
       }))
 
-      // Listen for polygon edits
       const updateArea = () => {
         const newArea = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
         const newSqft = Math.round(newArea * 10.7639)
@@ -247,18 +254,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
       window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
 
-      // Fit map to polygon bounds
       const bounds = new window.google.maps.LatLngBounds()
       polygon.getPath().forEach((latLng: any) => bounds.extend(latLng))
       map.fitBounds(bounds, 50)
     } else {
-      // No polygon - enable drawing mode
       drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON)
     }
 
-    // Listen for new polygon drawn by user
     window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: any) => {
-      // Remove old polygon
       if (polygonRef.current) polygonRef.current.setMap(null)
       polygonRef.current = polygon
 
@@ -342,7 +345,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const service = config.services.find(s => s.id === serviceId)!
     setBookingData(prev => ({ ...prev, service: serviceId, serviceName: service.name }))
     addUserMessage(`${service.emoji} ${service.name}`)
-    await addBotMessage("What type of property?")
+    await addBotMessage("What type of property is this?")
     setStep(STEPS.PROJECT_TYPE)
   }
 
@@ -357,10 +360,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }))
 
     let msg = `${project.emoji} ${project.label}`
-    if (discount > 0) msg += ` (${Math.round(discount * 100)}% off!)`
+    if (discount > 0) msg += ` (${Math.round(discount * 100)}% discount!)`
     addUserMessage(msg)
 
-    await addBotMessage("What's the address?")
+    await addBotMessage("Great! What's the delivery address?")
     setStep(STEPS.ADDRESS)
   }
 
@@ -371,9 +374,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     addUserMessage(address)
     setInputValue('')
 
-    // Analyze with AI
     setIsAnalyzing(true)
-    await addBotMessage("🛰️ Analyzing satellite imagery to outline your area...")
+    await addBotMessage("🛰️ Analyzing satellite imagery to find your area...")
 
     try {
       const response = await fetch('/api/estimate-area', {
@@ -384,13 +386,11 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       const result = await response.json()
       setIsAnalyzing(false)
 
-      // Store coordinates
       if (result.coordinates) {
         setMapCoordinates(result.coordinates)
       }
 
       if (result.success && result.polygonPoints && result.polygonPoints.length >= 3) {
-        // AI found and traced the area
         setAiPolygonPoints(result.polygonPoints)
         const sqft = result.squareFootage
         const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
@@ -402,21 +402,19 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           address: result.formattedAddress || address
         }))
 
-        await addBotMessage(`🎯 Found it! ${result.description}\n\n📐 ~${sqft.toLocaleString()} sq ft\n💰 $${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nI've outlined the area on the map. Please verify it's correct - you can drag the corners to adjust.`)
+        await addBotMessage(`🎯 Found it! I've outlined the paved area on the map.\n\n📐 ${sqft.toLocaleString()} sq ft\n💰 $${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nDrag the corners to adjust if needed.`)
         setStep(STEPS.MAP_MEASURING)
-        // Load map with AI polygon after step change
         setTimeout(() => loadMap(result.polygonPoints), 100)
       } else if (result.coordinates) {
-        // Have coordinates but no polygon
-        await addBotMessage("📍 Found the location! Draw the area you need serviced on the map.")
+        await addBotMessage("📍 Found the location! Now tap on the map to outline the area you need serviced.")
         setStep(STEPS.MAP_MEASURING)
         setTimeout(() => loadMap(), 100)
       } else {
-        await addBotMessage("Couldn't find that address. Please try again with a full address.")
+        await addBotMessage("Couldn't find that address. Please try again with a full address including city and state.")
       }
     } catch {
       setIsAnalyzing(false)
-      await addBotMessage("Let's find it on the map. Draw the area you need serviced.")
+      await addBotMessage("Let's find it manually. Tap on the map to outline your area.")
       setStep(STEPS.MAP_MEASURING)
       setTimeout(() => loadMap(), 100)
     }
@@ -433,7 +431,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       estimateHigh: estimate.high
     }))
 
-    addUserMessage(`${drawnArea.toLocaleString()} sq ft confirmed`)
+    addUserMessage(`📐 ${drawnArea.toLocaleString()} sq ft`)
     await addBotMessage("What's the current pavement condition?")
     setStep(STEPS.CONDITION)
   }
@@ -448,7 +446,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       setBookingData(prev => ({ ...prev, estimateHigh: newHigh }))
     }
 
-    await addBotMessage("When do you want us to come out?")
+    await addBotMessage("When would you like us to come out?")
     setStep(STEPS.DATE)
   }
 
@@ -457,7 +455,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const value = date.toISOString().split('T')[0]
     setBookingData(prev => ({ ...prev, deliveryDate: value, deliveryDateLabel: label }))
     addUserMessage(label)
-    await addBotMessage("Last step - your name and phone number?")
+    await addBotMessage("Last step - what's your name and phone number?")
     setStep(STEPS.CONTACT)
   }
 
@@ -473,10 +471,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     if (name && phone) {
       setBookingData(prev => ({ ...prev, name, phone }))
       addUserMessage(`${name}, ${phone}`)
-      await addBotMessage("Here's your quote summary:")
+      await addBotMessage(`Thanks ${name}! Here's your estimate:`)
       setStep(STEPS.SUMMARY)
     } else {
-      await addBotMessage("Please include both name and phone.\nExample: John Smith 555-123-4567")
+      await addBotMessage("Please include both your name and phone number.\n\nExample: John Smith 618-555-1234")
     }
   }
 
@@ -506,13 +504,13 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       setIsTyping(false)
 
       if (result.success) {
-        await addBotMessage(`Booked! 🎉\n\nWe'll call you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment.\n\nThank you for choosing ${config.businessName}!`)
+        await addBotMessage(`Booking confirmed! 🎉\n\n${config.businessName} will call or text you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment.\n\nTotal estimate: $${bookingData.estimateLow.toLocaleString()} - $${bookingData.estimateHigh.toLocaleString()}\n\nQuestions? Call ${config.phone}`)
       } else {
-        await addBotMessage(`Something went wrong. Please call us at ${config.phone}`)
+        await addBotMessage(`Something went wrong, but don't worry!\n\nCall us at ${config.phone} and we'll get you set up.`)
       }
     } catch {
       setIsTyping(false)
-      await addBotMessage(`Couldn't submit online. Please call ${config.phone}`)
+      await addBotMessage(`Couldn't submit online.\n\nCall us at ${config.phone} - we'll book it for you!`)
     }
 
     setStep(STEPS.COMPLETE)
@@ -525,242 +523,249 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }
 
   const handleClose = () => {
-    if (onClose) {
-      onClose()
-    } else {
-      setIsOpen(false)
-    }
+    if (onClose) onClose()
+    else setIsOpen(false)
   }
 
   // ==========================================
   // RENDER
   // ==========================================
-
-  // If embedded (in ChatWidget), don't show floating button
   if (embedded) {
     return renderChatWindow()
   }
 
   return (
     <div>
-      {/* Floating Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 w-14 h-14 bg-[#22c55e] hover:bg-[#1ea550] rounded-full shadow-lg flex items-center justify-center z-50 transition-all duration-200 hover:scale-110"
-          aria-label="Open chat"
         >
           <span className="text-2xl">💬</span>
         </button>
       )}
-
-      {/* Chat Window */}
       {isOpen && renderChatWindow()}
     </div>
   )
 
   function renderChatWindow() {
     return (
-      <div className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[380px] max-w-[calc(100vw-48px)] h-[600px] max-h-[calc(100vh-48px)]'} bg-[#1a1714] rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl`}>
-        {/* Header */}
-        <div className="p-4 bg-[#22c55e] flex justify-between items-center flex-shrink-0">
-          <div>
-            <div className="font-bold text-white text-base">{config.businessName}</div>
-            <div className="text-sm text-white/80">Get an instant estimate</div>
+      <div className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[600px] max-w-[calc(100vw-48px)] h-[700px] max-h-[calc(100vh-48px)]'} bg-[#0f172a] rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl border border-[#334155]`}>
+
+        {/* Header - Navy with icon like King City */}
+        <div className="px-4 py-3 bg-[#1e293b] flex items-center justify-between flex-shrink-0 border-b border-[#334155]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#22c55e]/20 rounded-full flex items-center justify-center">
+              <Truck className="w-5 h-5 text-[#22c55e]" />
+            </div>
+            <div>
+              <div className="font-bold text-white text-sm">{config.businessName}</div>
+              <div className="text-xs text-slate-400">Quick booking assistant</div>
+            </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-white/80 hover:text-white text-2xl p-1"
-            aria-label="Close chat"
-          >
-            ✕
-          </button>
+          <button onClick={handleClose} className="text-slate-400 hover:text-white text-xl p-1">✕</button>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-3`}
-            >
-              <div
-                className={`max-w-[85%] px-4 py-3 whitespace-pre-line text-sm leading-relaxed ${
-                  msg.type === 'user'
-                    ? 'bg-[#22c55e] text-white rounded-[18px] rounded-br-[4px]'
-                    : 'bg-[#252220] text-white rounded-[18px] rounded-bl-[4px]'
-                }`}
-              >
+            <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] px-4 py-3 whitespace-pre-line text-sm leading-relaxed ${
+                msg.type === 'user'
+                  ? 'bg-[#22c55e] text-white rounded-2xl rounded-br-sm'
+                  : 'bg-[#1e293b] text-white rounded-2xl rounded-bl-sm'
+              }`}>
                 {msg.text}
               </div>
             </div>
           ))}
 
           {(isTyping || isAnalyzing) && (
-            <div className="text-[#6B665F] py-2 text-sm">
-              {isAnalyzing ? '🛰️ Analyzing satellite image...' : (
-                <span className="flex gap-1">
-                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
-                  <span className="w-2 h-2 bg-[#6B665F] rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
-                </span>
-              )}
+            <div className="flex justify-start">
+              <div className="bg-[#1e293b] rounded-2xl rounded-bl-sm px-4 py-3">
+                {isAnalyzing ? (
+                  <span className="text-slate-300 text-sm">🛰️ Analyzing satellite imagery...</span>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* SERVICE SELECTION */}
+          {/* SERVICE SELECTION - 2 column grid like King City */}
           {!isTyping && step === STEPS.SERVICE && messages.length > 0 && (
-            <div className="space-y-2">
-              {config.services.map(service => (
-                <button
-                  key={service.id}
-                  onClick={() => handleServiceSelect(service.id)}
-                  className="w-full p-4 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e]"
-                >
-                  <div className="text-2xl mb-1">{service.emoji}</div>
-                  <div className="font-bold text-white mb-1">{service.name}</div>
-                  <div className="text-xs text-[#9C9690]">{service.description}</div>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <p className="text-slate-400 text-sm">What kind of service?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {config.services.map(service => (
+                  <button
+                    key={service.id}
+                    onClick={() => handleServiceSelect(service.id)}
+                    className="bg-[#1e293b] hover:bg-[#334155] rounded-xl p-3 flex items-center gap-3 transition-colors text-left border border-[#334155] hover:border-[#22c55e]"
+                  >
+                    <div className="w-9 h-9 bg-[#22c55e]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg">{ServiceIcons[service.id] || service.emoji}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-white text-sm">{service.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{service.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* PROJECT TYPE SELECTION */}
+          {/* PROJECT TYPE SELECTION - 2 column grid */}
           {!isTyping && step === STEPS.PROJECT_TYPE && (
-            <div className="space-y-2">
-              {config.projectTypes.map(project => (
-                <button
-                  key={project.id}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="w-full p-4 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e] relative"
-                >
-                  {project.discount > 0 && (
-                    <span className="absolute -top-2 right-3 bg-[#22c55e] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      {Math.round(project.discount * 100)}% OFF
-                    </span>
-                  )}
-                  <div className="text-2xl mb-1">{project.emoji}</div>
-                  <div className="font-bold text-white mb-1">{project.label}</div>
-                  <div className="text-xs text-[#9C9690]">{project.description}</div>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <p className="text-slate-400 text-sm">What type of property?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {config.projectTypes.map(project => (
+                  <button
+                    key={project.id}
+                    onClick={() => handleProjectSelect(project.id)}
+                    className="bg-[#1e293b] hover:bg-[#334155] rounded-xl p-3 flex items-center gap-3 transition-colors text-left border border-[#334155] hover:border-[#22c55e] relative"
+                  >
+                    {project.discount > 0 && (
+                      <span className="absolute -top-2 right-2 bg-[#22c55e] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {Math.round(project.discount * 100)}% OFF
+                      </span>
+                    )}
+                    <div className="w-9 h-9 bg-[#22c55e]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg">{ProjectIcons[project.id] || project.emoji}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-white text-sm">{project.label}</p>
+                      <p className="text-xs text-slate-400 truncate">{project.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           {/* MAP MEASURING STEP */}
           {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
             <div className="space-y-3">
-              {/* Map Container */}
-              <div className="bg-[#252220] rounded-xl overflow-hidden">
-                <div className="p-3 border-b border-[#302d2a]">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="text-white font-medium text-sm">
-                        {aiPolygonPoints.length > 0 ? '🎯 AI Outlined Area' : 'Draw Your Area'}
+              <div className="bg-[#1e293b] rounded-xl overflow-hidden border border-[#334155]">
+                <div className="relative" style={{ height: '240px' }}>
+                  <div ref={mapContainerRef} className="h-full w-full bg-[#0f172a]" />
+
+                  {!mapLoaded && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-[#0f172a]">
+                      <div className="w-14 h-14 bg-[#22c55e]/20 rounded-xl flex items-center justify-center mb-3 animate-pulse">
+                        <Truck className="w-7 h-7 text-[#22c55e]" />
                       </div>
-                      <div className="text-[#9C9690] text-xs">
-                        {aiPolygonPoints.length > 0
-                          ? 'Drag corners to adjust the boundary'
-                          : 'Tap to place corners, double-tap to finish'}
-                      </div>
+                      <p className="text-white font-medium">Loading satellite view...</p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                <div ref={mapContainerRef} className="h-[200px] bg-[#1a1714]" />
-
-                <div className="p-3 border-t border-[#302d2a]">
+                <div className="p-3 bg-[#0f172a] border-t border-[#334155]">
                   {drawnArea ? (
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-[#9C9690] text-xs">
-                          {aiPolygonPoints.length > 0 ? '🤖 AI Measured' : '📐 Measured'}
-                        </div>
-                        <div className="text-white text-xl font-bold">
-                          {drawnArea.toLocaleString()} sq ft
-                        </div>
-                        <div className="text-[#22c55e] text-sm font-medium">
-                          ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-3 bg-[#22c55e]/60 border-2 border-[#22c55e] rounded-sm"></div>
+                        <div>
+                          <span className="text-white font-bold">{drawnArea.toLocaleString()} sq ft</span>
+                          <span className="text-slate-400 text-sm ml-2">
+                            ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
+                          </span>
                         </div>
                       </div>
-                      <button
-                        onClick={clearDrawing}
-                        className="px-3 py-2 bg-[#302d2a] text-[#ef4444] rounded-lg text-sm hover:bg-[#3a3733]"
-                      >
-                        Redraw
-                      </button>
+                      <span className="text-[#22c55e] text-xs">Drag corners to adjust</span>
                     </div>
                   ) : (
-                    <div className="text-[#9C9690] text-center text-sm">
-                      {mapLoaded ? 'Tap corners to outline the area' : 'Loading map...'}
-                    </div>
+                    <p className="text-slate-400 text-sm text-center">
+                      {mapLoaded ? 'Tap corners to outline the area' : 'Loading...'}
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Confirm Button */}
-              <button
-                onClick={handleMapConfirm}
-                disabled={!drawnArea}
-                className={`w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 ${
-                  drawnArea
-                    ? 'bg-[#22c55e] text-white hover:bg-[#1ea550]'
-                    : 'bg-[#3a3733] text-[#6B665F] cursor-not-allowed'
-                }`}
-              >
-                ✓ Confirm Area
-              </button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setMessages(prev => prev.slice(0, -2))
+                    setBookingData(prev => ({ ...prev, address: '' }))
+                    setStep(STEPS.ADDRESS)
+                  }}
+                  className="flex-1 bg-[#1e293b] hover:bg-[#334155] text-white rounded-xl py-3 flex items-center justify-center gap-2 border border-[#334155]"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                {drawnArea && (
+                  <button
+                    onClick={clearDrawing}
+                    className="bg-[#1e293b] hover:bg-[#334155] text-slate-300 rounded-xl px-4 py-3 flex items-center justify-center gap-2 border border-[#334155]"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Redraw
+                  </button>
+                )}
+                <button
+                  onClick={handleMapConfirm}
+                  disabled={!drawnArea}
+                  className={`flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl font-semibold ${
+                    drawnArea
+                      ? 'bg-[#22c55e] hover:bg-[#1ea550] text-white'
+                      : 'bg-[#334155] text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Check className="w-5 h-5" />
+                  Confirm Area
+                </button>
+              </div>
             </div>
           )}
 
-          {/* CONDITION SELECTION */}
+          {/* CONDITION SELECTION - 2 column grid */}
           {!isTyping && step === STEPS.CONDITION && (
-            <div className="grid grid-cols-2 gap-2">
-              {config.conditions.map(condition => (
-                <button
-                  key={condition.id}
-                  onClick={() => handleConditionSelect(condition.id)}
-                  className="p-3 bg-[#252220] border border-[#302d2a] rounded-xl text-left transition-colors hover:border-[#22c55e]"
-                >
-                  <div className="font-bold text-white text-sm">{condition.label}</div>
-                  <div className="text-xs text-[#9C9690]">{condition.description}</div>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <p className="text-slate-400 text-sm">Current pavement condition:</p>
+              <div className="grid grid-cols-2 gap-2">
+                {config.conditions.map(condition => (
+                  <button
+                    key={condition.id}
+                    onClick={() => handleConditionSelect(condition.id)}
+                    className="bg-[#1e293b] hover:bg-[#334155] rounded-xl p-3 text-left transition-colors border border-[#334155] hover:border-[#22c55e]"
+                  >
+                    <p className="font-semibold text-white text-sm">{condition.label}</p>
+                    <p className="text-xs text-slate-400">{condition.description}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           {/* DATE SELECTION - Calendar */}
           {!isTyping && step === STEPS.DATE && (
-            <div className="bg-[#252220] rounded-xl p-4 border border-[#302d2a]">
-              {/* Month Navigation */}
+            <div className="bg-[#1e293b] rounded-xl p-4 border border-[#334155]">
               <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                  className="text-[#9C9690] hover:text-white text-lg px-2"
-                >
-                  ‹
-                </button>
-                <span className="text-white font-bold">
-                  {formatMonthYear(calendarMonth)}
-                </span>
+                  className="text-slate-400 hover:text-white text-lg px-2"
+                >‹</button>
+                <span className="text-white font-bold">{formatMonthYear(calendarMonth)}</span>
                 <button
                   onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                  className="text-[#9C9690] hover:text-white text-lg px-2"
-                >
-                  ›
-                </button>
+                  className="text-slate-400 hover:text-white text-lg px-2"
+                >›</button>
               </div>
 
-              {/* Day Headers */}
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                  <div key={day} className="text-center text-[#6B665F] text-xs font-semibold py-1">
-                    {day}
-                  </div>
+                  <div key={day} className="text-center text-slate-500 text-xs font-semibold py-1">{day}</div>
                 ))}
               </div>
 
-              {/* Calendar Days */}
               <div className="grid grid-cols-7 gap-1">
                 {getCalendarDays().map((day, i) => (
                   <button
@@ -770,8 +775,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     className={`aspect-square rounded-lg text-sm font-medium transition-colors ${
                       day.date
                         ? day.isAvailable
-                          ? 'bg-[#302d2a] text-white hover:bg-[#22c55e]'
-                          : 'text-[#4a4540] cursor-default'
+                          ? 'bg-[#334155] text-white hover:bg-[#22c55e]'
+                          : 'text-slate-600 cursor-default'
                         : ''
                     }`}
                   >
@@ -779,55 +784,53 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   </button>
                 ))}
               </div>
-
-              <div className="mt-3 pt-3 border-t border-[#302d2a] flex gap-4 justify-center text-xs text-[#6B665F]">
-                <span>🟢 Available</span>
-                <span>⚫ Unavailable</span>
-              </div>
             </div>
           )}
 
           {/* SUMMARY */}
           {!isTyping && step === STEPS.SUMMARY && (
-            <div>
-              <div className="bg-[#252220] rounded-xl p-4 mb-3">
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
-                    <span className="text-[#9C9690]">Service</span>
-                    <span className="text-white font-medium">{bookingData.serviceName}</span>
+            <div className="space-y-3">
+              <div className="bg-[#1e293b] rounded-xl p-4 border border-[#334155]">
+                <h4 className="font-semibold text-white mb-3">Order Summary</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between py-2 border-b border-[#334155]">
+                    <span className="text-slate-400">Service</span>
+                    <span className="text-white">{bookingData.serviceName}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
-                    <span className="text-[#9C9690]">Property</span>
-                    <span className="text-white font-medium">{bookingData.projectTypeName}</span>
+                  <div className="flex justify-between py-2 border-b border-[#334155]">
+                    <span className="text-slate-400">Property</span>
+                    <span className="text-white">{bookingData.projectTypeName}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
-                    <span className="text-[#9C9690]">Area</span>
-                    <span className="text-white font-medium">{bookingData.squareFootage.toLocaleString()} sq ft</span>
+                  <div className="flex justify-between py-2 border-b border-[#334155]">
+                    <span className="text-slate-400">Area</span>
+                    <span className="text-white">{bookingData.squareFootage.toLocaleString()} sq ft</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
-                    <span className="text-[#9C9690]">Date</span>
-                    <span className="text-white font-medium">{bookingData.deliveryDateLabel}</span>
+                  <div className="flex justify-between py-2 border-b border-[#334155]">
+                    <span className="text-slate-400">Date</span>
+                    <span className="text-white">{bookingData.deliveryDateLabel}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#302d2a]">
-                    <span className="text-[#9C9690]">Contact</span>
-                    <span className="text-white font-medium text-right">
-                      {bookingData.name}<br/>
-                      <span className="text-[#888]">{bookingData.phone}</span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-white font-bold text-base">Estimate</span>
-                    <span className="text-[#22c55e] font-bold text-xl">
-                      ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
-                    </span>
+                  <div className="flex justify-between py-2 border-b border-[#334155]">
+                    <span className="text-slate-400">Contact</span>
+                    <span className="text-white text-right">{bookingData.name}<br/><span className="text-slate-400">{bookingData.phone}</span></span>
                   </div>
                 </div>
               </div>
+
+              <div className="bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-white font-bold">Estimate</span>
+                  <span className="text-[#22c55e] font-bold text-xl">
+                    ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
               <button
                 onClick={handleConfirmBooking}
-                className="w-full py-4 bg-[#f59e0b] hover:bg-[#d97706] text-white rounded-xl font-bold text-base"
+                className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-white rounded-xl py-4 font-bold flex items-center justify-center gap-2"
               >
-                Confirm Booking →
+                Confirm Booking
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           )}
@@ -837,30 +840,30 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
         {/* Input Area */}
         {(step === STEPS.ADDRESS || step === STEPS.CONTACT) && (
-          <div className="p-4 border-t border-[#222] flex-shrink-0">
+          <div className="p-4 border-t border-[#334155] flex-shrink-0 bg-[#0f172a]">
             <form onSubmit={handleInputSubmit} className="flex gap-2">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={step === STEPS.ADDRESS ? "Enter full address..." : "Name and phone..."}
-                className="flex-1 px-4 py-3 bg-[#252220] border border-[#302d2a] rounded-xl text-white text-sm placeholder-[#6B665F] outline-none focus:border-[#22c55e]"
+                placeholder={step === STEPS.ADDRESS ? "Enter delivery address..." : "Your name and phone (e.g. John Smith, 618-555-1234)"}
+                className="flex-1 px-4 py-3 bg-[#1e293b] border border-[#334155] rounded-xl text-white text-sm placeholder-slate-500 outline-none focus:border-[#22c55e]"
                 autoFocus
               />
               <button
                 type="submit"
-                className="px-5 py-3 bg-[#22c55e] hover:bg-[#1ea550] rounded-xl text-white font-bold text-lg"
+                className="bg-[#22c55e] hover:bg-[#1ea550] text-white px-5 py-3 rounded-xl"
               >
-                →
+                <ArrowRight className="w-5 h-5" />
               </button>
             </form>
           </div>
         )}
 
         {/* Footer */}
-        <div className="p-3 text-center border-t border-[#222] flex-shrink-0">
-          <a href={`tel:${config.phoneRaw}`} className="text-[#22c55e] text-sm">
-            📞 {config.phone}
+        <div className="p-3 text-center border-t border-[#334155] flex-shrink-0 bg-[#0f172a]">
+          <a href={`tel:${config.phoneRaw}`} className="text-slate-400 hover:text-[#22c55e] text-sm inline-flex items-center gap-1">
+            Need help? <Phone className="w-3 h-3" /> {config.phone}
           </a>
         </div>
       </div>
