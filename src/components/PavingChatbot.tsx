@@ -16,7 +16,11 @@ const STEPS = {
   COMPLETE: 'complete'
 }
 
-export default function PavingChatbot() {
+interface PavingChatbotProps {
+  onClose?: () => void
+}
+
+export default function PavingChatbot({ onClose }: PavingChatbotProps) {
   // UI State
   const [isOpen, setIsOpen] = useState(false)
   const [step, setStep] = useState(STEPS.SERVICE)
