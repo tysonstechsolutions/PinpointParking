@@ -130,6 +130,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     if (!window.google?.maps || !mapContainerRef.current) return
 
     let center = mapCoordinates || config.googleMaps.defaultCenter
+    let geocodeSuccess = !!mapCoordinates
     if (!mapCoordinates && bookingData.address) {
       const geocoder = new window.google.maps.Geocoder()
       try {
@@ -141,7 +142,11 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         })
         center = { lat: result.lat(), lng: result.lng() }
         setMapCoordinates(center)
-      } catch { /* use default */ }
+        geocodeSuccess = true
+        addBotMessage("Found the location! Draw the area you need serviced on the map.")
+      } catch {
+        addBotMessage("Couldn't find exact location. Use the map to navigate to your property and draw the service area.")
+      }
     }
 
     const map = new window.google.maps.Map(mapContainerRef.current, {
@@ -291,11 +296,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         setStep(STEPS.MAP_MEASURING)
         setTimeout(() => loadMap(), 100)
       } else {
-        await addBotMessage("Couldn't find that address. Please enter the full address including city and state.")
+        // Try to geocode with client-side Google Maps as fallback
+        await addBotMessage("Searching for location...")
+        setStep(STEPS.MAP_MEASURING)
+        setTimeout(() => loadMap(), 100)
       }
     } catch {
       setIsAnalyzing(false)
-      await addBotMessage("Draw the area you need serviced on the map below.")
+      await addBotMessage("Let me find that location...")
       setStep(STEPS.MAP_MEASURING)
       setTimeout(() => loadMap(), 100)
     }
@@ -422,8 +430,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               <div
                 className="max-w-[85%] px-4 py-3 whitespace-pre-line text-base leading-relaxed rounded-2xl"
                 style={msg.type === 'user'
-                  ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderBottomRightRadius: '4px' }
-                  : { backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px' }
+                  ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderBottomRightRadius: '4px', border: `2px solid ${COLORS.yellowDark}` }
+                  : { backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }
                 }
               >
                 {msg.text}
@@ -433,7 +441,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {(isTyping || isAnalyzing) && (
             <div className="flex justify-start">
-              <div className="rounded-2xl px-4 py-3 text-base" style={{ backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px' }}>
+              <div className="rounded-2xl px-4 py-3 text-base" style={{ backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }}>
                 {isAnalyzing ? 'Analyzing satellite imagery...' : '...'}
               </div>
             </div>
@@ -451,10 +459,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     className="rounded-lg p-4 text-left transition-all border-2"
                     style={{
                       backgroundColor: COLORS.blackLight,
-                      borderColor: 'transparent',
+                      borderColor: COLORS.yellow,
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
                     <p className="font-semibold text-white text-base">{service.name}</p>
                     <p className="text-sm mt-1" style={{ color: COLORS.gray }}>{service.description}</p>
@@ -474,9 +482,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     key={project.id}
                     onClick={() => handleProjectSelect(project.id)}
                     className="rounded-lg p-4 text-left transition-all border-2 relative"
-                    style={{ backgroundColor: COLORS.blackLight, borderColor: 'transparent' }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                    style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
                     {project.discount > 0 && (
                       <span
@@ -497,7 +505,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           {/* MAP */}
           {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
             <div className="space-y-3">
-              <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${COLORS.blackMedium}` }}>
+              <div className="rounded-lg overflow-hidden" style={{ border: `2px solid ${COLORS.yellow}` }}>
                 <div ref={mapContainerRef} className="h-[220px]" style={{ backgroundColor: COLORS.black }} />
                 {drawnArea && (
                   <div className="p-3 flex items-center justify-between" style={{ backgroundColor: COLORS.blackLight }}>
@@ -513,18 +521,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               <div className="flex gap-3">
                 <button
                   onClick={clearDrawing}
-                  className="flex-1 rounded-lg py-3 text-base font-medium text-white transition-colors"
-                  style={{ backgroundColor: COLORS.blackLight }}
+                  className="flex-1 rounded-lg py-3 text-base font-medium text-white transition-colors border-2"
+                  style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                 >
                   Redraw
                 </button>
                 <button
                   onClick={handleMapConfirm}
                   disabled={!drawnArea}
-                  className="flex-[2] rounded-lg py-3 text-base font-semibold transition-colors"
+                  className="flex-[2] rounded-lg py-3 text-base font-semibold transition-colors border-2"
                   style={drawnArea
-                    ? { backgroundColor: COLORS.yellow, color: COLORS.black }
-                    : { backgroundColor: COLORS.blackMedium, color: COLORS.gray, cursor: 'not-allowed' }
+                    ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }
+                    : { backgroundColor: COLORS.blackMedium, color: COLORS.gray, cursor: 'not-allowed', borderColor: COLORS.gray }
                   }
                 >
                   Confirm Area
@@ -543,9 +553,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     key={condition.id}
                     onClick={() => handleConditionSelect(condition.id)}
                     className="rounded-lg p-4 text-left transition-all border-2"
-                    style={{ backgroundColor: COLORS.blackLight, borderColor: 'transparent' }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                    style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
                   >
                     <p className="font-semibold text-white text-base">{condition.label}</p>
                     <p className="text-sm mt-1" style={{ color: COLORS.gray }}>{condition.description}</p>
@@ -557,7 +567,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
           {/* DATE */}
           {!isTyping && step === STEPS.DATE && (
-            <div className="rounded-lg p-4" style={{ backgroundColor: COLORS.blackLight }}>
+            <div className="rounded-lg p-4 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
               <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
@@ -603,7 +613,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           {/* SUMMARY */}
           {!isTyping && step === STEPS.SUMMARY && (
             <div className="space-y-4">
-              <div className="rounded-lg p-4 space-y-3" style={{ backgroundColor: COLORS.blackLight }}>
+              <div className="rounded-lg p-4 space-y-3 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
                 <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Service</span><span className="text-white">{bookingData.serviceName}</span></div>
                 <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Property</span><span className="text-white">{bookingData.projectTypeName}</span></div>
                 <div className="flex justify-between text-base"><span style={{ color: COLORS.gray }}>Area</span><span className="text-white">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
@@ -616,8 +626,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               </div>
               <button
                 onClick={handleConfirmBooking}
-                className="w-full rounded-lg py-4 font-semibold text-lg transition-colors"
-                style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
+                className="w-full rounded-lg py-4 font-semibold text-lg transition-colors border-2"
+                style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
               >
@@ -642,16 +652,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                 style={{
                   backgroundColor: COLORS.blackLight,
                   color: '#fff',
-                  border: `2px solid transparent`,
+                  border: `2px solid ${COLORS.yellow}`,
                 }}
-                onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                 autoFocus
               />
               <button
                 type="submit"
-                className="px-6 py-3 rounded-lg font-semibold text-base transition-colors"
-                style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
+                className="px-6 py-3 rounded-lg font-semibold text-base transition-colors border-2"
+                style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
               >
