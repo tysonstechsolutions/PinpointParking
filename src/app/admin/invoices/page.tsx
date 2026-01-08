@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -23,7 +22,17 @@ interface Invoice {
   issue_date: string
   due_date: string
   status: string
+  notes: string
   created_at: string
+}
+
+// Capitalize names properly
+const capitalizeName = (name: string): string => {
+  if (!name) return ''
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 export default function InvoicesPage() {
@@ -31,6 +40,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
   useEffect(() => {
     fetchInvoices()
@@ -60,6 +70,49 @@ export default function InvoicesPage() {
       console.error('Error:', err)
     }
     setLoading(false)
+  }
+
+  const deleteInvoice = async (invoiceId: number) => {
+    if (!confirm('Are you sure you want to delete this invoice? This cannot be undone.')) return
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/invoices?id=eq.${invoiceId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+        }
+      )
+      setSelectedInvoice(null)
+      fetchInvoices()
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+    }
+  }
+
+  const updateInvoiceStatus = async (invoiceId: number, newStatus: string) => {
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/invoices?id=eq.${invoiceId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      )
+      fetchInvoices()
+      if (selectedInvoice) {
+        setSelectedInvoice({ ...selectedInvoice, status: newStatus })
+      }
+    } catch (error) {
+      console.error('Error updating invoice:', error)
+    }
   }
 
   const formatCurrency = (cents: number) => {
@@ -236,13 +289,18 @@ export default function InvoicesPage() {
             filteredInvoices.map((invoice, i) => (
               <div
                 key={invoice.id}
+                onClick={() => setSelectedInvoice(invoice)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '16px',
                   padding: '16px',
                   borderBottom: i < filteredInvoices.length - 1 ? '1px solid #302d2a' : 'none',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#302d2a'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 {/* Invoice Info */}
                 <div style={{ flex: 1 }}>
@@ -252,7 +310,7 @@ export default function InvoicesPage() {
                     </span>
                     {getStatusBadge(invoice.status, invoice.due_date)}
                   </div>
-                  <p style={{ fontWeight: '500', color: 'white' }}>{invoice.customer_name}</p>
+                  <p style={{ fontWeight: '500', color: 'white' }}>{capitalizeName(invoice.customer_name)}</p>
                   <div style={{ color: '#9C9690', fontSize: '14px' }}>
                     {invoice.due_date && <span>Due {formatDate(invoice.due_date)}</span>}
                   </div>
@@ -269,11 +327,267 @@ export default function InvoicesPage() {
                     </p>
                   )}
                 </div>
+
+                <span style={{ color: '#555' }}>›</span>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Invoice Detail Modal */}
+      {selectedInvoice && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            zIndex: 1000,
+          }}
+          onClick={() => setSelectedInvoice(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#252220',
+              borderRadius: '16px',
+              border: '2px solid #F5C518',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #302d2a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <h2 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                  Invoice {selectedInvoice.invoice_number}
+                </h2>
+                <p style={{ color: '#9C9690', fontSize: '14px', margin: '4px 0 0 0' }}>
+                  Created {formatDate(selectedInvoice.created_at)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9C9690',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '20px' }}>
+              {/* Status Badge */}
+              <div style={{ marginBottom: '20px' }}>
+                {getStatusBadge(selectedInvoice.status, selectedInvoice.due_date)}
+              </div>
+
+              {/* Customer Info */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  CUSTOMER
+                </h3>
+                <p style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+                  {capitalizeName(selectedInvoice.customer_name)}
+                </p>
+                {selectedInvoice.customer_phone && (
+                  <p style={{ color: '#16a34a', marginBottom: '4px' }}>
+                    📞 <a href={`tel:${selectedInvoice.customer_phone}`} style={{ color: '#16a34a' }}>{selectedInvoice.customer_phone}</a>
+                  </p>
+                )}
+                {selectedInvoice.customer_email && (
+                  <p style={{ color: '#9C9690', marginBottom: '4px' }}>
+                    ✉️ {selectedInvoice.customer_email}
+                  </p>
+                )}
+                {selectedInvoice.service_address && (
+                  <p style={{ color: '#9C9690' }}>
+                    📍 {selectedInvoice.service_address}
+                  </p>
+                )}
+              </div>
+
+              {/* Amounts */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  AMOUNTS
+                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ color: '#9C9690' }}>Subtotal</span>
+                  <span style={{ color: 'white' }}>{formatCurrency(selectedInvoice.subtotal_cents)}</span>
+                </div>
+                {selectedInvoice.tax_cents > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: '#9C9690' }}>Tax</span>
+                    <span style={{ color: 'white' }}>{formatCurrency(selectedInvoice.tax_cents)}</span>
+                  </div>
+                )}
+                {selectedInvoice.discount_cents > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: '#9C9690' }}>Discount</span>
+                    <span style={{ color: '#16a34a' }}>-{formatCurrency(selectedInvoice.discount_cents)}</span>
+                  </div>
+                )}
+                <div style={{ borderTop: '1px solid #302d2a', paddingTop: '8px', marginTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: 'white', fontWeight: '600' }}>Total</span>
+                    <span style={{ color: 'white', fontWeight: '600', fontSize: '18px' }}>{formatCurrency(selectedInvoice.total_cents)}</span>
+                  </div>
+                  {selectedInvoice.amount_paid_cents > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ color: '#9C9690' }}>Amount Paid</span>
+                      <span style={{ color: '#16a34a' }}>{formatCurrency(selectedInvoice.amount_paid_cents)}</span>
+                    </div>
+                  )}
+                  {selectedInvoice.balance_due_cents > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#d97706', fontWeight: '600' }}>Balance Due</span>
+                      <span style={{ color: '#d97706', fontWeight: '600', fontSize: '18px' }}>{formatCurrency(selectedInvoice.balance_due_cents)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  DATES
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {selectedInvoice.issue_date && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Issue Date</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{formatDate(selectedInvoice.issue_date)}</p>
+                    </div>
+                  )}
+                  {selectedInvoice.due_date && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Due Date</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{formatDate(selectedInvoice.due_date)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedInvoice.notes && (
+                <div style={{
+                  backgroundColor: '#1a1714',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                }}>
+                  <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                    NOTES
+                  </h3>
+                  <p style={{ color: 'white' }}>{selectedInvoice.notes}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {selectedInvoice.status === 'draft' && (
+                  <button
+                    onClick={() => updateInvoiceStatus(selectedInvoice.id, 'sent')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#1d4ed8',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📤 Mark as Sent
+                  </button>
+                )}
+                {['sent', 'viewed'].includes(selectedInvoice.status) && (
+                  <button
+                    onClick={() => updateInvoiceStatus(selectedInvoice.id, 'paid')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#16a34a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓ Mark as Paid
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  style={{
+                    padding: '12px 20px',
+                    backgroundColor: '#302d2a',
+                    color: 'white',
+                    border: '1px solid #3A3733',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => deleteInvoice(selectedInvoice.id)}
+                  style={{
+                    padding: '12px 20px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🗑 Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

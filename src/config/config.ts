@@ -72,6 +72,8 @@ export const config = {
       shortName: "Sealcoat",
       description: "Protect and extend asphalt life",
       emoji: "🛡️",
+      // Replace with your real work photos:
+      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop",
       pricePerSqFt: 0.20,
       minPrice: 150,
       estimateBuffer: 0.20, // +/- 20%
@@ -92,6 +94,8 @@ export const config = {
       shortName: "Paving",
       description: "New installation or replacement",
       emoji: "🚧",
+      // Replace with your real work photos:
+      image: "https://images.unsplash.com/photo-1581094288338-2314dddb7ece?w=600&h=400&fit=crop",
       pricePerSqFt: 4.25,
       minPrice: 2500,
       estimateBuffer: 0.25, // +/- 25%
@@ -112,6 +116,8 @@ export const config = {
       shortName: "Striping",
       description: "Parking lot lines and markings",
       emoji: "🅿️",
+      // Replace with your real work photos:
+      image: "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=600&h=400&fit=crop",
       pricePerSqFt: 0.15,
       pricePerStall: 4.00,
       pricePerSymbol: 35,

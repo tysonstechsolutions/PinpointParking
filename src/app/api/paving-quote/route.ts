@@ -111,16 +111,16 @@ async function findOrCreateCustomer({
 }
 
 // ============================================
-// SAVE QUOTE TO DATABASE
+// SAVE JOB TO DATABASE
 // ============================================
-async function saveQuoteToDatabase(quoteData: Record<string, unknown>) {
+async function saveJobToDatabase(jobData: Record<string, unknown>) {
   if (!supabaseUrl || !getSupabaseKey()) {
-    console.log('Supabase not configured - quote not saved')
+    console.log('Supabase not configured - job not saved')
     return null
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/quotes`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ async function saveQuoteToDatabase(quoteData: Record<string, unknown>) {
         'Authorization': `Bearer ${getSupabaseKey()}`,
         'Prefer': 'return=representation',
       },
-      body: JSON.stringify(quoteData),
+      body: JSON.stringify(jobData),
     })
 
     if (response.ok) {
@@ -136,10 +136,136 @@ async function saveQuoteToDatabase(quoteData: Record<string, unknown>) {
       return result[0]
     } else {
       const error = await response.text()
-      console.error('Database save error:', error)
+      console.error('Job save error:', error)
     }
   } catch (error) {
-    console.error('Database save error:', error)
+    console.error('Job save error:', error)
+  }
+
+  return null
+}
+
+// ============================================
+// GENERATE INVOICE NUMBER
+// ============================================
+async function generateInvoiceNumber(): Promise<string> {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/generate_invoice_number`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': getSupabaseKey(),
+          'Authorization': `Bearer ${getSupabaseKey()}`,
+        },
+        body: JSON.stringify({}),
+      }
+    )
+
+    if (response.ok) {
+      return await response.json()
+    }
+  } catch (e) {
+    console.error('Error generating invoice number:', e)
+  }
+
+  // Fallback
+  const now = new Date()
+  const year = now.getFullYear()
+  const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0')
+  return `INV-${year}-${random}`
+}
+
+// ============================================
+// CREATE DRAFT INVOICE
+// ============================================
+async function createDraftInvoice(job: Record<string, unknown>, customer: Record<string, unknown> | null) {
+  if (!supabaseUrl || !getSupabaseKey()) {
+    console.log('Supabase not configured - invoice not created')
+    return null
+  }
+
+  try {
+    const invoiceNumber = await generateInvoiceNumber()
+    const serviceName = serviceLabels[job.job_type as string]?.replace(/[^\w\s]/g, '').trim() || job.job_type
+    const estimateLow = job.quote_cents as number || 0
+    const estimateHigh = job.quote_cents as number || 0
+
+    // Create line item for the service
+    const lineItems = [
+      {
+        description: `${serviceName} - ${job.square_feet?.toLocaleString() || '?'} sq ft`,
+        quantity: 1,
+        unit: 'job',
+        unit_price_cents: estimateLow,
+        total_cents: estimateLow,
+      }
+    ]
+
+    // Calculate due date (15 days from now)
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 15)
+
+    const invoiceData = {
+      invoice_number: invoiceNumber,
+      job_id: job.id,
+      customer_id: customer?.id || null,
+      customer_name: job.customer_name,
+      customer_phone: job.customer_phone,
+      customer_email: job.customer_email || null,
+      customer_address: customer?.address || null,
+      service_address: job.service_address,
+      service_description: `${serviceName} service`,
+      job_type: job.job_type,
+      square_feet: job.square_feet,
+      scheduled_date: job.scheduled_date,
+      line_items: JSON.stringify(lineItems),
+      subtotal_cents: estimateLow,
+      tax_cents: 0,
+      discount_cents: 0,
+      total_cents: estimateLow,
+      amount_paid_cents: 0,
+      due_date: dueDate.toISOString().split('T')[0],
+      status: 'draft',
+      notes: `Estimate range: $${(estimateLow / 100).toLocaleString()} - $${(estimateHigh / 100).toLocaleString()}`,
+    }
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/invoices`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': getSupabaseKey(),
+        'Authorization': `Bearer ${getSupabaseKey()}`,
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(invoiceData),
+    })
+
+    if (response.ok) {
+      const [invoice] = await response.json()
+
+      // Link invoice to job
+      await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${job.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': getSupabaseKey(),
+          'Authorization': `Bearer ${getSupabaseKey()}`,
+        },
+        body: JSON.stringify({
+          invoice_id: invoice.id,
+        }),
+      })
+
+      console.log(`Draft invoice created: ${invoiceNumber}`)
+      return invoice
+    } else {
+      const error = await response.text()
+      console.error('Invoice creation error:', error)
+    }
+  } catch (error) {
+    console.error('Invoice creation error:', error)
   }
 
   return null
@@ -242,28 +368,32 @@ export async function POST(request: Request) {
       address: address,
     })
 
-    // 2. Save quote to database
-    const quoteRecord = {
+    // 2. Save job to database
+    const jobRecord = {
       customer_id: customer?.id || null,
       customer_name: customerName,
       customer_phone: customerPhone,
       customer_email: customerEmail || null,
-      address: address || null,
-      service_type: serviceType,
+      service_address: address || null,
+      job_type: serviceType,
       project_type: projectType || null,
-      square_footage: squareFootage || null,
+      square_feet: squareFootage || null,
       condition: condition || null,
-      estimate_low: estimateLow || null,
-      estimate_high: estimateHigh || null,
-      preferred_date: preferredDate ? new Date(preferredDate).toISOString().split('T')[0] : null,
-      add_ons: addOns || {},
+      quote_cents: estimateLow ? Math.round(estimateLow * 100) : null,
+      scheduled_date: preferredDate ? new Date(preferredDate).toISOString().split('T')[0] : null,
       notes: notes || null,
-      session_id: sessionId || null,
-      status: 'new',
-      source: 'chatbot',
+      internal_notes: `Chatbot estimate: $${estimateLow?.toLocaleString() || '?'} - $${estimateHigh?.toLocaleString() || '?'}`,
+      status: 'quote',
+      payment_status: 'pending',
     }
 
-    const savedQuote = await saveQuoteToDatabase(quoteRecord)
+    const savedJob = await saveJobToDatabase(jobRecord)
+
+    // 3. Create draft invoice
+    let savedInvoice = null
+    if (savedJob) {
+      savedInvoice = await createDraftInvoice(savedJob, customer)
+    }
 
     // 3. Build SMS message
     const serviceName = serviceLabels[serviceType] || serviceType
@@ -305,7 +435,8 @@ export async function POST(request: Request) {
 
     if (notes) smsMessage += `\n📝 ${notes}\n`
     smsMessage += `\n🤖 Via Chatbot`
-    if (savedQuote?.id) smsMessage += ` #${savedQuote.id}`
+    if (savedJob?.id) smsMessage += ` - Job #${savedJob.id}`
+    if (savedInvoice?.invoice_number) smsMessage += `\n📄 Invoice: ${savedInvoice.invoice_number} (Draft)`
 
     // 4. Send SMS to owner
     const ownerPhone = process.env.OWNER_PHONE
@@ -318,7 +449,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Quote submitted successfully',
-      quoteId: savedQuote?.id || null,
+      jobId: savedJob?.id || null,
+      invoiceId: savedInvoice?.id || null,
+      invoiceNumber: savedInvoice?.invoice_number || null,
       customerId: customer?.id || null,
     })
 

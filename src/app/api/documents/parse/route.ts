@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     await updateStatus(document_id, 'parsing')
 
     // 2. Get file from storage
-    const fileRes = await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/documents/${doc.storage_path}`, {
+    const fileRes = await fetch(`${SUPABASE_URL}/storage/v1/object/documents/${doc.storage_path}`, {
       headers: { 'Authorization': `Bearer ${SUPABASE_KEY}` },
     })
 

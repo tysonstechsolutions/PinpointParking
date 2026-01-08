@@ -44,6 +44,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [step, setStep] = useState(STEPS.SERVICE)
   const [messages, setMessages] = useState<{type: string, text: string}[]>([])
   const [inputValue, setInputValue] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
@@ -71,14 +73,32 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const drawingManagerRef = useRef<any>(null)
   const polygonRef = useRef<any>(null)
+  const hasInitialized = useRef(false)
 
   const scrollToBottom = () => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
+
+  // Force scroll to bottom when entering map step or when map loads
+  useEffect(() => {
+    if (step === STEPS.MAP_MEASURING && messagesContainerRef.current) {
+      // Scroll container to the very bottom to show buttons
+      const scrollToEnd = () => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+        }
+      }
+      // Scroll immediately and after a delay (for map render)
+      scrollToEnd()
+      setTimeout(scrollToEnd, 150)
+      setTimeout(scrollToEnd, 500)
+    }
+  }, [step, mapLoaded])
 
   useEffect(() => { scrollToBottom() }, [messages])
 
@@ -94,8 +114,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      addBotMessage("Hey! Need paving work? Tell me about your project and I'll give you an instant estimate.", 300)
+    if (isOpen && messages.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true
+      addBotMessage("Hey! I can give you an instant quote. What service do you need?", 300)
     }
   }, [isOpen, messages.length])
 
@@ -110,7 +131,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }
 
   // Google Maps
-  const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>) => {
+  const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>, addressOverride?: string, coordsOverride?: {lat: number, lng: number}) => {
     if (!window.google?.maps) {
       const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
       if (!existingScript) {
@@ -129,29 +150,37 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     if (!window.google?.maps || !mapContainerRef.current) return
 
-    let center = mapCoordinates || config.googleMaps.defaultCenter
-    let geocodeSuccess = !!mapCoordinates
-    if (!mapCoordinates && bookingData.address) {
+    // Use passed coordinates first, then state, then default
+    let center = coordsOverride || mapCoordinates || config.googleMaps.defaultCenter
+    const addressToGeocode = addressOverride || bookingData.address
+
+    // Only geocode if we don't have coordinates from any source
+    if (!coordsOverride && !mapCoordinates && addressToGeocode) {
       const geocoder = new window.google.maps.Geocoder()
       try {
         const result: any = await new Promise((resolve, reject) => {
-          geocoder.geocode({ address: bookingData.address }, (results: any, status: string) => {
-            if (status === 'OK' && results[0]) resolve(results[0].geometry.location)
-            else reject(status)
+          geocoder.geocode({ address: addressToGeocode }, (results: any, status: string) => {
+            console.log('Geocode status:', status, 'Address:', addressToGeocode)
+            if (status === 'OK' && results[0]) {
+              console.log('Geocode results:', results[0])
+              resolve(results[0].geometry.location)
+            } else {
+              reject(status)
+            }
           })
         })
         center = { lat: result.lat(), lng: result.lng() }
         setMapCoordinates(center)
-        geocodeSuccess = true
-        addBotMessage("Found the location! Draw the area you need serviced on the map.")
-      } catch {
-        addBotMessage("Couldn't find exact location. Use the map to navigate to your property and draw the service area.")
+      } catch (err) {
+        console.error('Geocoding failed:', err, 'for address:', addressToGeocode)
       }
     }
 
     const map = new window.google.maps.Map(mapContainerRef.current, {
       center, zoom: 20, mapTypeId: 'hybrid',
-      disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
+      disableDefaultUI: true, zoomControl: true,
+      gestureHandling: 'greedy',
+      scrollwheel: true,
     })
     mapRef.current = map
 
@@ -242,8 +271,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d)
       const isPast = date < minDate
-      const isSunday = date.getDay() === 0 && config.booking.skipSundays
-      days.push({ date, isAvailable: !isPast && !isSunday })
+      // Skip past days entirely, show future days as available (including Sundays)
+      if (isPast) {
+        days.push({ date: null, isAvailable: false })
+      } else {
+        days.push({ date, isAvailable: true })
+      }
     }
     return days
   }
@@ -261,8 +294,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const project = config.projectTypes.find(p => p.id === projectId)!
     setBookingData(prev => ({ ...prev, projectType: projectId, projectTypeName: project.label, discount: project.discount || 0 }))
     addUserMessage(project.label)
-    await addBotMessage("What's the address?")
-    setStep(STEPS.ADDRESS)
+    await addBotMessage("What's the current condition of the pavement?")
+    setStep(STEPS.CONDITION)
   }
 
   const handleAddressSubmit = async () => {
@@ -272,7 +305,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     addUserMessage(address)
     setInputValue('')
     setIsAnalyzing(true)
-    await addBotMessage("Analyzing satellite imagery...")
 
     try {
       const response = await fetch('/api/estimate-area', {
@@ -286,72 +318,74 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       if (result.success && result.polygonPoints?.length >= 3) {
         setAiPolygonPoints(result.polygonPoints)
         const sqft = result.squareFootage
-        const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
-        setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high, address: result.formattedAddress || address }))
-        await addBotMessage(`Found it! Estimated area: ${sqft.toLocaleString()} sq ft\n\nEstimate: $${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nVerify the outlined area below. Drag corners to adjust.`)
+        setBookingData(prev => ({ ...prev, squareFootage: sqft, address: result.formattedAddress || address }))
+        await addBotMessage(`Found it! Please verify the outlined area.`)
         setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => loadMap(result.polygonPoints), 100)
+        setTimeout(() => { loadMap(result.polygonPoints, address, result.coordinates); scrollToBottom() }, 100)
       } else if (result.coordinates) {
-        await addBotMessage("Found the location. Draw the area you need serviced on the map below.")
+        await addBotMessage("Found the location!")
         setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => loadMap(), 100)
+        setTimeout(() => { loadMap(undefined, address, result.coordinates); scrollToBottom() }, 100)
       } else {
-        // Try to geocode with client-side Google Maps as fallback
-        await addBotMessage("Searching for location...")
+        await addBotMessage("Found it!")
         setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => loadMap(), 100)
+        setTimeout(() => { loadMap(undefined, address, undefined); scrollToBottom() }, 100)
       }
     } catch {
       setIsAnalyzing(false)
       await addBotMessage("Let me find that location...")
       setStep(STEPS.MAP_MEASURING)
-      setTimeout(() => loadMap(), 100)
+      setTimeout(() => { loadMap(undefined, address, undefined); scrollToBottom() }, 100)
     }
   }
 
   const handleMapConfirm = async () => {
     if (!drawnArea) return
-    const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
-    setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: estimate.low, estimateHigh: estimate.high }))
-    addUserMessage(`${drawnArea.toLocaleString()} sq ft`)
-    await addBotMessage("What's the current condition of the pavement?")
-    setStep(STEPS.CONDITION)
+    setBookingData(prev => ({ ...prev, squareFootage: drawnArea }))
+    addUserMessage(`Area confirmed: ${drawnArea.toLocaleString()} sq ft`)
+    await addBotMessage("To get your estimated price and send it to the contractor, we need your name and phone number.\n\nThe contractor will send you a link with the final price and a link for payment.")
+    setStep(STEPS.CONTACT)
   }
 
   const handleConditionSelect = async (conditionId: string) => {
     const condition = config.conditions.find(c => c.id === conditionId)!
     setBookingData(prev => ({ ...prev, condition: conditionId }))
     addUserMessage(condition.label)
-    if (condition.adjustment > 0) {
-      setBookingData(prev => ({ ...prev, estimateHigh: Math.round(prev.estimateHigh * (1 + condition.adjustment)) }))
-    }
-    await addBotMessage("When would you like us to come out?")
-    setStep(STEPS.DATE)
+    await addBotMessage("What's the address?")
+    setStep(STEPS.ADDRESS)
   }
 
   const handleDateSelect = async (date: Date) => {
     const label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     setBookingData(prev => ({ ...prev, deliveryDate: date.toISOString().split('T')[0], deliveryDateLabel: label }))
     addUserMessage(label)
-    await addBotMessage("Last step - what's your name and phone number?")
-    setStep(STEPS.CONTACT)
+    await addBotMessage("Here's your quote summary:")
+    setStep(STEPS.SUMMARY)
   }
 
-  const handleContactSubmit = async () => {
-    const value = inputValue.trim()
-    if (!value) return
-    setInputValue('')
-    const phoneMatch = value.match(/[\d\-\(\)\s]{10,}/)
-    const phone = phoneMatch ? phoneMatch[0].replace(/\D/g, '') : ''
-    const name = value.replace(phoneMatch?.[0] || '', '').replace(/[,]/g, '').trim()
-    if (name && phone) {
-      setBookingData(prev => ({ ...prev, name, phone }))
-      addUserMessage(`${name}, ${phone}`)
-      await addBotMessage(`Thanks ${name}! Here's your quote:`)
-      setStep(STEPS.SUMMARY)
-    } else {
-      await addBotMessage("Please include both your name and phone number.\n\nExample: John Smith 618-555-1234")
+  const handleContactSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const name = contactName.trim()
+    const phone = contactPhone.trim().replace(/\D/g, '')
+
+    if (!name || phone.length < 10) {
+      await addBotMessage("Please enter your full name and a valid phone number.")
+      return
     }
+
+    // Calculate estimate now with condition adjustment
+    const condition = config.conditions.find(c => c.id === bookingData.condition)
+    let estimate = calculateEstimate(bookingData.squareFootage, bookingData.service, bookingData.discount)
+    if (condition && condition.adjustment > 0) {
+      estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+    }
+
+    setBookingData(prev => ({ ...prev, name, phone, estimateLow: estimate.low, estimateHigh: estimate.high }))
+    addUserMessage(`${name}, ${phone}`)
+    setContactName('')
+    setContactPhone('')
+    await addBotMessage(`Thanks ${name}! Your estimated price is:\n\n$${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nWhen would you like us to come out?`)
+    setStep(STEPS.DATE)
   }
 
   const handleConfirmBooking = async () => {
@@ -384,7 +418,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const handleInputSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (step === STEPS.ADDRESS) handleAddressSubmit()
-    else if (step === STEPS.CONTACT) handleContactSubmit()
   }
 
   const handleClose = () => { if (onClose) onClose(); else setIsOpen(false) }
@@ -411,257 +444,417 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   function renderChatWindow() {
     return (
       <div
-        className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[500px] max-w-[calc(100vw-48px)] h-[680px] max-h-[calc(100vh-48px)]'} rounded-xl flex flex-col z-50 overflow-hidden shadow-2xl`}
-        style={{ backgroundColor: COLORS.black }}
+        className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[420px] max-w-[calc(100vw-48px)] h-[600px] max-h-[calc(100vh-48px)]'} rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl`}
+        style={{ backgroundColor: COLORS.black, border: `3px solid ${COLORS.yellow}` }}
       >
-        {/* Header - Yellow */}
-        <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: COLORS.yellow }}>
-          <div>
-            <h2 className="font-bold text-lg" style={{ color: COLORS.black }}>{config.businessName}</h2>
-            <p className="text-sm opacity-80" style={{ color: COLORS.black }}>Quick booking assistant</p>
+        {/* Header */}
+        <div className="px-4 py-5 relative" style={{ backgroundColor: COLORS.yellow, borderBottom: `3px solid ${COLORS.black}` }}>
+          <div className="text-center">
+            <h2 className="font-black text-xl tracking-tight" style={{ color: COLORS.black }}>{config.businessName}</h2>
+            <p className="text-sm font-medium mt-0.5" style={{ color: COLORS.black, opacity: 0.7 }}>Get Your Free Quote</p>
           </div>
-          <button onClick={handleClose} className="text-2xl font-light opacity-70 hover:opacity-100" style={{ color: COLORS.black }}>&times;</button>
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110"
+            style={{ backgroundColor: COLORS.black, color: COLORS.yellow }}
+          >
+            <span className="text-xl font-bold">&times;</span>
+          </button>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className="max-w-[90%] px-5 py-4 whitespace-pre-line text-lg leading-relaxed rounded-2xl"
-                style={msg.type === 'user'
-                  ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderBottomRightRadius: '4px', border: `2px solid ${COLORS.yellowDark}` }
-                  : { backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }
-                }
-              >
-                {msg.text}
+        <div
+          ref={messagesContainerRef}
+          className="flex-1"
+          style={{
+            padding: '20px',
+            overflowY: step === STEPS.MAP_MEASURING ? 'hidden' : 'auto',
+            overflowX: 'hidden'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {messages.map((msg, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                paddingLeft: msg.type === 'user' ? '40px' : '0',
+                paddingRight: msg.type === 'user' ? '0' : '40px',
+              }}>
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    whiteSpace: 'pre-line',
+                    fontSize: '15px',
+                    lineHeight: '1.5',
+                    borderRadius: '16px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    maxWidth: '85%',
+                    ...(msg.type === 'user'
+                      ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderBottomRightRadius: '4px' }
+                      : { backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }
+                    )
+                  }}
+                >
+                  {msg.text}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {(isTyping || isAnalyzing) && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl px-5 py-4 text-lg" style={{ backgroundColor: COLORS.blackLight, color: '#fff', borderBottomLeftRadius: '4px', border: `2px solid ${COLORS.yellow}` }}>
-                {isAnalyzing ? 'Analyzing satellite imagery...' : '...'}
+            {(isTyping || isAnalyzing) && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start', paddingRight: '40px' }}>
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    borderRadius: '16px',
+                    borderBottomLeftRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.yellow}`,
+                  }}
+                >
+                  {isAnalyzing ? 'Analyzing satellite imagery...' : '...'}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* SERVICE SELECTION */}
-          {!isTyping && step === STEPS.SERVICE && messages.length > 0 && (
-            <div className="space-y-4">
-              <p className="text-lg" style={{ color: COLORS.gray }}>What kind of service do you need?</p>
-              <div className="flex flex-col gap-3">
+            {/* SERVICE SELECTION */}
+            {!isTyping && step === STEPS.SERVICE && messages.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
                 {config.services.map(service => (
                   <button
                     key={service.id}
                     onClick={() => handleServiceSelect(service.id)}
-                    className="rounded-lg p-5 text-left transition-all border-2"
                     style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      border: `2px solid ${COLORS.yellow}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                       backgroundColor: COLORS.blackLight,
-                      borderColor: COLORS.yellow,
+                      cursor: 'pointer',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLORS.blackLight; e.currentTarget.style.color = '#fff' }}
                   >
-                    <p className="font-semibold text-white text-lg">{service.name}</p>
-                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{service.description}</p>
+                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '15px', margin: 0 }}>{service.name}</p>
+                    <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{service.description}</p>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* PROJECT TYPE */}
-          {!isTyping && step === STEPS.PROJECT_TYPE && (
-            <div className="space-y-4">
-              <p className="text-lg" style={{ color: COLORS.gray }}>What type of property?</p>
-              <div className="flex flex-col gap-3">
+            {/* PROJECT TYPE */}
+            {!isTyping && step === STEPS.PROJECT_TYPE && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
                 {config.projectTypes.map(project => (
                   <button
                     key={project.id}
                     onClick={() => handleProjectSelect(project.id)}
-                    className="rounded-lg p-5 text-left transition-all border-2 relative"
-                    style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      border: `2px solid ${COLORS.yellow}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      backgroundColor: COLORS.blackLight,
+                      cursor: 'pointer',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLORS.blackLight; e.currentTarget.style.color = '#fff' }}
                   >
                     {project.discount > 0 && (
-                      <span
-                        className="absolute -top-2 -right-2 text-sm font-bold px-3 py-1 rounded-full"
-                        style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
-                      >
+                      <span style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        padding: '4px 8px',
+                        borderRadius: '999px',
+                        backgroundColor: COLORS.yellow,
+                        color: COLORS.black,
+                      }}>
                         {Math.round(project.discount * 100)}% OFF
                       </span>
                     )}
-                    <p className="font-semibold text-white text-lg">{project.label}</p>
-                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{project.description}</p>
+                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '15px', margin: 0 }}>{project.label}</p>
+                    <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{project.description}</p>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* MAP */}
-          {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
-            <div className="space-y-3">
-              <div className="rounded-lg overflow-hidden" style={{ border: `2px solid ${COLORS.yellow}` }}>
-                <div ref={mapContainerRef} className="h-[220px]" style={{ backgroundColor: COLORS.black }} />
-                {drawnArea && (
-                  <div className="p-3 flex items-center justify-between" style={{ backgroundColor: COLORS.blackLight }}>
-                    <div>
-                      <span className="text-white font-bold text-lg">{drawnArea.toLocaleString()} sq ft</span>
-                      <span className="ml-3 text-base" style={{ color: COLORS.yellow }}>
-                        ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
-                      </span>
+            {/* MAP */}
+            {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                {/* Instructions */}
+                <div style={{
+                  padding: '10px 12px',
+                  backgroundColor: COLORS.blackMedium,
+                  borderRadius: '8px',
+                  borderLeft: `3px solid ${COLORS.yellow}`,
+                }}>
+                  <p style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
+                    {drawnArea ? '✓ Area outlined - drag corners to adjust' : '📍 Click points to outline the area'}
+                  </p>
+                  <p style={{ color: COLORS.gray, fontSize: '12px', margin: 0 }}>
+                    {drawnArea ? 'Click Redraw to start over' : 'Click each corner, then close the shape'}
+                  </p>
+                </div>
+
+                {/* Map - Much bigger */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: `2px solid ${COLORS.yellow}` }}>
+                  <div ref={mapContainerRef} style={{ height: '320px', backgroundColor: COLORS.black }} />
+                  {drawnArea && (
+                    <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.blackLight }}>
+                      <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{drawnArea.toLocaleString()} sq ft</span>
                     </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={clearDrawing}
-                  className="flex-1 rounded-lg py-4 text-lg font-medium text-white transition-colors border-2"
-                  style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
-                >
-                  Redraw
-                </button>
-                <button
-                  onClick={handleMapConfirm}
-                  disabled={!drawnArea}
-                  className="flex-[2] rounded-lg py-4 text-lg font-semibold transition-colors border-2"
-                  style={drawnArea
-                    ? { backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }
-                    : { backgroundColor: COLORS.blackMedium, color: COLORS.gray, cursor: 'not-allowed', borderColor: COLORS.gray }
-                  }
-                >
-                  Confirm Area
-                </button>
-              </div>
-            </div>
-          )}
+                  )}
+                </div>
 
-          {/* CONDITION */}
-          {!isTyping && step === STEPS.CONDITION && (
-            <div className="space-y-4">
-              <p className="text-lg" style={{ color: COLORS.gray }}>Current pavement condition:</p>
-              <div className="flex flex-col gap-3">
+                {/* Buttons */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={clearDrawing}
+                    style={{
+                      flex: 1,
+                      borderRadius: '12px',
+                      padding: '14px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      backgroundColor: COLORS.blackLight,
+                      border: `2px solid ${COLORS.gray}`,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = COLORS.gray}
+                  >
+                    Redraw
+                  </button>
+                  <button
+                    onClick={handleMapConfirm}
+                    disabled={!drawnArea}
+                    style={{
+                      flex: 2,
+                      borderRadius: '12px',
+                      padding: '14px',
+                      fontWeight: 'bold',
+                      cursor: drawnArea ? 'pointer' : 'not-allowed',
+                      backgroundColor: drawnArea ? COLORS.yellow : COLORS.blackMedium,
+                      color: drawnArea ? COLORS.black : COLORS.gray,
+                      border: `2px solid ${drawnArea ? COLORS.yellow : COLORS.gray}`,
+                    }}
+                  >
+                    Confirm Area
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* CONDITION */}
+            {!isTyping && step === STEPS.CONDITION && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
                 {config.conditions.map(condition => (
                   <button
                     key={condition.id}
                     onClick={() => handleConditionSelect(condition.id)}
-                    className="rounded-lg p-5 text-left transition-all border-2"
-                    style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.blackMedium}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.blackLight}
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      border: `2px solid ${COLORS.yellow}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      backgroundColor: COLORS.blackLight,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLORS.blackLight; e.currentTarget.style.color = '#fff' }}
                   >
-                    <p className="font-semibold text-white text-lg">{condition.label}</p>
-                    <p className="text-base mt-1" style={{ color: COLORS.gray }}>{condition.description}</p>
+                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '15px', margin: 0 }}>{condition.label}</p>
+                    <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{condition.description}</p>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* DATE */}
-          {!isTyping && step === STEPS.DATE && (
-            <div className="rounded-lg p-4 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
-              <div className="flex justify-between items-center mb-4">
-                <button
-                  onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                  className="text-xl px-2 hover:opacity-100"
-                  style={{ color: COLORS.gray }}
-                >&lt;</button>
-                <span className="text-white font-semibold text-base">{calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-                <button
-                  onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                  className="text-xl px-2"
-                  style={{ color: COLORS.gray }}
-                >&gt;</button>
-              </div>
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                  <div key={d} className="text-center text-sm py-1" style={{ color: COLORS.gray }}>{d}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {getCalendarDays().map((day, i) => (
+            {/* CONTACT FORM */}
+            {!isTyping && step === STEPS.CONTACT && (
+              <div style={{ marginTop: '20px' }}>
+                <form onSubmit={handleContactSubmit} style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: `2px solid ${COLORS.yellow}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  backgroundColor: COLORS.blackLight,
+                }}>
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Your full name"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      backgroundColor: COLORS.blackMedium,
+                      color: '#fff',
+                      border: `2px solid ${COLORS.blackMedium}`,
+                      outline: 'none',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                    onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                    autoFocus
+                  />
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="Phone number"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      backgroundColor: COLORS.blackMedium,
+                      color: '#fff',
+                      border: `2px solid ${COLORS.blackMedium}`,
+                      outline: 'none',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                    onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                  />
                   <button
-                    key={i}
-                    onClick={() => day.date && day.isAvailable && handleDateSelect(day.date)}
-                    disabled={!day.date || !day.isAvailable}
-                    className="aspect-square rounded text-sm font-medium transition-colors"
-                    style={
-                      day.date
-                        ? day.isAvailable
-                          ? { backgroundColor: COLORS.blackMedium, color: '#fff' }
-                          : { color: '#4a4540' }
-                        : {}
-                    }
-                    onMouseEnter={(e) => { if (day.date && day.isAvailable) e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
-                    onMouseLeave={(e) => { if (day.date && day.isAvailable) e.currentTarget.style.backgroundColor = COLORS.blackMedium; e.currentTarget.style.color = '#fff' }}
+                    type="submit"
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      backgroundColor: COLORS.yellow,
+                      color: COLORS.black,
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    {day.date?.getDate() || ''}
+                    Get My Estimate
                   </button>
-                ))}
+                </form>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* SUMMARY */}
-          {!isTyping && step === STEPS.SUMMARY && (
-            <div className="space-y-4">
-              <div className="rounded-lg p-5 space-y-4 border-2" style={{ backgroundColor: COLORS.blackLight, borderColor: COLORS.yellow }}>
-                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Service</span><span className="text-white">{bookingData.serviceName}</span></div>
-                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Property</span><span className="text-white">{bookingData.projectTypeName}</span></div>
-                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Area</span><span className="text-white">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
-                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Date</span><span className="text-white">{bookingData.deliveryDateLabel}</span></div>
-                <div className="flex justify-between text-lg"><span style={{ color: COLORS.gray }}>Contact</span><span className="text-white text-right">{bookingData.name}<br/>{bookingData.phone}</span></div>
-                <div className="pt-4 flex justify-between items-center" style={{ borderTop: `1px solid ${COLORS.blackMedium}` }}>
-                  <span className="text-white font-semibold text-lg">Estimate</span>
-                  <span className="font-bold text-2xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}</span>
+            {/* DATE */}
+            {!isTyping && step === STEPS.DATE && (
+              <div style={{ borderRadius: '12px', padding: '16px', border: `2px solid ${COLORS.yellow}`, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', marginTop: '20px', backgroundColor: COLORS.blackLight }}>
+                <div className="flex justify-between items-center mb-3">
+                  <button
+                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-full font-bold hover:opacity-80"
+                    style={{ backgroundColor: COLORS.blackMedium, color: COLORS.yellow }}
+                  >&lt;</button>
+                  <span className="text-white font-bold">{calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                  <button
+                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-full font-bold hover:opacity-80"
+                    style={{ backgroundColor: COLORS.blackMedium, color: COLORS.yellow }}
+                  >&gt;</button>
+                </div>
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                    <div key={d} className="text-center text-xs font-bold py-1" style={{ color: COLORS.gray }}>{d}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {getCalendarDays().map((day, i) => (
+                    <button
+                      key={i}
+                      onClick={() => day.date && day.isAvailable && handleDateSelect(day.date)}
+                      disabled={!day.date || !day.isAvailable}
+                      className="aspect-square rounded-lg text-sm font-bold transition-all"
+                      style={
+                        day.date
+                          ? day.isAvailable
+                            ? { backgroundColor: COLORS.blackMedium, color: '#fff' }
+                            : { color: '#4a4540' }
+                          : {}
+                      }
+                      onMouseEnter={(e) => { if (day.date && day.isAvailable) { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}}
+                      onMouseLeave={(e) => { if (day.date && day.isAvailable) { e.currentTarget.style.backgroundColor = COLORS.blackMedium; e.currentTarget.style.color = '#fff' }}}
+                    >
+                      {day.date?.getDate() || ''}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <button
-                onClick={handleConfirmBooking}
-                className="w-full rounded-lg py-5 font-semibold text-xl transition-colors border-2"
-                style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
-              >
-                Confirm Booking
-              </button>
-            </div>
-          )}
+            )}
 
-          <div ref={messagesEndRef} />
+            {/* SUMMARY */}
+            {!isTyping && step === STEPS.SUMMARY && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+                <div style={{ borderRadius: '12px', padding: '16px', border: `2px solid ${COLORS.yellow}`, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', backgroundColor: COLORS.blackLight }}>
+                  <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Service</span><span className="text-white font-bold">{bookingData.serviceName}</span></div>
+                  <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Property</span><span className="text-white font-bold">{bookingData.projectTypeName}</span></div>
+                  <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Area</span><span className="text-white font-bold">{bookingData.squareFootage.toLocaleString()} sq ft</span></div>
+                  <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Date</span><span className="text-white font-bold">{bookingData.deliveryDateLabel}</span></div>
+                  <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Contact</span><span className="text-white font-bold text-right">{bookingData.name}<br/>{bookingData.phone}</span></div>
+                  <div className="pt-3 flex justify-between items-center" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
+                    <span className="text-white font-bold">Estimate</span>
+                    <span className="font-black text-xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleConfirmBooking}
+                  className="w-full rounded-xl py-4 font-black text-lg transition-all border-2 shadow-lg hover:scale-[1.02]"
+                  style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellow }}
+                >
+                  Confirm Booking
+                </button>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        {/* Input */}
-        {(step === STEPS.ADDRESS || step === STEPS.CONTACT) && (
-          <div className="p-4" style={{ borderTop: `1px solid ${COLORS.blackMedium}` }}>
+        {/* Address Input */}
+        {step === STEPS.ADDRESS && (
+          <div className="px-5 py-4" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
             <form onSubmit={handleInputSubmit} className="flex gap-3">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={step === STEPS.ADDRESS ? "Enter full address..." : "Name and phone number..."}
-                className="flex-1 px-5 py-4 rounded-lg text-lg outline-none"
+                placeholder="Enter full address..."
+                className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
                 style={{
                   backgroundColor: COLORS.blackLight,
                   color: '#fff',
-                  border: `2px solid ${COLORS.yellow}`,
+                  border: `2px solid ${COLORS.blackMedium}`,
                 }}
+                onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
                 autoFocus
               />
               <button
                 type="submit"
-                className="px-8 py-4 rounded-lg font-semibold text-lg transition-colors border-2"
-                style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellowDark }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = COLORS.yellowDark}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLORS.yellow}
+                className="px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+                style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
               >
                 Send
               </button>
@@ -670,15 +863,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         )}
 
         {/* Footer */}
-        <div className="p-3 text-center" style={{ borderTop: `1px solid ${COLORS.blackMedium}` }}>
+        <div className="px-5 py-3 text-center" style={{ backgroundColor: COLORS.blackLight }}>
           <a
             href={`tel:${config.phoneRaw}`}
-            className="text-sm transition-colors"
+            className="text-sm font-medium transition-colors"
             style={{ color: COLORS.gray }}
             onMouseEnter={(e) => e.currentTarget.style.color = COLORS.yellow}
             onMouseLeave={(e) => e.currentTarget.style.color = COLORS.gray}
           >
-            Need help? Call {config.phone}
+            Questions? Call {config.phone}
           </a>
         </div>
       </div>

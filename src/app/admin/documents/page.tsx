@@ -97,6 +97,7 @@ export default function DocumentsPage() {
 
   const handleViewParsed = async (doc: Document) => {
     setSelectedDoc(doc)
+    setParsedData(null)
     if (doc.parsed_invoice_id) {
       try {
         const response = await fetch(`/api/documents/parse?document_id=${doc.id}`)
@@ -114,6 +115,21 @@ export default function DocumentsPage() {
 
   const handleRetryParse = async (docId: number) => {
     try {
+      // First reset status to pending
+      await fetch(
+        `${config.supabase.url}/rest/v1/documents?id=eq.${docId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+          body: JSON.stringify({ parse_status: 'pending' }),
+        }
+      )
+
+      // Then trigger parsing
       const response = await fetch('/api/documents/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,6 +140,50 @@ export default function DocumentsPage() {
       }
     } catch (err) {
       console.error('Parse error:', err)
+    }
+  }
+
+  const handleResetStatus = async (docId: number) => {
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/documents?id=eq.${docId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+          body: JSON.stringify({ parse_status: 'failed' }),
+        }
+      )
+      fetchDocuments()
+      if (selectedDoc?.id === docId) {
+        setSelectedDoc({ ...selectedDoc, parse_status: 'failed' })
+      }
+    } catch (err) {
+      console.error('Reset error:', err)
+    }
+  }
+
+  const handleDeleteDocument = async (docId: number) => {
+    if (!confirm('Are you sure you want to delete this document? This cannot be undone.')) return
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/documents?id=eq.${docId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+        }
+      )
+      setSelectedDoc(null)
+      setParsedData(null)
+      fetchDocuments()
+    } catch (err) {
+      console.error('Delete error:', err)
     }
   }
 
@@ -179,6 +239,14 @@ export default function DocumentsPage() {
     if (selectedCategory === 'all') return true
     return d.category === selectedCategory
   })
+
+  // Check for stuck parsing (over 5 minutes)
+  const isParsingStuck = (doc: Document) => {
+    if (doc.parse_status !== 'parsing') return false
+    const createdAt = new Date(doc.created_at).getTime()
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+    return createdAt < fiveMinutesAgo
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#1a1714' }}>
@@ -266,6 +334,7 @@ export default function DocumentsPage() {
           ) : (
             filteredDocs.map((doc, i) => {
               const cat = getCategoryInfo(doc.category)
+              const stuck = isParsingStuck(doc)
               return (
                 <div
                   key={doc.id}
@@ -276,14 +345,29 @@ export default function DocumentsPage() {
                     padding: '16px',
                     borderBottom: i < filteredDocs.length - 1 ? '1px solid #302d2a' : 'none',
                     cursor: 'pointer',
+                    transition: 'background-color 0.2s',
                   }}
                   onClick={() => handleViewParsed(doc)}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#302d2a'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <span style={{ fontSize: '32px' }}>{cat.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <span style={{ fontWeight: '600', color: 'white' }}>{doc.title || doc.file_name}</span>
                       {getStatusBadge(doc.parse_status)}
+                      {stuck && (
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '9999px',
+                          fontSize: '11px',
+                          fontWeight: '500',
+                          backgroundColor: '#fef3c7',
+                          color: '#d97706',
+                        }}>
+                          stuck?
+                        </span>
+                      )}
                     </div>
                     <div style={{ color: '#9C9690', fontSize: '14px' }}>
                       {formatDate(doc.created_at)} • {formatFileSize(doc.file_size)}
@@ -294,20 +378,20 @@ export default function DocumentsPage() {
                       {formatCurrency(doc.amount_cents)}
                     </div>
                   )}
-                  {doc.parse_status === 'failed' && (
+                  {(doc.parse_status === 'failed' || stuck) && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleRetryParse(doc.id); }}
+                      onClick={(e) => { e.stopPropagation(); stuck ? handleResetStatus(doc.id) : handleRetryParse(doc.id); }}
                       style={{
                         padding: '6px 12px',
-                        backgroundColor: '#fee2e2',
-                        color: '#dc2626',
+                        backgroundColor: stuck ? '#fef3c7' : '#fee2e2',
+                        color: stuck ? '#d97706' : '#dc2626',
                         border: 'none',
                         borderRadius: '6px',
                         fontSize: '12px',
                         cursor: 'pointer',
                       }}
                     >
-                      Retry
+                      {stuck ? 'Reset' : 'Retry'}
                     </button>
                   )}
                 </div>
@@ -333,6 +417,10 @@ export default function DocumentsPage() {
           doc={selectedDoc}
           parsed={parsedData}
           onClose={() => { setSelectedDoc(null); setParsedData(null); }}
+          onRetry={() => handleRetryParse(selectedDoc.id)}
+          onReset={() => handleResetStatus(selectedDoc.id)}
+          onDelete={() => handleDeleteDocument(selectedDoc.id)}
+          isStuck={isParsingStuck(selectedDoc)}
         />
       )}
     </div>
@@ -498,10 +586,18 @@ function ParsedDataModal({
   doc,
   parsed,
   onClose,
+  onRetry,
+  onReset,
+  onDelete,
+  isStuck,
 }: {
   doc: Document
   parsed: ParsedInvoice | null
   onClose: () => void
+  onRetry: () => void
+  onReset: () => void
+  onDelete: () => void
+  isStuck: boolean
 }) {
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -514,13 +610,15 @@ function ParsedDataModal({
     <div style={{
       position: 'fixed',
       inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.7)',
+      backgroundColor: 'rgba(0,0,0,0.8)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 50,
       padding: '16px',
-    }}>
+    }}
+    onClick={onClose}
+    >
       <div style={{
         backgroundColor: '#252220',
         borderRadius: '16px',
@@ -528,8 +626,10 @@ function ParsedDataModal({
         width: '100%',
         maxHeight: '90vh',
         overflowY: 'auto',
-        border: '1px solid #302d2a',
-      }}>
+        border: '2px solid #F5C518',
+      }}
+      onClick={(e) => e.stopPropagation()}
+      >
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -550,8 +650,11 @@ function ParsedDataModal({
             <h3 style={{ fontWeight: '600', marginBottom: '8px', color: 'white' }}>File</h3>
             <div style={{ backgroundColor: '#302d2a', padding: '12px', borderRadius: '8px' }}>
               <div style={{ fontWeight: '500', color: 'white' }}>{doc.file_name}</div>
-              <div style={{ fontSize: '14px', color: '#9C9690' }}>
-                {doc.category} • {doc.parse_status}
+              <div style={{ fontSize: '14px', color: '#9C9690', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <span>{doc.category}</span>
+                <span>•</span>
+                <span>{doc.parse_status}</span>
+                {isStuck && <span style={{ color: '#d97706' }}>• (stuck)</span>}
               </div>
             </div>
           </div>
@@ -628,25 +731,108 @@ function ParsedDataModal({
                 textAlign: 'center',
                 fontWeight: '500',
                 border: `1px solid ${parsed.invoice_type === 'vendor_expense' ? '#dc262640' : '#16a34a40'}`,
+                marginBottom: '16px',
               }}>
                 {parsed.invoice_type === 'vendor_expense' ? '📤 Expense (Money Out)' : '📥 Income (Money In)'}
               </div>
             </>
           ) : doc.parse_status === 'parsing' ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690' }}>
+            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔄</div>
-              AI is analyzing this document...
+              {isStuck ? (
+                <>
+                  <p>This parsing appears to be stuck.</p>
+                  <p style={{ fontSize: '14px', marginTop: '8px' }}>Click "Reset" to mark it as failed and try again.</p>
+                </>
+              ) : (
+                'AI is analyzing this document...'
+              )}
             </div>
           ) : doc.parse_status === 'pending' ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690' }}>
+            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>⏳</div>
               Waiting for AI analysis
             </div>
+          ) : doc.parse_status === 'failed' ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>❌</div>
+              <p>Parsing failed</p>
+              <p style={{ fontSize: '14px', marginTop: '8px' }}>Click "Retry" to try again</p>
+            </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690' }}>
+            <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>
               No parsed data available
             </div>
           )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {(doc.parse_status === 'failed' || doc.parse_status === 'pending') && (
+              <button
+                onClick={onRetry}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#1d4ed8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                🔄 Retry Parse
+              </button>
+            )}
+            {isStuck && (
+              <button
+                onClick={onReset}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#d97706',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                ⚠️ Reset Status
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: '#302d2a',
+                color: 'white',
+                border: '1px solid #3A3733',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+            <button
+              onClick={onDelete}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              🗑 Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>

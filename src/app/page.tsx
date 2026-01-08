@@ -5,60 +5,36 @@ const services = [
     title: 'Asphalt Paving',
     description: 'New driveways, parking lots, and roads built to last. Expert installation with proper base preparation and drainage.',
     href: '/services/asphalt-paving',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="6" width="20" height="12" rx="2"/>
-        <path d="M2 10h20"/>
-        <path d="M6 14h.01M10 14h.01M14 14h.01M18 14h.01"/>
-      </svg>
-    ),
+    // Replace with your real work photo:
+    image: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?w=600&h=400&fit=crop',
   },
   {
     title: 'Sealcoating',
     description: 'Protect and extend the life of your asphalt with professional sealcoating. Guards against UV rays, water, and chemicals.',
     href: '/services/sealcoating',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-        <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/>
-        <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-      </svg>
-    ),
+    // Replace with your real work photo:
+    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
   },
   {
     title: 'Line Striping',
     description: 'ADA-compliant parking lot striping, traffic markings, and custom layouts. Crisp, visible lines that last.',
     href: '/services/line-striping',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
-      </svg>
-    ),
+    // Replace with your real work photo:
+    image: 'https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=600&h=400&fit=crop',
   },
   {
     title: 'Crack Filling',
     description: 'Stop cracks before they spread. Professional crack sealing prevents water infiltration and costly repairs.',
     href: '/services/crack-filling',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-    ),
+    // Replace with your real work photo:
+    image: 'https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=600&h=400&fit=crop',
   },
   {
     title: 'Pothole Repair',
     description: 'Fast, permanent pothole repairs that eliminate hazards and restore smooth surfaces. Same-week service available.',
     href: '/services/pothole-repair',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M8 12h8"/>
-        <path d="M12 8v8"/>
-      </svg>
-    ),
+    // Replace with your real work photo:
+    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&h=400&fit=crop',
   },
 ];
 
@@ -156,16 +132,20 @@ export default function Home() {
 
           <div className="services-grid">
             {services.map((service) => (
-              <Link href={service.href} className="service-card" key={service.title}>
-                <div className="service-icon">{service.icon}</div>
-                <h3>{service.title}</h3>
-                <p>{service.description}</p>
-                <span className="service-link">
-                  Learn More
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </span>
+              <Link href={service.href} className="service-card service-card-with-image" key={service.title}>
+                <div className="service-image">
+                  <img src={service.image} alt={service.title} />
+                </div>
+                <div className="service-content">
+                  <h3>{service.title}</h3>
+                  <p>{service.description}</p>
+                  <span className="service-link">
+                    Learn More
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </span>
+                </div>
               </Link>
             ))}
 

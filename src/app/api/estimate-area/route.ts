@@ -81,7 +81,7 @@ async function analyzeWithClaude(
   const client = new Anthropic({ apiKey })
 
   const projectDescriptions: Record<string, string> = {
-    'driveway': 'residential driveway (the paved area from the street to the garage/house)',
+    'driveway': 'residential DRIVEWAY - the private paved path that goes PERPENDICULAR to the street, connecting FROM the street/road TO the house/garage. NOT the street itself.',
     'parking-lot': 'commercial parking lot (the entire paved parking area with spaces)',
     'church': 'church parking lot',
     'apartment': 'apartment complex parking area',
@@ -90,6 +90,8 @@ async function analyzeWithClaude(
   }
 
   const targetDescription = projectDescriptions[projectType] || 'paved asphalt area'
+
+  const isDriveway = projectType === 'driveway'
 
   // Calculate meters per pixel based on zoom level
   // At zoom 20: ~0.15m/pixel, at zoom 19: ~0.30m/pixel
@@ -129,12 +131,24 @@ IMPORTANT TASK: Analyze this satellite image and:
 2. Trace the OUTLINE/BOUNDARY of the paved area
 3. Return polygon coordinates as pixel positions (x, y from 0-640)
 
-Guidelines:
-- For driveways: Trace the paved path from street to garage. Usually rectangular or L-shaped.
-- For parking lots: Trace the entire paved parking area boundary, including driving lanes.
+${isDriveway ? `CRITICAL FOR DRIVEWAYS:
+- A driveway is the PRIVATE paved surface connecting the street TO the house/garage
+- Driveways are typically PERPENDICULAR or at an angle to the street (not parallel)
+- DO NOT trace the street/road - that's public, not the driveway
+- Look for the rectangular area that goes FROM the road edge TOWARD the house
+- Typical residential driveways are 10-20 feet wide and 20-50 feet long
+- The driveway usually connects to a garage or ends near the front of the house
+- Driveways often have a different color/texture than the street
+- Look for where cars would park at a residential property` : `Guidelines for parking lots:
+- Trace the entire paved parking area boundary, including driving lanes
+- Include all connected paved surfaces`}
+
+General Guidelines:
 - Be precise with the corners and edges of the paved surface.
-- Include 4-8 points for simple shapes, up to 12 points for complex shapes.
-- Points should trace the boundary clockwise starting from the top-left area.
+- Use 4-6 points for simple rectangular shapes, maximum 12-15 points for complex shapes.
+- NEVER use more than 15 points total - simplify the shape if needed.
+- Points should trace the boundary clockwise starting from the corner closest to the street.
+- DO NOT include public roads or streets in your polygon.
 
 Respond in this exact JSON format only, no other text:
 {
@@ -184,11 +198,14 @@ If you can see a paved area, trace it even if confidence is low. The customer wi
       }
     }
 
+    // Limit to maximum 15 points to avoid overly complex polygons
+    const limitedPoints = polygonPoints.length > 15 ? polygonPoints.slice(0, 15) : polygonPoints
+
     return {
       squareFootage: Math.round(result.squareFootage),
       confidence: result.confidence,
       description: result.description,
-      polygonPoints: polygonPoints.length >= 3 ? polygonPoints : []
+      polygonPoints: limitedPoints.length >= 3 ? limitedPoints : []
     }
   } catch (error) {
     console.error('Claude API error:', error)

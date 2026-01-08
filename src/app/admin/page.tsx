@@ -7,17 +7,34 @@ import AdminNav from '@/components/AdminNav'
 
 interface Job {
   id: number
+  customer_id: number
   customer_name: string
   customer_phone: string
   customer_email: string
   service_address: string
   job_type: string
+  project_type: string
   square_feet: number
+  condition: string
   quote_cents: number
   final_price_cents: number
   scheduled_date: string
   status: string
+  notes: string
+  internal_notes: string
   created_at: string
+  invoice_id: number
+  placement_lat?: number
+  placement_lng?: number
+}
+
+// Capitalize names properly
+const capitalizeName = (name: string): string => {
+  if (!name) return ''
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 export default function AdminPage() {
@@ -29,6 +46,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
   // Login handler
   const handleLogin = (e: React.FormEvent) => {
@@ -94,6 +112,27 @@ export default function AdminPage() {
     }
   }
 
+  // Delete job
+  const deleteJob = async (jobId: number) => {
+    if (!confirm('Are you sure you want to delete this job? This cannot be undone.')) return
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+        }
+      )
+      setSelectedJob(null)
+      fetchJobs()
+    } catch (error) {
+      console.error('Error deleting job:', error)
+    }
+  }
+
   // Filter jobs
   const filteredJobs = jobs.filter(job => {
     if (filter !== 'all' && job.status !== filter) return false
@@ -118,6 +157,18 @@ export default function AdminPage() {
   const getServiceName = (type: string) => {
     const service = config.services.find(s => s.id === type)
     return service ? `${service.emoji} ${service.name}` : type
+  }
+
+  // Get project type name
+  const getProjectTypeName = (type: string) => {
+    const project = config.projectTypes.find(p => p.id === type)
+    return project ? `${project.emoji} ${project.label}` : type
+  }
+
+  // Get condition name
+  const getConditionName = (cond: string) => {
+    const condition = config.conditions.find(c => c.id === cond)
+    return condition ? condition.label : cond
   }
 
   // Format currency
@@ -346,7 +397,7 @@ export default function AdminPage() {
                     {/* Left: Customer & Job Info */}
                     <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: '600', fontSize: '16px', color: 'white' }}>{job.customer_name}</span>
+                        <span style={{ fontWeight: '600', fontSize: '16px', color: 'white' }}>{capitalizeName(job.customer_name)}</span>
                         <span
                           style={{
                             padding: '4px 8px',
@@ -397,6 +448,21 @@ export default function AdminPage() {
                     paddingTop: '12px',
                     borderTop: '1px solid #302d2a',
                   }}>
+                    <button
+                      onClick={() => setSelectedJob(job)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#F5C518',
+                        color: '#1a1714',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      👁 View Details
+                    </button>
                     {job.status === 'quote' && (
                       <>
                         <button
@@ -484,6 +550,359 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Job Detail Modal */}
+      {selectedJob && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            zIndex: 1000,
+          }}
+          onClick={() => setSelectedJob(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#252220',
+              borderRadius: '16px',
+              border: '2px solid #F5C518',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #302d2a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <h2 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                  Job #{selectedJob.id}
+                </h2>
+                <p style={{ color: '#9C9690', fontSize: '14px', margin: '4px 0 0 0' }}>
+                  Created {new Date(selectedJob.created_at).toLocaleString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedJob(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9C9690',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '20px' }}>
+              {/* Status Badge */}
+              <div style={{ marginBottom: '20px' }}>
+                <span
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '9999px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    backgroundColor: getStatusStyle(selectedJob.status).color,
+                    color: getStatusStyle(selectedJob.status).textColor,
+                  }}
+                >
+                  {config.jobStatuses.find(s => s.id === selectedJob.status)?.label || selectedJob.status}
+                </span>
+              </div>
+
+              {/* Customer Info */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  CUSTOMER
+                </h3>
+                <p style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+                  {capitalizeName(selectedJob.customer_name)}
+                </p>
+                <p style={{ color: '#16a34a', marginBottom: '4px' }}>
+                  📞 <a href={`tel:${selectedJob.customer_phone}`} style={{ color: '#16a34a' }}>{selectedJob.customer_phone}</a>
+                </p>
+                {selectedJob.customer_email && (
+                  <p style={{ color: '#9C9690', marginBottom: '4px' }}>
+                    ✉️ {selectedJob.customer_email}
+                  </p>
+                )}
+                {selectedJob.service_address && (
+                  <p style={{ color: '#9C9690' }}>
+                    📍 {selectedJob.service_address}
+                  </p>
+                )}
+              </div>
+
+              {/* Map Location */}
+              {selectedJob.placement_lat && selectedJob.placement_lng && (
+                <div style={{
+                  backgroundColor: '#1a1714',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                }}>
+                  <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                    SERVICE LOCATION
+                  </h3>
+                  <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                    <img
+                      src={`https://maps.googleapis.com/maps/api/staticmap?center=${selectedJob.placement_lat},${selectedJob.placement_lng}&zoom=19&size=600x300&maptype=hybrid&markers=color:yellow%7C${selectedJob.placement_lat},${selectedJob.placement_lng}&key=${config.googleMaps.apiKey}`}
+                      alt="Service Location"
+                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                    />
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${selectedJob.placement_lat},${selectedJob.placement_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      marginTop: '8px',
+                      color: '#F5C518',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Open in Google Maps →
+                  </a>
+                </div>
+              )}
+
+              {/* Job Details */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  JOB DETAILS
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <p style={{ color: '#9C9690', fontSize: '12px' }}>Service</p>
+                    <p style={{ color: 'white', fontWeight: '500' }}>{getServiceName(selectedJob.job_type)}</p>
+                  </div>
+                  {selectedJob.project_type && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Property Type</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{getProjectTypeName(selectedJob.project_type)}</p>
+                    </div>
+                  )}
+                  {selectedJob.square_feet && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Area</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{selectedJob.square_feet.toLocaleString()} sq ft</p>
+                    </div>
+                  )}
+                  {selectedJob.condition && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Condition</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{getConditionName(selectedJob.condition)}</p>
+                    </div>
+                  )}
+                  {selectedJob.scheduled_date && (
+                    <div>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Preferred Date</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{formatDate(selectedJob.scheduled_date)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pricing */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                  PRICING
+                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ color: '#9C9690', fontSize: '12px' }}>Estimated Quote</p>
+                    <p style={{ color: '#16a34a', fontSize: '24px', fontWeight: 'bold' }}>
+                      {formatCurrency(selectedJob.quote_cents)}
+                    </p>
+                  </div>
+                  {selectedJob.final_price_cents && selectedJob.final_price_cents !== selectedJob.quote_cents && (
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ color: '#9C9690', fontSize: '12px' }}>Final Price</p>
+                      <p style={{ color: '#F5C518', fontSize: '24px', fontWeight: 'bold' }}>
+                        {formatCurrency(selectedJob.final_price_cents)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {selectedJob.internal_notes && (
+                  <p style={{ color: '#9C9690', fontSize: '13px', marginTop: '8px', fontStyle: 'italic' }}>
+                    {selectedJob.internal_notes}
+                  </p>
+                )}
+              </div>
+
+              {/* Notes */}
+              {selectedJob.notes && (
+                <div style={{
+                  backgroundColor: '#1a1714',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                }}>
+                  <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+                    NOTES
+                  </h3>
+                  <p style={{ color: 'white' }}>{selectedJob.notes}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {selectedJob.status === 'quote' && (
+                  <>
+                    <button
+                      onClick={() => { updateStatus(selectedJob.id, 'approved'); setSelectedJob(null); }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#16a34a',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✓ Approve Quote
+                    </button>
+                    <button
+                      onClick={() => { updateStatus(selectedJob.id, 'cancelled'); setSelectedJob(null); }}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel
+                    </button>
+                  </>
+                )}
+                {selectedJob.status === 'approved' && (
+                  <button
+                    onClick={() => { updateStatus(selectedJob.id, 'scheduled'); setSelectedJob(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#7c3aed',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📅 Mark as Scheduled
+                  </button>
+                )}
+                {selectedJob.status === 'scheduled' && (
+                  <button
+                    onClick={() => { updateStatus(selectedJob.id, 'in_progress'); setSelectedJob(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#d97706',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🚧 Start Work
+                  </button>
+                )}
+                {selectedJob.status === 'in_progress' && (
+                  <button
+                    onClick={() => { updateStatus(selectedJob.id, 'completed'); setSelectedJob(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#16a34a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓ Mark Complete
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  style={{
+                    padding: '12px 20px',
+                    backgroundColor: '#302d2a',
+                    color: 'white',
+                    border: '1px solid #3A3733',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => deleteJob(selectedJob.id)}
+                  style={{
+                    padding: '12px 20px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🗑 Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
