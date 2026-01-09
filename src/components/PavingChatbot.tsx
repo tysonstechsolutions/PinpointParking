@@ -132,12 +132,23 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
   // Google Maps
   const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>, addressOverride?: string, coordsOverride?: {lat: number, lng: number}) => {
+    // Check if API key is configured
+    if (!config.googleMaps.apiKey) {
+      console.error('Google Maps API key not configured')
+      addBotMessage('Map loading failed. Please enter your area size manually or call us for a quote.')
+      return
+    }
+
     if (!window.google?.maps) {
       const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
       if (!existingScript) {
         const script = document.createElement('script')
         script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMaps.apiKey}&libraries=geometry,drawing`
         script.async = true
+        script.onerror = () => {
+          console.error('Failed to load Google Maps script')
+          addBotMessage('Map loading failed. Please check your internet connection or call us for a quote.')
+        }
         document.head.appendChild(script)
       }
       await new Promise<void>(resolve => {
@@ -148,7 +159,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       })
     }
 
-    if (!window.google?.maps || !mapContainerRef.current) return
+    if (!window.google?.maps || !mapContainerRef.current) {
+      console.error('Google Maps failed to load or map container not found')
+      return
+    }
 
     // Use passed coordinates first, then state, then default
     let center = coordsOverride || mapCoordinates || config.googleMaps.defaultCenter

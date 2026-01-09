@@ -3,15 +3,16 @@ import {
   documentUploadSchema,
   validateFile,
   sanitizeFilename,
-  documentCategories,
   createValidationError
 } from '@/lib/schemas'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+import { isSupabaseConfigured, getSupabaseUrl, getSupabaseKey } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {
+    // Get Supabase config at runtime
+    const SUPABASE_URL = getSupabaseUrl()
+    const SUPABASE_KEY = getSupabaseKey(true) // Use service key for uploads
+
     const form = await request.formData()
     const file = form.get('file') as File | null
     const categoryRaw = (form.get('category') as string) || 'other'
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
     const { category, title } = parseResult.data
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
+      console.error('Supabase not configured. URL:', !!SUPABASE_URL, 'Key:', !!SUPABASE_KEY)
+      return NextResponse.json({ error: 'Storage not configured. Please check environment variables.' }, { status: 500 })
     }
 
     // Generate safe filename
@@ -61,8 +63,20 @@ export async function POST(request: Request) {
 
     if (!uploadRes.ok) {
       const error = await uploadRes.text()
-      console.error('Upload error:', error)
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+      console.error('Storage upload error:', uploadRes.status, error)
+
+      // Provide helpful error messages
+      if (uploadRes.status === 404) {
+        return NextResponse.json({
+          error: 'Storage bucket "documents" not found. Please create it in Supabase Storage.',
+        }, { status: 500 })
+      } else if (uploadRes.status === 403) {
+        return NextResponse.json({
+          error: 'Storage permission denied. Check Supabase Storage policies.',
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({ error: `Upload failed: ${error}` }, { status: 500 })
     }
 
     // Create document record in database

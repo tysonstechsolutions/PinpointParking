@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 import { config } from '@/config/config'
 import { quoteSchema, sanitizePhone, sanitizeName, sanitizeAddress, formatZodError } from '@/lib/schemas'
+import { getSupabaseUrl, getSupabaseKey, isSupabaseConfigured } from '@/lib/supabase'
 
 // ============================================
 // PAVING QUOTE API - Database + SMS
 // ============================================
 
-const supabaseUrl = config.supabase.url
-const getSupabaseKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || config.supabase.anonKey
+const getSupabaseConfig = () => ({
+  url: getSupabaseUrl(),
+  key: getSupabaseKey(true), // Use service key for server-side operations
+})
 
 // ============================================
 // FIND OR CREATE CUSTOMER
@@ -23,7 +26,17 @@ async function findOrCreateCustomer({
   email?: string
   address?: string
 }) {
-  if (!name || !phone || !supabaseUrl || !getSupabaseKey()) return null
+  const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig()
+
+  if (!name || !phone || !supabaseUrl || !supabaseKey) {
+    console.log('Customer creation skipped - missing data or config:', {
+      hasName: !!name,
+      hasPhone: !!phone,
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey
+    })
+    return null
+  }
 
   const cleanPhone = phone.replace(/\D/g, '')
 
@@ -42,8 +55,8 @@ async function findOrCreateCustomer({
         `${supabaseUrl}/rest/v1/customers?or=(${conditions.join(',')})&limit=1`,
         {
           headers: {
-            'apikey': getSupabaseKey(),
-            'Authorization': `Bearer ${getSupabaseKey()}`,
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
           },
         }
       )
@@ -58,8 +71,8 @@ async function findOrCreateCustomer({
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
-                'apikey': getSupabaseKey(),
-                'Authorization': `Bearer ${getSupabaseKey()}`,
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
               },
               body: JSON.stringify({
                 total_jobs: (existing[0].total_jobs || 0) + 1,
@@ -84,8 +97,8 @@ async function findOrCreateCustomer({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': getSupabaseKey(),
-          'Authorization': `Bearer ${getSupabaseKey()}`,
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
           'Prefer': 'return=representation',
         },
         body: JSON.stringify({
@@ -115,18 +128,22 @@ async function findOrCreateCustomer({
 // SAVE JOB TO DATABASE
 // ============================================
 async function saveJobToDatabase(jobData: Record<string, unknown>) {
-  if (!supabaseUrl || !getSupabaseKey()) {
-    console.log('Supabase not configured - job not saved')
+  const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig()
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Supabase not configured - job not saved. URL:', !!supabaseUrl, 'Key:', !!supabaseKey)
     return null
   }
+
+  console.log('Saving job to database:', { ...jobData, customer_phone: '[REDACTED]' })
 
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': getSupabaseKey(),
-        'Authorization': `Bearer ${getSupabaseKey()}`,
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
         'Prefer': 'return=representation',
       },
       body: JSON.stringify(jobData),
@@ -150,6 +167,8 @@ async function saveJobToDatabase(jobData: Record<string, unknown>) {
 // GENERATE INVOICE NUMBER
 // ============================================
 async function generateInvoiceNumber(): Promise<string> {
+  const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig()
+
   try {
     const response = await fetch(
       `${supabaseUrl}/rest/v1/rpc/generate_invoice_number`,
@@ -157,8 +176,8 @@ async function generateInvoiceNumber(): Promise<string> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': getSupabaseKey(),
-          'Authorization': `Bearer ${getSupabaseKey()}`,
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify({}),
       }
@@ -182,7 +201,9 @@ async function generateInvoiceNumber(): Promise<string> {
 // CREATE DRAFT INVOICE
 // ============================================
 async function createDraftInvoice(job: Record<string, unknown>, customer: Record<string, unknown> | null) {
-  if (!supabaseUrl || !getSupabaseKey()) {
+  const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig()
+
+  if (!supabaseUrl || !supabaseKey) {
     console.log('Supabase not configured - invoice not created')
     return null
   }
@@ -236,8 +257,8 @@ async function createDraftInvoice(job: Record<string, unknown>, customer: Record
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': getSupabaseKey(),
-        'Authorization': `Bearer ${getSupabaseKey()}`,
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
         'Prefer': 'return=representation',
       },
       body: JSON.stringify(invoiceData),
@@ -251,8 +272,8 @@ async function createDraftInvoice(job: Record<string, unknown>, customer: Record
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': getSupabaseKey(),
-          'Authorization': `Bearer ${getSupabaseKey()}`,
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify({
           invoice_id: invoice.id,
