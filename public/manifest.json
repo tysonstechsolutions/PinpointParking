@@ -1,0 +1,51 @@
+{
+  "name": "Pinpoint Parking",
+  "short_name": "Pinpoint",
+  "description": "Professional asphalt paving, sealcoating, and business management for Pinpoint Parking",
+  "start_url": "/admin/dashboard",
+  "display": "standalone",
+  "background_color": "#1a1714",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View business dashboard",
+      "url": "/admin/dashboard"
+    },
+    {
+      "name": "Field Mode",
+      "short_name": "Field",
+      "description": "Quick job updates for field work",
+      "url": "/admin/field"
+    },
+    {
+      "name": "Jobs",
+      "short_name": "Jobs",
+      "description": "Manage jobs",
+      "url": "/admin"
+    },
+    {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "description": "View calendar",
+      "url": "/admin/calendar"
+    }
+  ]
+}

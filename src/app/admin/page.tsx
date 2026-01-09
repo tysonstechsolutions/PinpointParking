@@ -40,32 +40,75 @@ const capitalizeName = (name: string): string => {
 export default function AdminPage() {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  // Login handler
-  const handleLogin = (e: React.FormEvent) => {
+  // Login handler - uses server-side auth
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password === config.admin.password) {
-      setIsAuthenticated(true)
-      sessionStorage.setItem('adminAuth', 'true')
-      fetchJobs()
-    } else {
-      setPasswordError('Wrong password')
+    setPasswordError('')
+    setLoginLoading(true)
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setIsAuthenticated(true)
+        setPassword('')
+        fetchJobs()
+      } else if (response.status === 429) {
+        setPasswordError(`Too many attempts. Try again in ${data.retryAfter} seconds.`)
+      } else {
+        setPasswordError(data.error || 'Invalid password')
+      }
+    } catch (error) {
+      setPasswordError('Login failed. Please try again.')
     }
+
+    setLoginLoading(false)
+  }
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (error) {
+      // Ignore errors
+    }
+    setIsAuthenticated(false)
+    setJobs([])
   }
 
   // Check session on mount
   useEffect(() => {
-    if (sessionStorage.getItem('adminAuth') === 'true') {
-      setIsAuthenticated(true)
-      fetchJobs()
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session')
+        const data = await response.json()
+        if (data.authenticated) {
+          setIsAuthenticated(true)
+          fetchJobs()
+        }
+      } catch (error) {
+        // Not authenticated
+      }
+      setCheckingAuth(false)
     }
+
+    checkSession()
   }, [])
 
   // Fetch jobs from database
@@ -190,6 +233,24 @@ export default function AdminPage() {
     })
   }
 
+  // ========== LOADING SCREEN ==========
+  if (checkingAuth) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#1a1714',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <p style={{ color: '#9C9690' }}>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   // ========== LOGIN SCREEN ==========
   if (!isAuthenticated) {
     return (
@@ -221,6 +282,7 @@ export default function AdminPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter admin password"
+              disabled={loginLoading}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -231,6 +293,7 @@ export default function AdminPage() {
                 fontSize: '16px',
                 marginBottom: '16px',
                 boxSizing: 'border-box',
+                opacity: loginLoading ? 0.6 : 1,
               }}
               autoFocus
             />
@@ -239,19 +302,20 @@ export default function AdminPage() {
             )}
             <button
               type="submit"
+              disabled={loginLoading}
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: '#16a34a',
+                backgroundColor: loginLoading ? '#166534' : '#16a34a',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '16px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: loginLoading ? 'not-allowed' : 'pointer',
               }}
             >
-              Login
+              {loginLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
         </div>

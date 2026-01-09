@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { config } from '@/config/config'
+import { quoteSchema, sanitizePhone, sanitizeName, sanitizeAddress, formatZodError } from '@/lib/schemas'
 
 // ============================================
 // PAVING QUOTE API - Database + SMS
@@ -335,30 +336,31 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    const {
-      serviceType,
-      projectType,
-      squareFootage,
-      condition,
-      address,
-      customerName,
-      customerPhone,
-      customerEmail,
-      estimateLow,
-      estimateHigh,
-      preferredDate,
-      addOns,
-      notes,
-      sessionId,
-    } = body
-
-    // Validate required fields
-    if (!serviceType || !customerName || !customerPhone) {
+    // Validate input with Zod schema
+    const parseResult = quoteSchema.safeParse(body)
+    if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: formatZodError(parseResult.error) },
         { status: 400 }
       )
     }
+
+    const validatedData = parseResult.data
+
+    // Sanitize inputs
+    const serviceType = validatedData.serviceType
+    const projectType = validatedData.projectType
+    const squareFootage = validatedData.squareFootage
+    const condition = validatedData.condition
+    const address = validatedData.address ? sanitizeAddress(validatedData.address) : null
+    const customerName = sanitizeName(validatedData.customerName)
+    const customerPhone = sanitizePhone(validatedData.customerPhone)
+    const customerEmail = validatedData.customerEmail
+    const estimateLow = validatedData.estimateLow
+    const estimateHigh = validatedData.estimateHigh
+    const preferredDate = validatedData.preferredDate
+    const addOns = validatedData.addOns
+    const notes = validatedData.notes
 
     // 1. Find or create customer
     const customer = await findOrCreateCustomer({

@@ -5,11 +5,16 @@ import { usePathname } from 'next/navigation'
 import { config } from '@/config/config'
 
 const navItems = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/admin', label: 'Jobs', icon: '📋' },
+  { href: '/admin/calendar', label: 'Calendar', icon: '📅' },
   { href: '/admin/customers', label: 'Customers', icon: '👥' },
   { href: '/admin/invoices', label: 'Invoices', icon: '📄' },
   { href: '/admin/expenses', label: 'Expenses', icon: '🧾' },
+  { href: '/admin/inventory', label: 'Inventory', icon: '📦' },
+  { href: '/admin/reports', label: 'Reports', icon: '📈' },
   { href: '/admin/documents', label: 'Documents', icon: '📁' },
+  { href: '/admin/field', label: 'Field', icon: '📍' },
 ]
 
 export default function AdminNav() {
@@ -19,7 +24,19 @@ export default function AdminNav() {
     if (href === '/admin') {
       return pathname === '/admin' || pathname?.startsWith('/admin/job/')
     }
+    if (href === '/admin/calendar' || href === '/admin/dashboard') {
+      return pathname === href
+    }
     return pathname?.startsWith(href)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      window.location.href = '/admin'
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
   }
 
   return (
@@ -31,7 +48,7 @@ export default function AdminNav() {
       zIndex: 20,
     }}>
       <div style={{
-        maxWidth: '1200px',
+        maxWidth: '1400px',
         margin: '0 auto',
         padding: '0 16px',
         display: 'flex',
@@ -63,7 +80,23 @@ export default function AdminNav() {
             </Link>
           ))}
         </div>
-        <span style={{ color: '#666', fontSize: '14px' }}>{config.businessName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ color: '#666', fontSize: '14px' }}>{config.businessName}</span>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: 'transparent',
+              color: '#9C9690',
+              border: '1px solid #302d2a',
+              borderRadius: '6px',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </nav>
   )

@@ -206,11 +206,22 @@ export async function GET(request: Request) {
 
     if (response.ok) {
       const data = await response.json()
-      // Parse line_items JSON
-      const invoices = data.map((inv: any) => ({
-        ...inv,
-        line_items: typeof inv.line_items === 'string' ? JSON.parse(inv.line_items) : inv.line_items
-      }))
+      // Parse line_items JSON safely
+      const invoices = data.map((inv: Record<string, unknown>) => {
+        let parsedLineItems = inv.line_items
+        if (typeof inv.line_items === 'string') {
+          try {
+            parsedLineItems = JSON.parse(inv.line_items)
+          } catch (e) {
+            console.error('Failed to parse line_items for invoice:', inv.id)
+            parsedLineItems = []
+          }
+        }
+        return {
+          ...inv,
+          line_items: parsedLineItems || []
+        }
+      })
       return NextResponse.json(invoices)
     }
 

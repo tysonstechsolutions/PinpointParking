@@ -268,12 +268,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     for (let i = 0; i < startPadding; i++) days.push({ date: null, isAvailable: false })
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const minDate = new Date(today); minDate.setDate(today.getDate() + config.booking.minDaysOut)
+    const maxDate = new Date(today); maxDate.setDate(today.getDate() + config.booking.maxDaysOut)
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d)
       const isPast = date < minDate
-      // Skip past days entirely, show future days as available (including Sundays)
-      if (isPast) {
+      const isTooFar = date > maxDate
+      const isSunday = date.getDay() === 0
+      const shouldSkipSunday = config.booking.skipSundays && isSunday
+
+      // Check if date should be unavailable
+      if (isPast || isTooFar) {
         days.push({ date: null, isAvailable: false })
+      } else if (shouldSkipSunday) {
+        // Show Sunday but mark as unavailable
+        days.push({ date, isAvailable: false })
       } else {
         days.push({ date, isAvailable: true })
       }

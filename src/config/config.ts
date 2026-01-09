@@ -223,7 +223,11 @@ export const config = {
   // ADMIN SETTINGS
   // ============================================
   admin: {
-    password: process.env.ADMIN_PASSWORD || "pinpointparking",
+    // Password MUST be set via environment variable - no fallback for security
+    password: process.env.ADMIN_PASSWORD || "",
+    sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours in ms
+    maxLoginAttempts: 5,
+    lockoutDuration: 15 * 60 * 1000, // 15 minutes in ms
   },
 
   // ============================================

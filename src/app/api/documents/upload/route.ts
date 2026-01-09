@@ -1,4 +1,11 @@
 import { NextResponse } from 'next/server'
+import {
+  documentUploadSchema,
+  validateFile,
+  sanitizeFilename,
+  documentCategories,
+  createValidationError
+} from '@/lib/schemas'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -7,19 +14,37 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData()
     const file = form.get('file') as File | null
-    const category = (form.get('category') as string) || 'other'
-    const title = (form.get('title') as string) || file?.name || 'Document'
+    const categoryRaw = (form.get('category') as string) || 'other'
+    const titleRaw = (form.get('title') as string) || file?.name || 'Document'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
+
+    // Validate file type and size
+    const fileValidation = validateFile(file)
+    if (!fileValidation.valid) {
+      return NextResponse.json({ error: fileValidation.error }, { status: 400 })
+    }
+
+    // Validate category
+    const parseResult = documentUploadSchema.safeParse({
+      category: categoryRaw,
+      title: titleRaw
+    })
+
+    if (!parseResult.success) {
+      return NextResponse.json(createValidationError(parseResult.error), { status: 400 })
+    }
+
+    const { category, title } = parseResult.data
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
     // Generate safe filename
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const safeName = sanitizeFilename(file.name)
     const path = `${category}/${Date.now()}_${safeName}`
     const buffer = await file.arrayBuffer()
 
@@ -51,11 +76,11 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         category,
-        file_name: file.name,
+        file_name: safeName,
         file_type: file.type,
         file_size: file.size,
         storage_path: path,
-        title,
+        title: title || safeName,
         document_date: new Date().toISOString().split('T')[0],
         parse_status: 'pending',
       }),
