@@ -1,6 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import AdminNav from "@/components/AdminNav"
-import OfflineIndicator from "@/components/OfflineIndicator"
 
 export const metadata: Metadata = {
   title: "Admin | Pinpoint Parking",
@@ -23,19 +21,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <>
-      <style jsx global>{`
-        /* Hide the public header and footer in admin area */
-        body > header,
-        body > footer,
-        body > .chat-widget {
-          display: none !important;
-        }
-      `}</style>
-      <AdminNav />
-      <OfflineIndicator />
-      {children}
-    </>
-  )
+  return <>{children}</>
 }

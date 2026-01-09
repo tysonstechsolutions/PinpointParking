@@ -387,8 +387,8 @@ export async function POST(request: Request) {
     const customer = await findOrCreateCustomer({
       name: customerName,
       phone: customerPhone,
-      email: customerEmail,
-      address: address,
+      email: customerEmail || undefined,
+      address: address || undefined,
     })
 
     // 2. Save job to database
@@ -420,7 +420,7 @@ export async function POST(request: Request) {
 
     // 3. Build SMS message
     const serviceName = serviceLabels[serviceType] || serviceType
-    const projectName = projectLabels[projectType] || projectType || ''
+    const projectName = projectType ? (projectLabels[projectType] || projectType) : ''
 
     let smsMessage = `🚧 NEW PAVING LEAD!\n\n`
     smsMessage += `${serviceName}\n`

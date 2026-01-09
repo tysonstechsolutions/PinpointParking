@@ -28,7 +28,7 @@ export const maxFileSize = 10 * 1024 * 1024
 
 export const documentUploadSchema = z.object({
   category: z.enum(documentCategories, {
-    errorMap: () => ({ message: 'Invalid document category' }),
+    message: 'Invalid document category',
   }),
   title: z.string().max(200).optional(),
 })

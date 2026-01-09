@@ -9,7 +9,7 @@ const phoneRegex = /^[\d\s\-\(\)\.+]+$/
 
 export const quoteSchema = z.object({
   serviceType: z.enum(['sealcoating', 'paving', 'linestriping'], {
-    errorMap: () => ({ message: 'Invalid service type' }),
+    message: 'Invalid service type',
   }),
   projectType: z.enum(['residential', 'commercial', 'house-of-worship']).optional(),
   squareFootage: z.number().positive().max(1000000).optional(),
@@ -28,7 +28,7 @@ export const quoteSchema = z.object({
   estimateHigh: z.number().positive().max(10000000).optional(),
   preferredDate: z.string().optional(),
   notes: z.string().max(2000).optional(),
-  addOns: z.record(z.number()).optional(),
+  addOns: z.record(z.string(), z.number()).optional(),
   sessionId: z.string().optional(),
 })
 

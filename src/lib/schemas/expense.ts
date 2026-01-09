@@ -16,7 +16,7 @@ export const expenseCategories = [
 
 export const expenseSchema = z.object({
   category: z.enum(expenseCategories, {
-    errorMap: () => ({ message: 'Invalid expense category' }),
+    message: 'Invalid expense category',
   }),
   vendor: z.string().max(200).optional().nullable(),
   description: z.string().min(1, 'Description is required').max(500),

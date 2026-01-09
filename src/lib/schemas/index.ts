@@ -13,7 +13,7 @@ import { ZodError } from 'zod'
 
 // Format Zod errors into a user-friendly message
 export function formatZodError(error: ZodError): string {
-  const messages = error.errors.map(e => {
+  const messages = error.issues.map(e => {
     const path = e.path.join('.')
     return path ? `${path}: ${e.message}` : e.message
   })
@@ -24,7 +24,7 @@ export function formatZodError(error: ZodError): string {
 export function createValidationError(error: ZodError) {
   return {
     error: 'Validation failed',
-    details: error.errors.map(e => ({
+    details: error.issues.map(e => ({
       field: e.path.join('.'),
       message: e.message,
     })),
