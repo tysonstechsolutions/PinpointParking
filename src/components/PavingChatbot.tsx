@@ -54,6 +54,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [aiPolygonPoints, setAiPolygonPoints] = useState<Array<{lat: number, lng: number}>>([])
   const [mapCoordinates, setMapCoordinates] = useState<{lat: number, lng: number} | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [showManualInput, setShowManualInput] = useState(false)
+  const [manualSqFt, setManualSqFt] = useState('')
 
   const [bookingData, setBookingData] = useState({
     service: '',
@@ -135,7 +137,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     // Check if API key is configured
     if (!config.googleMaps.apiKey) {
       console.error('Google Maps API key not configured')
-      addBotMessage('Map loading failed. Please enter your area size manually or call us for a quote.')
+      setShowManualInput(true)
+      addBotMessage('Map loading failed. Please enter your area size manually below.')
       return
     }
 
@@ -147,7 +150,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         script.async = true
         script.onerror = () => {
           console.error('Failed to load Google Maps script')
-          addBotMessage('Map loading failed. Please check your internet connection or call us for a quote.')
+          setShowManualInput(true)
+          addBotMessage('Map loading failed. Please enter your area size manually below.')
         }
         document.head.appendChild(script)
       }
@@ -161,6 +165,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     if (!window.google?.maps || !mapContainerRef.current) {
       console.error('Google Maps failed to load or map container not found')
+      setShowManualInput(true)
+      addBotMessage('Map loading failed. Please enter your area size manually below.')
       return
     }
 
@@ -616,67 +622,173 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
             {/* MAP */}
             {!isTyping && !isAnalyzing && step === STEPS.MAP_MEASURING && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                {/* Instructions */}
-                <div style={{
-                  padding: '10px 12px',
-                  backgroundColor: COLORS.blackMedium,
-                  borderRadius: '8px',
-                  borderLeft: `3px solid ${COLORS.yellow}`,
-                }}>
-                  <p style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
-                    {drawnArea ? '✓ Area outlined - drag corners to adjust' : '📍 Click points to outline the area'}
-                  </p>
-                  <p style={{ color: COLORS.gray, fontSize: '12px', margin: 0 }}>
-                    {drawnArea ? 'Click Redraw to start over' : 'Click each corner, then close the shape'}
-                  </p>
-                </div>
-
-                {/* Map - Much bigger */}
-                <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: `2px solid ${COLORS.yellow}` }}>
-                  <div ref={mapContainerRef} style={{ height: '320px', backgroundColor: COLORS.black }} />
-                  {drawnArea && (
-                    <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.blackLight }}>
-                      <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{drawnArea.toLocaleString()} sq ft</span>
+                {/* Manual input fallback when map fails */}
+                {showManualInput ? (
+                  <>
+                    <div style={{
+                      padding: '10px 12px',
+                      backgroundColor: COLORS.blackMedium,
+                      borderRadius: '8px',
+                      borderLeft: `3px solid ${COLORS.yellow}`,
+                    }}>
+                      <p style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
+                        📐 Enter your area size
+                      </p>
+                      <p style={{ color: COLORS.gray, fontSize: '12px', margin: 0 }}>
+                        Estimate the total square footage of your driveway or parking lot
+                      </p>
                     </div>
-                  )}
-                </div>
-
-                {/* Buttons */}
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={clearDrawing}
-                    style={{
-                      flex: 1,
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      padding: '16px',
                       borderRadius: '12px',
-                      padding: '14px',
-                      fontWeight: 'bold',
-                      color: 'white',
+                      border: `2px solid ${COLORS.yellow}`,
                       backgroundColor: COLORS.blackLight,
-                      border: `2px solid ${COLORS.gray}`,
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = COLORS.gray}
-                  >
-                    Redraw
-                  </button>
-                  <button
-                    onClick={handleMapConfirm}
-                    disabled={!drawnArea}
-                    style={{
-                      flex: 2,
-                      borderRadius: '12px',
-                      padding: '14px',
-                      fontWeight: 'bold',
-                      cursor: drawnArea ? 'pointer' : 'not-allowed',
-                      backgroundColor: drawnArea ? COLORS.yellow : COLORS.blackMedium,
-                      color: drawnArea ? COLORS.black : COLORS.gray,
-                      border: `2px solid ${drawnArea ? COLORS.yellow : COLORS.gray}`,
-                    }}
-                  >
-                    Confirm Area
-                  </button>
-                </div>
+                    }}>
+                      <input
+                        type="number"
+                        value={manualSqFt}
+                        onChange={(e) => setManualSqFt(e.target.value)}
+                        placeholder="e.g., 500"
+                        style={{
+                          flex: 1,
+                          padding: '12px 16px',
+                          borderRadius: '10px',
+                          fontSize: '16px',
+                          backgroundColor: COLORS.blackMedium,
+                          color: '#fff',
+                          border: `2px solid ${COLORS.blackMedium}`,
+                          outline: 'none',
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                        onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                        autoFocus
+                      />
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: COLORS.gray,
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                      }}>
+                        sq ft
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const sqft = parseInt(manualSqFt)
+                        if (sqft && sqft > 0) {
+                          setDrawnArea(sqft)
+                          setBookingData(prev => ({ ...prev, squareFootage: sqft }))
+                          addUserMessage(`${sqft.toLocaleString()} sq ft`)
+                          const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
+                          setBookingData(prev => ({ ...prev, estimateLow: estimate.low, estimateHigh: estimate.high }))
+                          addBotMessage(`Got it! ${sqft.toLocaleString()} square feet. What's the current condition?`)
+                          setStep(STEPS.CONDITION)
+                        } else {
+                          addBotMessage('Please enter a valid square footage.')
+                        }
+                      }}
+                      disabled={!manualSqFt || parseInt(manualSqFt) <= 0}
+                      style={{
+                        width: '100%',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        fontWeight: 'bold',
+                        cursor: manualSqFt && parseInt(manualSqFt) > 0 ? 'pointer' : 'not-allowed',
+                        backgroundColor: manualSqFt && parseInt(manualSqFt) > 0 ? COLORS.yellow : COLORS.blackMedium,
+                        color: manualSqFt && parseInt(manualSqFt) > 0 ? COLORS.black : COLORS.gray,
+                        border: `2px solid ${manualSqFt && parseInt(manualSqFt) > 0 ? COLORS.yellow : COLORS.gray}`,
+                      }}
+                    >
+                      Continue
+                    </button>
+                    <p style={{ color: COLORS.gray, fontSize: '12px', textAlign: 'center', margin: 0 }}>
+                      Tip: A typical 2-car driveway is 400-600 sq ft
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {/* Instructions */}
+                    <div style={{
+                      padding: '10px 12px',
+                      backgroundColor: COLORS.blackMedium,
+                      borderRadius: '8px',
+                      borderLeft: `3px solid ${COLORS.yellow}`,
+                    }}>
+                      <p style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
+                        {drawnArea ? '✓ Area outlined - drag corners to adjust' : '📍 Click points to outline the area'}
+                      </p>
+                      <p style={{ color: COLORS.gray, fontSize: '12px', margin: 0 }}>
+                        {drawnArea ? 'Click Redraw to start over' : 'Click each corner, then close the shape'}
+                      </p>
+                    </div>
+
+                    {/* Map - Much bigger */}
+                    <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: `2px solid ${COLORS.yellow}` }}>
+                      <div ref={mapContainerRef} style={{ height: '320px', backgroundColor: COLORS.black }} />
+                      {drawnArea && (
+                        <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.blackLight }}>
+                          <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{drawnArea.toLocaleString()} sq ft</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={clearDrawing}
+                        style={{
+                          flex: 1,
+                          borderRadius: '12px',
+                          padding: '14px',
+                          fontWeight: 'bold',
+                          color: 'white',
+                          backgroundColor: COLORS.blackLight,
+                          border: `2px solid ${COLORS.gray}`,
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = COLORS.gray}
+                      >
+                        Redraw
+                      </button>
+                      <button
+                        onClick={handleMapConfirm}
+                        disabled={!drawnArea}
+                        style={{
+                          flex: 2,
+                          borderRadius: '12px',
+                          padding: '14px',
+                          fontWeight: 'bold',
+                          cursor: drawnArea ? 'pointer' : 'not-allowed',
+                          backgroundColor: drawnArea ? COLORS.yellow : COLORS.blackMedium,
+                          color: drawnArea ? COLORS.black : COLORS.gray,
+                          border: `2px solid ${drawnArea ? COLORS.yellow : COLORS.gray}`,
+                        }}
+                      >
+                        Confirm Area
+                      </button>
+                    </div>
+
+                    {/* Manual entry link */}
+                    <button
+                      onClick={() => setShowManualInput(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: COLORS.gray,
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        padding: '4px',
+                      }}
+                    >
+                      Having trouble? Enter size manually
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
