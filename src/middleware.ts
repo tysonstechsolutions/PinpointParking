@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const COOKIE_NAME = 'pinpoint_admin_session'
-const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || ''
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
 
 // Simple token verification (must match auth.ts)
 function verifyToken(token: string): boolean {

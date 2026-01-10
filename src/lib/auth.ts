@@ -7,7 +7,7 @@
 import { cookies } from 'next/headers'
 import { config } from '@/config/config'
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || ''
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
 const COOKIE_NAME = 'pinpoint_admin_session'
 
 interface SessionPayload {
