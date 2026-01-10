@@ -2,8 +2,8 @@
 // SUPABASE CLIENT UTILITIES
 // ============================================
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lbrfuwkvajkhyceimfqu.supabase.co'
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxicmZ1d2t2YWpraHljZWltZnF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4MTY1ODksImV4cCI6MjA4MzM5MjU4OX0.YHB3pN-mq33LdYeVK6-Sma1OHk_JWv9QCpjGfBvMUEc'
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Check if Supabase is configured
