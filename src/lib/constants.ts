@@ -5,8 +5,6 @@
 // ============================================
 
 import {
-  Scale,
-  Droplet,
   Camera,
   FileText,
   File,

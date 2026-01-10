@@ -5,6 +5,7 @@
 // ============================================
 
 import { cookies } from 'next/headers'
+import { createHmac } from 'crypto'
 import { config } from '@/config/config'
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
@@ -30,8 +31,7 @@ function createToken(payload: object): string {
   const header = base64Encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const body = base64Encode(JSON.stringify(payload))
   const signature = base64Encode(
-    require('crypto')
-      .createHmac('sha256', JWT_SECRET)
+    createHmac('sha256', JWT_SECRET)
       .update(`${header}.${body}`)
       .digest('base64')
   )
@@ -46,8 +46,7 @@ function verifyToken(token: string): SessionPayload | null {
 
     const [header, body, signature] = parts
     const expectedSignature = base64Encode(
-      require('crypto')
-        .createHmac('sha256', JWT_SECRET)
+      createHmac('sha256', JWT_SECRET)
         .update(`${header}.${body}`)
         .digest('base64')
     )

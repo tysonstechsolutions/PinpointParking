@@ -420,7 +420,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     // Calculate estimate now with condition adjustment
     const condition = config.conditions.find(c => c.id === bookingData.condition)
-    let estimate = calculateEstimate(bookingData.squareFootage, bookingData.service, bookingData.discount)
+    const estimate = calculateEstimate(bookingData.squareFootage, bookingData.service, bookingData.discount)
     if (condition && condition.adjustment > 0) {
       estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
     }

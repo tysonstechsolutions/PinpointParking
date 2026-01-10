@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { config } from '@/config/config'
 
@@ -113,7 +113,7 @@ export default function CustomerPortal() {
       } else {
         setError('Failed to look up account. Please try again.')
       }
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.')
     }
 

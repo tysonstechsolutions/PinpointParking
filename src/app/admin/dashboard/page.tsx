@@ -38,6 +38,45 @@ interface Customer {
   created_at: string
 }
 
+// Format helpers - moved outside component
+const formatCurrency = (cents: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(cents / 100)
+}
+
+// Simple bar chart component - moved outside to avoid recreation on each render
+function BarChart({ data, maxValue }: { data: Array<{ label: string; value: number; color?: string }>; maxValue: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {data.map((item, i) => (
+        <div key={i}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ color: '#9C9690', fontSize: '13px' }}>{item.label}</span>
+            <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>
+              {formatCurrency(item.value)}
+            </span>
+          </div>
+          <div style={{ height: '8px', backgroundColor: '#302d2a', borderRadius: '4px', overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%`,
+                backgroundColor: item.color || '#16a34a',
+                borderRadius: '4px',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -45,10 +84,6 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'year'>('30d')
-
-  useEffect(() => {
-    fetchData()
-  }, [])
 
   const fetchData = async () => {
     try {
@@ -73,6 +108,10 @@ export default function DashboardPage() {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   // Filter data by time range
   const getDateRange = () => {
@@ -141,43 +180,6 @@ export default function DashboardPage() {
   const topCustomers = customers
     .filter(c => c.total_spent_cents > 0)
     .slice(0, 5)
-
-  // Format helpers
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cents / 100)
-  }
-
-  // Simple bar chart component
-  const BarChart = ({ data, maxValue }: { data: Array<{ label: string; value: number; color?: string }>; maxValue: number }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {data.map((item, i) => (
-        <div key={i}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#9C9690', fontSize: '13px' }}>{item.label}</span>
-            <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>
-              {formatCurrency(item.value)}
-            </span>
-          </div>
-          <div style={{ height: '8px', backgroundColor: '#302d2a', borderRadius: '4px', overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%`,
-                backgroundColor: item.color || '#16a34a',
-                borderRadius: '4px',
-                transition: 'width 0.3s ease',
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
 
   if (loading) {
     return (

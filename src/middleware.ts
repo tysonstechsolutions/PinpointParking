@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createHmac } from 'crypto'
 
 const COOKIE_NAME = 'pinpoint_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
@@ -23,9 +24,8 @@ function verifyToken(token: string): boolean {
     if (payload.exp && payload.exp < Date.now()) return false
 
     // Verify signature
-    const crypto = require('crypto')
     const expectedSignature = Buffer.from(
-      crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64')
+      createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64')
     ).toString('base64url')
 
     return signature === expectedSignature

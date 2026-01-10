@@ -61,10 +61,6 @@ export default function ReportsPage() {
   })
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
   const fetchData = async () => {
     try {
       const headers = {
@@ -88,6 +84,10 @@ export default function ReportsPage() {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   // Filter by date range
   const filterByDate = <T extends { created_at?: string; expense_date?: string; scheduled_date?: string }>(

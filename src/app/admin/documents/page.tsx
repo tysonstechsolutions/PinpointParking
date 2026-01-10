@@ -45,10 +45,6 @@ export default function DocumentsPage() {
   const [parsedData, setParsedData] = useState<ParsedInvoice | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    fetchDocuments()
-  }, [])
-
   const fetchDocuments = async () => {
     try {
       const response = await fetch(
@@ -63,11 +59,15 @@ export default function DocumentsPage() {
       if (response.ok) {
         setDocuments(await response.json())
       }
-    } catch (err) {
-      console.error('Error:', err)
+    } catch (error) {
+      console.error('Error:', error)
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [])
 
   const handleUpload = async (file: File, category: string) => {
     setUploading(true)
@@ -240,11 +240,14 @@ export default function DocumentsPage() {
     return d.category === selectedCategory
   })
 
+  // Store current time in ref to avoid impure function call in render
+  const currentTimeRef = useRef(Date.now())
+
   // Check for stuck parsing (over 5 minutes)
   const isParsingStuck = (doc: Document) => {
     if (doc.parse_status !== 'parsing') return false
     const createdAt = new Date(doc.created_at).getTime()
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+    const fiveMinutesAgo = currentTimeRef.current - 5 * 60 * 1000
     return createdAt < fiveMinutesAgo
   }
 
@@ -742,7 +745,7 @@ function ParsedDataModal({
               {isStuck ? (
                 <>
                   <p>This parsing appears to be stuck.</p>
-                  <p style={{ fontSize: '14px', marginTop: '8px' }}>Click "Reset" to mark it as failed and try again.</p>
+                  <p style={{ fontSize: '14px', marginTop: '8px' }}>Click &quot;Reset&quot; to mark it as failed and try again.</p>
                 </>
               ) : (
                 'AI is analyzing this document...'
@@ -757,7 +760,7 @@ function ParsedDataModal({
             <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>❌</div>
               <p>Parsing failed</p>
-              <p style={{ fontSize: '14px', marginTop: '8px' }}>Click "Retry" to try again</p>
+              <p style={{ fontSize: '14px', marginTop: '8px' }}>Click &quot;Retry&quot; to try again</p>
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '32px', color: '#9C9690', marginBottom: '16px' }}>

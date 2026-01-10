@@ -23,10 +23,6 @@ export default function ExpensesPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('all')
 
-  useEffect(() => {
-    fetchExpenses()
-  }, [])
-
   const fetchExpenses = async () => {
     try {
       const response = await fetch(
@@ -41,11 +37,15 @@ export default function ExpensesPage() {
       if (response.ok) {
         setExpenses(await response.json())
       }
-    } catch (err) {
-      console.error('Error:', err)
+    } catch (error) {
+      console.error('Error:', error)
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchExpenses()
+  }, [])
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -232,7 +232,7 @@ function AddExpenseModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       } else {
         alert('Failed to add expense')
       }
-    } catch (err) {
+    } catch {
       alert('Error adding expense')
     }
     setLoading(false)

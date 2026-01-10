@@ -42,10 +42,6 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
-  useEffect(() => {
-    fetchInvoices()
-  }, [statusFilter])
-
   const fetchInvoices = async () => {
     setLoading(true)
     try {
@@ -66,11 +62,15 @@ export default function InvoicesPage() {
       if (response.ok) {
         setInvoices(await response.json())
       }
-    } catch (err) {
-      console.error('Error:', err)
+    } catch (error) {
+      console.error('Error:', error)
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchInvoices()
+  }, [statusFilter])
 
   const deleteInvoice = async (invoiceId: number) => {
     if (!confirm('Are you sure you want to delete this invoice? This cannot be undone.')) return

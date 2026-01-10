@@ -12,7 +12,7 @@ export default function PaymentSuccessPage({
   searchParams: Promise<{ session_id?: string }>
 }) {
   const { invoiceId } = use(params)
-  const { session_id } = use(searchParams)
+  use(searchParams) // Consume searchParams to satisfy Next.js
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

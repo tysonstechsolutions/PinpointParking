@@ -31,16 +31,6 @@ export default function FieldModePage() {
   const [syncing, setSyncing] = useState(false)
   const isOnline = useOnlineStatus()
 
-  useEffect(() => {
-    loadJobs()
-  }, [])
-
-  useEffect(() => {
-    if (isOnline && pendingSync > 0) {
-      handleSync()
-    }
-  }, [isOnline, pendingSync])
-
   async function loadJobs() {
     setLoading(true)
 
@@ -111,6 +101,16 @@ export default function FieldModePage() {
       await loadJobs()
     }
   }
+
+  useEffect(() => {
+    loadJobs()
+  }, [])
+
+  useEffect(() => {
+    if (isOnline && pendingSync > 0) {
+      handleSync()
+    }
+  }, [isOnline, pendingSync])
 
   const todaysJobs = jobs.filter(j => {
     if (!j.scheduled_date) return false

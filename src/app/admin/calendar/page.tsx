@@ -34,10 +34,6 @@ export default function CalendarPage() {
   const [view, setView] = useState<'month' | 'week'>('month')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  useEffect(() => {
-    fetchJobs()
-  }, [])
-
   const fetchJobs = async () => {
     try {
       const response = await fetch(
@@ -57,6 +53,10 @@ export default function CalendarPage() {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchJobs()
+  }, [])
 
   // Update job scheduled date
   const updateJobDate = async (jobId: number, newDate: string) => {

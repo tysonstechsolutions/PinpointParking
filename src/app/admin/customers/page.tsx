@@ -42,10 +42,6 @@ export default function CustomersPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
-  useEffect(() => {
-    fetchCustomers()
-  }, [])
-
   const fetchCustomers = async () => {
     try {
       const response = await fetch(
@@ -60,11 +56,15 @@ export default function CustomersPage() {
       if (response.ok) {
         setCustomers(await response.json())
       }
-    } catch (err) {
-      console.error('Error:', err)
+    } catch (error) {
+      console.error('Error:', error)
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchCustomers()
+  }, [])
 
   const deleteCustomer = async (customerId: number) => {
     if (!confirm('Are you sure you want to delete this customer? This cannot be undone.')) return
@@ -541,7 +541,7 @@ function AddCustomerModal({ onClose, onSuccess }: { onClose: () => void; onSucce
       } else {
         alert('Failed to create customer')
       }
-    } catch (err) {
+    } catch {
       alert('Error creating customer')
     }
     setLoading(false)

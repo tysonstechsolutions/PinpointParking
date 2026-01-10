@@ -37,10 +37,6 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchInvoice()
-  }, [invoiceId])
-
   const fetchInvoice = async () => {
     try {
       const response = await fetch(
@@ -72,11 +68,15 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
       } else {
         setError('Failed to load invoice')
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load invoice')
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchInvoice()
+  }, [invoiceId])
 
   const handlePayment = async () => {
     if (!invoice) return
@@ -106,7 +106,7 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
       } else {
         setError(data.error || 'Failed to start payment')
       }
-    } catch (err) {
+    } catch {
       setError('Payment failed. Please try again.')
     }
 
