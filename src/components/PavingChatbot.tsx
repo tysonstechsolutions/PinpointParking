@@ -134,41 +134,58 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
   // Google Maps
   const loadMap = async (polygonPoints?: Array<{lat: number, lng: number}>, addressOverride?: string, coordsOverride?: {lat: number, lng: number}) => {
+    // Debug: Log API key status
+    console.log('Loading map, API key present:', !!config.googleMaps.apiKey, 'Key starts with:', config.googleMaps.apiKey?.substring(0, 10))
+
     // Check if API key is configured
     if (!config.googleMaps.apiKey) {
-      console.error('Google Maps API key not configured')
+      console.error('Google Maps API key not configured - config.googleMaps.apiKey is empty')
       setShowManualInput(true)
-      addBotMessage('Map loading failed. Please enter your area size manually below.')
+      addBotMessage('Map loading failed (no API key). Please enter your area size manually below.')
       return
     }
 
     if (!window.google?.maps) {
+      console.log('Google Maps not loaded yet, loading script...')
       const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
       if (!existingScript) {
         const script = document.createElement('script')
         script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMaps.apiKey}&libraries=geometry,drawing`
         script.async = true
-        script.onerror = () => {
-          console.error('Failed to load Google Maps script')
+        script.onerror = (e) => {
+          console.error('Failed to load Google Maps script:', e)
           setShowManualInput(true)
-          addBotMessage('Map loading failed. Please enter your area size manually below.')
+          addBotMessage('Map loading failed (script error). Please enter your area size manually below.')
         }
         document.head.appendChild(script)
+        console.log('Google Maps script added to page')
+      } else {
+        console.log('Google Maps script already exists on page')
       }
       await new Promise<void>(resolve => {
         const check = setInterval(() => {
-          if (window.google?.maps?.drawing) { clearInterval(check); resolve() }
+          if (window.google?.maps?.drawing) {
+            console.log('Google Maps loaded successfully')
+            clearInterval(check)
+            resolve()
+          }
         }, 100)
-        setTimeout(() => { clearInterval(check); resolve() }, 10000)
+        setTimeout(() => {
+          console.log('Google Maps load timeout reached, google.maps exists:', !!window.google?.maps, 'drawing:', !!window.google?.maps?.drawing)
+          clearInterval(check)
+          resolve()
+        }, 10000)
       })
     }
 
     if (!window.google?.maps || !mapContainerRef.current) {
-      console.error('Google Maps failed to load or map container not found')
+      console.error('Google Maps check failed - maps:', !!window.google?.maps, 'container:', !!mapContainerRef.current)
       setShowManualInput(true)
-      addBotMessage('Map loading failed. Please enter your area size manually below.')
+      addBotMessage('Map loading failed (timeout). Please enter your area size manually below.')
       return
     }
+
+    console.log('Map initialization starting...')
 
     // Use passed coordinates first, then state, then default
     let center = coordsOverride || mapCoordinates || config.googleMaps.defaultCenter
