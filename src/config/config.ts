@@ -47,7 +47,7 @@ export const config = {
   // GOOGLE MAPS
   // ============================================
   googleMaps: {
-    apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyBSbqYzGyAoUQTtWXrA8w_o7yTnalMsDwY",
     defaultCenter: { lat: 38.3170, lng: -88.9031 }, // Mount Vernon, IL
     defaultZoom: 19,
   },
