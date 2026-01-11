@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -38,7 +38,6 @@ const capitalizeName = (name: string): string => {
 }
 
 export default function AdminPage() {
-  const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [password, setPassword] = useState('')
@@ -49,6 +48,29 @@ export default function AdminPage() {
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+
+  // Fetch jobs from database
+  const fetchJobs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `${config.supabase.url}/rest/v1/jobs?order=created_at.desc`,
+        {
+          headers: {
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+        }
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setJobs(data)
+      }
+    } catch (err) {
+      console.error('Error fetching jobs:', err)
+    }
+    setLoading(false)
+  }, [])
 
   // Login handler - uses server-side auth
   const handleLogin = async (e: React.FormEvent) => {
@@ -74,22 +96,11 @@ export default function AdminPage() {
       } else {
         setPasswordError(data.error || 'Invalid password')
       }
-    } catch (error) {
+    } catch {
       setPasswordError('Login failed. Please try again.')
     }
 
     setLoginLoading(false)
-  }
-
-  // Logout handler
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-    } catch (error) {
-      // Ignore errors
-    }
-    setIsAuthenticated(false)
-    setJobs([])
   }
 
   // Check session on mount
@@ -102,37 +113,14 @@ export default function AdminPage() {
           setIsAuthenticated(true)
           fetchJobs()
         }
-      } catch (error) {
+      } catch {
         // Not authenticated
       }
       setCheckingAuth(false)
     }
 
     checkSession()
-  }, [])
-
-  // Fetch jobs from database
-  const fetchJobs = async () => {
-    setLoading(true)
-    try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/jobs?order=created_at.desc`,
-        {
-          headers: {
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-        }
-      )
-      if (response.ok) {
-        const data = await response.json()
-        setJobs(data)
-      }
-    } catch (error) {
-      console.error('Error fetching jobs:', error)
-    }
-    setLoading(false)
-  }
+  }, [fetchJobs])
 
   // Update job status
   const updateStatus = async (jobId: number, newStatus: string) => {
@@ -729,11 +717,13 @@ export default function AdminPage() {
                   <h3 style={{ color: '#F5C518', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
                     SERVICE LOCATION
                   </h3>
-                  <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
-                    <img
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', position: 'relative', width: '100%', height: '300px' }}>
+                    <Image
                       src={`https://maps.googleapis.com/maps/api/staticmap?center=${selectedJob.placement_lat},${selectedJob.placement_lng}&zoom=19&size=600x300&maptype=hybrid&markers=color:yellow%7C${selectedJob.placement_lat},${selectedJob.placement_lng}&key=${config.googleMaps.apiKey}`}
                       alt="Service Location"
-                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      unoptimized
                     />
                   </div>
                   <a

@@ -49,7 +49,7 @@ export default function PWAInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
-  }, [])
+  }, [isInstalled])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return

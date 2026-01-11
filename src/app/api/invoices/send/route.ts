@@ -114,7 +114,7 @@ Questions? Call ${config.phone}`
     }
 
     // Update invoice
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       reminder_count: (invoice.reminder_count || 0) + 1,
       last_reminder_sent_at: new Date().toISOString(),
       next_reminder_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days
@@ -145,10 +145,10 @@ Questions? Call ${config.phone}`
       message: 'Invoice sent',
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Send invoice error:', error)
     return NextResponse.json(
-      { error: error.message },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

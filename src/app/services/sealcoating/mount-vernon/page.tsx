@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Sealcoating in Mount Vernon, IL | Driveway & Parking Lot Sealing',
   description: 'Professional asphalt sealcoating in Mount Vernon, IL. Protect your driveway or parking lot from UV damage, water, and chemicals. Free estimates! Call 618-214-7656.',
   keywords: 'sealcoating Mount Vernon IL, driveway sealing Mount Vernon, parking lot sealcoating Jefferson County, asphalt sealer Mount Vernon',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating/mount-vernon',
+  },
 };
 
 const jsonLd = {

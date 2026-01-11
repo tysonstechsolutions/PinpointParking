@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving in Centralia, IL | Driveways & Parking Lots',
   description: 'Professional asphalt paving services in Centralia, IL. Residential driveways, commercial parking lots, and municipal projects. Free estimates! Call 618-214-7656.',
   keywords: 'asphalt paving Centralia IL, driveway paving Centralia, parking lot paving Marion County, asphalt contractor Centralia Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving/centralia',
+  },
 };
 
 const jsonLd = {

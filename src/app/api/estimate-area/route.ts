@@ -96,8 +96,6 @@ async function analyzeWithClaude(
   // Calculate meters per pixel based on zoom level
   // At zoom 20: ~0.15m/pixel, at zoom 19: ~0.30m/pixel
   const metersPerPixel = 156543.03392 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom)
-  const imageSize = 640 // pixels
-  const halfImageMeters = (imageSize / 2) * metersPerPixel
 
   try {
     const response = await client.messages.create({

@@ -10,9 +10,24 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Best Time to Pave a Driveway: Seasonal Guide for Illinois",
+  "description": "Learn the best season and weather conditions for asphalt paving in Southern Illinois. Spring, summer, and fall considerations.",
+  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
+};
+
 export default function BestTimeToPavePage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">

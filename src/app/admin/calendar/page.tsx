@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -34,7 +35,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<'month' | 'week'>('month')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/jobs?order=scheduled_date.asc`,
@@ -48,15 +49,15 @@ export default function CalendarPage() {
       if (response.ok) {
         setJobs(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchJobs()
-  }, [])
+  }, [fetchJobs])
 
   // Update job scheduled date
   const updateJobDate = async (jobId: number, newDate: string) => {

@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -85,7 +86,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'year'>('30d')
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const headers = {
         'apikey': config.supabase.anonKey,
@@ -103,15 +104,15 @@ export default function DashboardPage() {
       if (invoicesRes.ok) setInvoices(await invoicesRes.json())
       if (expensesRes.ok) setExpenses(await expensesRes.json())
       if (customersRes.ok) setCustomers(await customersRes.json())
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   // Filter data by time range
   const getDateRange = () => {

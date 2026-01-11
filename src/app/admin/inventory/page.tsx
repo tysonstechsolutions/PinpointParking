@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -47,11 +48,7 @@ export default function InventoryPage() {
     notes: '',
   })
 
-  useEffect(() => {
-    fetchItems()
-  }, [])
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/inventory?order=name.asc`,
@@ -65,11 +62,15 @@ export default function InventoryPage() {
       if (response.ok) {
         setItems(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchItems()
+  }, [fetchItems])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

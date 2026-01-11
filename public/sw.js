@@ -166,12 +166,12 @@ async function syncOfflineData() {
         if (response.ok) {
           await deletePendingAction(db, action.id);
         }
-      } catch (error) {
+      } catch {
         console.error('[SW] Failed to sync action:', action.id);
       }
     }
-  } catch (error) {
-    console.error('[SW] Sync failed:', error);
+  } catch (err) {
+    console.error('[SW] Sync failed:', err);
   }
 }
 

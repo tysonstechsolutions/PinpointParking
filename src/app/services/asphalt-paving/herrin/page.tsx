@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving in Herrin, IL | Driveways & Parking Lots',
   description: 'Professional asphalt paving services in Herrin, IL. Residential driveways, commercial parking lots, and repairs. Williamson County contractor. Free estimates! Call 618-214-7656.',
   keywords: 'asphalt paving Herrin IL, driveway paving Herrin, parking lot paving Williamson County, asphalt contractor Herrin Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving/herrin',
+  },
 };
 
 const jsonLd = {

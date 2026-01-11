@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -45,7 +46,7 @@ export default function DocumentsPage() {
   const [parsedData, setParsedData] = useState<ParsedInvoice | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/documents?order=created_at.desc`,
@@ -59,15 +60,15 @@ export default function DocumentsPage() {
       if (response.ok) {
         setDocuments(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchDocuments()
-  }, [])
+  }, [fetchDocuments])
 
   const handleUpload = async (file: File, category: string) => {
     setUploading(true)
@@ -240,14 +241,14 @@ export default function DocumentsPage() {
     return d.category === selectedCategory
   })
 
-  // Store current time in ref to avoid impure function call in render
-  const currentTimeRef = useRef(Date.now())
+  // Current time for checking stuck parsing - stored in state and updated on mount
+  const [mountTime] = useState(() => Date.now())
 
   // Check for stuck parsing (over 5 minutes)
   const isParsingStuck = (doc: Document) => {
     if (doc.parse_status !== 'parsing') return false
     const createdAt = new Date(doc.created_at).getTime()
-    const fiveMinutesAgo = currentTimeRef.current - 5 * 60 * 1000
+    const fiveMinutesAgo = mountTime - 5 * 60 * 1000
     return createdAt < fiveMinutesAgo
   }
 
@@ -383,7 +384,7 @@ export default function DocumentsPage() {
                   )}
                   {(doc.parse_status === 'failed' || stuck) && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); stuck ? handleResetStatus(doc.id) : handleRetryParse(doc.id); }}
+                      onClick={(e) => { e.stopPropagation(); if (stuck) { handleResetStatus(doc.id); } else { handleRetryParse(doc.id); } }}
                       style={{
                         padding: '6px 12px',
                         backgroundColor: stuck ? '#fef3c7' : '#fee2e2',

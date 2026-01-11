@@ -10,9 +10,24 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How Long Does an Asphalt Driveway Last? Lifespan Guide",
+  "description": "Asphalt driveways last 20-30 years with proper maintenance. Learn factors affecting lifespan and how to extend your driveway's life.",
+  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
+};
+
 export default function HowLongAsphaltLastsPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">

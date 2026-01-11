@@ -4,6 +4,9 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Our Services | Pinpoint Parking',
   description: 'Professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair services in Mount Vernon, IL and Southern Illinois.',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services',
+  },
 };
 
 const services = [

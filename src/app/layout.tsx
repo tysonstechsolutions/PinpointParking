@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/og-image.png",
+        url: "/media/parking-lot-aerial.jpg",
         width: 1200,
         height: 630,
         alt: "Pinpoint Parking - Professional Asphalt Paving in Southern Illinois",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "FREE Asphalt Quotes in 24hrs | Mount Vernon IL | Pinpoint Parking",
     description: "Get a FREE estimate for your paving project! Professional asphalt paving, sealcoating & repairs. 100% satisfaction guaranteed. Call (618) 214-7656",
-    images: ["/og-image.png"],
+    images: ["/media/parking-lot-aerial.jpg"],
   },
   robots: {
     index: true,

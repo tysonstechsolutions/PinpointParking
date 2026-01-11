@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { config } from '@/config/config'
 import { quoteSchema, sanitizePhone, sanitizeName, sanitizeAddress, formatZodError } from '@/lib/schemas'
-import { getSupabaseUrl, getSupabaseKey, isSupabaseConfigured } from '@/lib/supabase'
+import { getSupabaseUrl, getSupabaseKey } from '@/lib/supabase'
 
 // ============================================
 // PAVING QUOTE API - Database + SMS

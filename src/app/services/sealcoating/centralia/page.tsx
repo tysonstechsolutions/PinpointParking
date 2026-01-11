@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Sealcoating in Centralia, IL | Driveway & Parking Lot Sealing',
   description: 'Professional asphalt sealcoating in Centralia, IL. Protect your driveway or parking lot. Just 19 miles from Mount Vernon. Free estimates! Call 618-214-7656.',
   keywords: 'sealcoating Centralia IL, driveway sealing Centralia, parking lot sealcoating Marion County, asphalt sealer Centralia Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating/centralia',
+  },
 };
 
 const jsonLd = {

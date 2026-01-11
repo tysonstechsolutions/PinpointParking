@@ -32,7 +32,7 @@ export default function OfflinePage() {
           marginBottom: '12px',
           color: '#F5C518',
         }}>
-          You're Offline
+          You&apos;re Offline
         </h1>
 
         <p style={{
@@ -41,7 +41,7 @@ export default function OfflinePage() {
           marginBottom: '24px',
           lineHeight: '1.5',
         }}>
-          It looks like you've lost your internet connection. Some features may be unavailable until you're back online.
+          It looks like you&apos;ve lost your internet connection. Some features may be unavailable until you&apos;re back online.
         </p>
 
         <div style={{

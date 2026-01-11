@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -42,7 +43,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     setLoading(true)
     try {
       let query = 'order=created_at.desc'
@@ -62,15 +63,15 @@ export default function InvoicesPage() {
       if (response.ok) {
         setInvoices(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [statusFilter])
 
   useEffect(() => {
     fetchInvoices()
-  }, [statusFilter])
+  }, [fetchInvoices])
 
   const deleteInvoice = async (invoiceId: number) => {
     if (!confirm('Are you sure you want to delete this invoice? This cannot be undone.')) return

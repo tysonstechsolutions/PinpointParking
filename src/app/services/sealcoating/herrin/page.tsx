@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Sealcoating in Herrin, IL | Driveway & Parking Lot Sealing',
   description: 'Professional asphalt sealcoating in Herrin, IL. Protect your driveway or parking lot from damage. Williamson County service. Free estimates! Call 618-214-7656.',
   keywords: 'sealcoating Herrin IL, driveway sealing Herrin, parking lot sealcoating Williamson County, asphalt sealer Herrin Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating/herrin',
+  },
 };
 
 const jsonLd = {

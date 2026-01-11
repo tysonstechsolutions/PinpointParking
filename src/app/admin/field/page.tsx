@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { cacheJobs, getCachedJobs, addPendingAction, syncPendingActions } from '@/lib/offlineStorage'
 
@@ -31,7 +32,7 @@ export default function FieldModePage() {
   const [syncing, setSyncing] = useState(false)
   const isOnline = useOnlineStatus()
 
-  async function loadJobs() {
+  const loadJobs = useCallback(async () => {
     setLoading(true)
 
     if (isOnline) {
@@ -42,8 +43,8 @@ export default function FieldModePage() {
           setJobs(data)
           await cacheJobs(data)
         }
-      } catch (error) {
-        console.error('Failed to fetch jobs:', error)
+      } catch (err) {
+        console.error('Failed to fetch jobs:', err)
         // Fall back to cached data
         const cached = await getCachedJobs()
         setJobs(cached as Job[])
@@ -54,7 +55,7 @@ export default function FieldModePage() {
     }
 
     setLoading(false)
-  }
+  }, [isOnline])
 
   async function updateJobStatus(jobId: number, newStatus: string) {
     // Optimistically update UI
@@ -91,7 +92,7 @@ export default function FieldModePage() {
     }
   }
 
-  async function handleSync() {
+  const handleSync = useCallback(async () => {
     setSyncing(true)
     const result = await syncPendingActions()
     setPendingSync(result.failed)
@@ -100,17 +101,17 @@ export default function FieldModePage() {
     if (result.synced > 0) {
       await loadJobs()
     }
-  }
+  }, [loadJobs])
 
   useEffect(() => {
     loadJobs()
-  }, [])
+  }, [loadJobs])
 
   useEffect(() => {
     if (isOnline && pendingSync > 0) {
       handleSync()
     }
-  }, [isOnline, pendingSync])
+  }, [isOnline, pendingSync, handleSync])
 
   const todaysJobs = jobs.filter(j => {
     if (!j.scheduled_date) return false

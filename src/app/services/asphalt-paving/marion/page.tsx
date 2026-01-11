@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving in Marion, IL | Driveways & Parking Lots',
   description: 'Professional asphalt paving services in Marion, IL. Residential driveways, commercial parking lots, and industrial properties. Free estimates! Call 618-214-7656.',
   keywords: 'asphalt paving Marion IL, driveway paving Marion, parking lot paving Williamson County, asphalt contractor Marion Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving/marion',
+  },
 };
 
 const jsonLd = {

@@ -4,6 +4,9 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Service Areas | Pinpoint Parking',
   description: 'Pinpoint Parking serves Mount Vernon, IL and all communities within a 45-mile radius including Carbondale, Marion, Centralia, Salem, and Herrin.',
+  alternates: {
+    canonical: 'https://pinpointparking.net/locations',
+  },
 };
 
 const locations = [

@@ -10,9 +10,24 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Fix Driveway Cracks: DIY vs Professional Repair",
+  "description": "Learn when you can DIY driveway crack repair and when to call professionals. Types of cracks, repair methods, and costs.",
+  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
+};
+
 export default function HowToFixCracksPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">

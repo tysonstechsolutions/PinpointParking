@@ -10,9 +10,24 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "ADA Parking Lot Requirements: Complete Compliance Guide",
+  "description": "ADA parking requirements for Illinois businesses. Number of accessible spaces, dimensions, signage, and striping requirements.",
+  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
+};
+
 export default function ADARequirementsPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">

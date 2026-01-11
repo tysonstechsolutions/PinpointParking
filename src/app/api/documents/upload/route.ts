@@ -5,7 +5,7 @@ import {
   sanitizeFilename,
   createValidationError
 } from '@/lib/schemas'
-import { isSupabaseConfigured, getSupabaseUrl, getSupabaseKey } from '@/lib/supabase'
+import { getSupabaseUrl, getSupabaseKey } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {

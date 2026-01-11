@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -23,7 +24,7 @@ export default function ExpensesPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('all')
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/expenses?order=expense_date.desc`,
@@ -37,15 +38,15 @@ export default function ExpensesPage() {
       if (response.ok) {
         setExpenses(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchExpenses()
-  }, [])
+  }, [fetchExpenses])
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {

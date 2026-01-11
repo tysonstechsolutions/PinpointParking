@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 const services = [
   {
@@ -139,7 +140,7 @@ export default function Home() {
             {services.map((service) => (
               <Link href={service.href} className="service-card service-card-with-image" key={service.title}>
                 <div className="service-image">
-                  <img src={service.image} alt={service.title} />
+                  <Image src={service.image} alt={service.title} fill style={{ objectFit: 'cover' }} />
                 </div>
                 <div className="service-content">
                   <h3>{service.title}</h3>
@@ -231,10 +232,12 @@ export default function Home() {
 
             <div className="why-us-image">
               <div className="image-frame">
-                <img
+                <Image
                   src="/media/parking-lot-aerial.jpg"
                   alt="Aerial view of a freshly sealcoated parking lot with yellow striping - Pinpoint Parking"
                   className="work-photo"
+                  fill
+                  style={{ objectFit: 'cover' }}
                 />
               </div>
               <div className="stats-box">

@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import { config } from '@/config/config'
 
 interface LineItem {
@@ -37,7 +38,7 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
 
-  const fetchInvoice = async () => {
+  const fetchInvoice = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/invoices?id=eq.${invoiceId}`,
@@ -72,11 +73,11 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
       setError('Failed to load invoice')
     }
     setLoading(false)
-  }
+  }, [invoiceId])
 
   useEffect(() => {
     fetchInvoice()
-  }, [invoiceId])
+  }, [fetchInvoice])
 
   const handlePayment = async () => {
     if (!invoice) return

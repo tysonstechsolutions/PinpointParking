@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving in Mount Vernon, IL | Driveways & Parking Lots',
   description: 'Professional asphalt paving services in Mount Vernon, IL. New driveways, parking lots, and repairs. Local Jefferson County contractor. Free estimates! Call 618-214-7656.',
   keywords: 'asphalt paving Mount Vernon IL, driveway paving Mount Vernon, parking lot paving Jefferson County, asphalt contractor Mount Vernon',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving/mount-vernon',
+  },
 };
 
 const jsonLd = {

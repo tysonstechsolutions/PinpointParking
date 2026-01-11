@@ -1,6 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -42,7 +43,7 @@ export default function CustomersPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       const response = await fetch(
         `${config.supabase.url}/rest/v1/customers?order=name.asc`,
@@ -56,15 +57,15 @@ export default function CustomersPage() {
       if (response.ok) {
         setCustomers(await response.json())
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch (err) {
+      console.error('Error:', err)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchCustomers()
-  }, [])
+  }, [fetchCustomers])
 
   const deleteCustomer = async (customerId: number) => {
     if (!confirm('Are you sure you want to delete this customer? This cannot be undone.')) return

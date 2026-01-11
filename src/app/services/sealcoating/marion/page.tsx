@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Sealcoating in Marion, IL | Driveway & Parking Lot Sealing',
   description: 'Professional asphalt sealcoating in Marion, IL. Protect commercial parking lots and residential driveways. Williamson County service. Free estimates! Call 618-214-7656.',
   keywords: 'sealcoating Marion IL, driveway sealing Marion, parking lot sealcoating Williamson County, asphalt sealer Marion Illinois',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating/marion',
+  },
 };
 
 const jsonLd = {

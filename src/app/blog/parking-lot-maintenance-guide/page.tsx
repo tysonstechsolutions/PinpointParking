@@ -10,9 +10,24 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Complete Parking Lot Maintenance Guide for Business Owners",
+  "description": "Learn how to maintain your commercial parking lot. Sealcoating schedules, crack repair, striping, and cost-saving tips.",
+  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
+};
+
 export default function ParkingLotMaintenancePage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">

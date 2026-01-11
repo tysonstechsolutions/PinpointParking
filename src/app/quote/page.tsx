@@ -4,6 +4,9 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Get a Free Quote | Instant Estimate',
   description: 'Get an instant estimate for sealcoating, asphalt paving, or line striping. Our quick booking assistant will help you measure your area and schedule a free on-site estimate.',
+  alternates: {
+    canonical: 'https://pinpointparking.net/quote',
+  },
   openGraph: {
     title: 'Get a Free Quote | Pinpoint Parking',
     description: 'Get an instant estimate for your paving project in Southern Illinois.',

@@ -159,10 +159,10 @@ export async function POST(request: Request) {
       invoice_number,
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Invoice error:', error)
     return NextResponse.json(
-      { error: error.message },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -212,7 +212,7 @@ export async function GET(request: Request) {
         if (typeof inv.line_items === 'string') {
           try {
             parsedLineItems = JSON.parse(inv.line_items)
-          } catch (e) {
+          } catch {
             console.error('Failed to parse line_items for invoice:', inv.id)
             parsedLineItems = []
           }
@@ -227,8 +227,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Get invoices error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }

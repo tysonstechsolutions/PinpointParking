@@ -1,16 +1,7 @@
 'use client';
 
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { useState, FormEvent } from 'react';
-
-const services = [
-  { name: 'Asphalt Paving', href: '/services/asphalt-paving' },
-  { name: 'Sealcoating', href: '/services/sealcoating' },
-  { name: 'Line Striping', href: '/services/line-striping' },
-  { name: 'Crack Filling', href: '/services/crack-filling' },
-  { name: 'Pothole Repair', href: '/services/pothole-repair' },
-];
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({

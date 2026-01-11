@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving in Carbondale, IL | Driveways & Parking Lots',
   description: 'Professional asphalt paving services in Carbondale, IL. Residential driveways, commercial parking lots, and SIU area properties. Free estimates! Call 618-214-7656.',
   keywords: 'asphalt paving Carbondale IL, driveway paving Carbondale, parking lot paving Jackson County, asphalt contractor Carbondale',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/asphalt-paving/carbondale',
+  },
 };
 
 const jsonLd = {

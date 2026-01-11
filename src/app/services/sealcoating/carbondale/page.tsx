@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Sealcoating in Carbondale, IL | Driveway & Parking Lot Sealing',
   description: 'Professional asphalt sealcoating in Carbondale, IL. Protect driveways and parking lots near SIU. Residential and commercial service. Free estimates! Call 618-214-7656.',
   keywords: 'sealcoating Carbondale IL, driveway sealing Carbondale, parking lot sealcoating Jackson County, asphalt sealer Carbondale',
+  alternates: {
+    canonical: 'https://pinpointparking.net/services/sealcoating/carbondale',
+  },
 };
 
 const jsonLd = {

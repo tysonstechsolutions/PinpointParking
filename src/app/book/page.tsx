@@ -83,7 +83,7 @@ export default function BookingPage() {
     const dates = []
     const today = new Date()
     let daysAdded = 0
-    let currentDate = new Date(today)
+    const currentDate = new Date(today)
     currentDate.setDate(currentDate.getDate() + config.booking.minDaysOut)
 
     while (daysAdded < 10) {
@@ -275,7 +275,7 @@ export default function BookingPage() {
           lat: results[0].geometry.location.lat(),
           lng: results[0].geometry.location.lng()
         }
-      } catch (e) {
+      } catch {
         console.log('Using default center')
       }
 
