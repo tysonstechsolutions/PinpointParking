@@ -541,18 +541,21 @@ export default function BookingPage() {
         {step === STEPS.ADDRESS && (
           <div>
             <h1 style={{ color: '#FAF8F5', fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
-              Where is the property?
+              Where is the job located?
             </h1>
             <p style={{ color: '#9C9690', marginBottom: '32px' }}>
-              We&apos;ll use satellite imagery to estimate the area
+              Enter the address where the work will be done (not your billing address)
             </p>
 
             <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>
+                Job Site Address
+              </label>
               <input
                 type="text"
                 value={bookingData.address}
                 onChange={(e) => setBookingData(prev => ({ ...prev, address: e.target.value }))}
-                placeholder="Enter full address (e.g., 123 Main St, Mount Vernon, IL)"
+                placeholder="123 Main St, Mount Vernon, IL (where the work will be done)"
                 style={{
                   width: '100%',
                   padding: '16px 20px',

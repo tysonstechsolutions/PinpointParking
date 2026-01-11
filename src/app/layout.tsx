@@ -82,6 +82,13 @@ export const metadata: Metadata = {
   },
   category: "Business",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
+    apple: '/icons/icon-192x192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -90,7 +97,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#16a34a",
+  themeColor: "#F5C518",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -239,6 +246,8 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
         />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />

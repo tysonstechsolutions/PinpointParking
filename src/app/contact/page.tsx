@@ -124,15 +124,18 @@ export default function ContactPage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="city">City/Town</label>
+                  <label htmlFor="city">Job Site Location (City or Full Address)</label>
                   <input
                     type="text"
                     id="city"
                     name="city"
-                    placeholder="Mount Vernon"
+                    placeholder="Where is the work needed? (e.g., 123 Main St, Mount Vernon)"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   />
+                  <small style={{ color: 'var(--gray-500)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Enter the address where the paving/sealcoating work will be done
+                  </small>
                 </div>
 
                 <div className="form-group">

@@ -3,23 +3,33 @@
   <!-- Homepage -->
   <url>
     <loc>https://pinpointparking.net/</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
 
   <!-- Main Pages -->
   <url>
+    <loc>https://pinpointparking.net/book</loc>
+    <lastmod>2026-01-10</lastmod>
+    <priority>0.9</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://pinpointparking.net/contact</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.9</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/about</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.6</priority>
     <changefreq>weekly</changefreq>
   </url>
@@ -27,6 +37,7 @@
   <!-- Services Index -->
   <url>
     <loc>https://pinpointparking.net/services</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.9</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -34,26 +45,31 @@
   <!-- Main Service Pages -->
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.9</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/sealcoating</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.9</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/line-striping</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/crack-filling</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/pothole-repair</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -61,26 +77,31 @@
   <!-- Asphalt Paving + Location Pages -->
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving/mount-vernon</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving/carbondale</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving/marion</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving/centralia</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/asphalt-paving/herrin</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -88,26 +109,31 @@
   <!-- Sealcoating + Location Pages -->
   <url>
     <loc>https://pinpointparking.net/services/sealcoating/mount-vernon</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/sealcoating/carbondale</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/sealcoating/marion</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/sealcoating/centralia</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/services/sealcoating/herrin</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -115,6 +141,7 @@
   <!-- Locations Index -->
   <url>
     <loc>https://pinpointparking.net/locations</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -122,76 +149,91 @@
   <!-- Location Pages -->
   <url>
     <loc>https://pinpointparking.net/locations/mount-vernon</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/carbondale</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/marion</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/centralia</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/herrin</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/salem</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/benton</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/west-frankfort</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/du-quoin</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/nashville</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/fairfield</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/effingham</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/carterville</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/murphysboro</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/locations/harrisburg</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -199,51 +241,61 @@
   <!-- Blog Posts -->
   <url>
     <loc>https://pinpointparking.net/blog/how-much-does-asphalt-paving-cost</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/asphalt-vs-concrete-driveway</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/when-to-sealcoat-driveway</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/signs-you-need-new-driveway</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/how-long-does-asphalt-last</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/parking-lot-maintenance-guide</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/ada-parking-lot-requirements</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/best-time-to-pave-driveway</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/how-to-fix-driveway-cracks</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://pinpointparking.net/blog/commercial-parking-lot-costs</loc>
+    <lastmod>2026-01-10</lastmod>
     <priority>0.7</priority>
     <changefreq>monthly</changefreq>
   </url>

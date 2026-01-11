@@ -23,13 +23,13 @@ const services = [
     title: 'Crack Filling',
     description: 'Stop cracks before they spread. Professional crack sealing prevents water infiltration and costly repairs.',
     href: '/services/crack-filling',
-    image: 'https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=600&h=400&fit=crop',
+    image: '/media/crack-filling.jpg',
   },
   {
     title: 'Pothole Repair',
     description: 'Fast, permanent pothole repairs that eliminate hazards and restore smooth surfaces. Same-week service available.',
     href: '/services/pothole-repair',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&h=400&fit=crop',
+    image: '/media/pothole-repair.jpg',
   },
 ];
 
