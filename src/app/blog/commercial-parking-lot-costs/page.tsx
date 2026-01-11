@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Commercial Parking Lot Paving Costs: Complete Business Guide (2025)',
+  title: 'Commercial Parking Lot Paving Costs: Complete Business Guide (2026)',
   description: 'How much does a commercial parking lot cost? Pricing per square foot, by number of spaces, and factors affecting cost in Southern Illinois.',
   keywords: 'commercial parking lot cost, parking lot paving price, business parking lot construction, asphalt parking lot cost per square foot',
   alternates: {

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How Long Does an Asphalt Driveway Last? Lifespan Guide (2025)',
+  title: 'How Long Does an Asphalt Driveway Last? Lifespan Guide (2026)',
   description: 'Asphalt driveways last 20-30 years with proper maintenance. Learn factors affecting lifespan and how to extend your driveway\'s life in Southern Illinois.',
   keywords: 'how long does asphalt last, asphalt driveway lifespan, driveway life expectancy, how long does blacktop last',
   alternates: {

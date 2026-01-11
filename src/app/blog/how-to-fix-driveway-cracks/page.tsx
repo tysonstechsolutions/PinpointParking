@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How to Fix Driveway Cracks: DIY vs Professional Repair (2025)',
+  title: 'How to Fix Driveway Cracks: DIY vs Professional Repair (2026)',
   description: 'Learn when you can DIY driveway crack repair and when to call professionals. Types of cracks, repair methods, and costs in Southern Illinois.',
   keywords: 'how to fix driveway cracks, driveway crack repair, asphalt crack filler, crack sealing cost',
   alternates: {

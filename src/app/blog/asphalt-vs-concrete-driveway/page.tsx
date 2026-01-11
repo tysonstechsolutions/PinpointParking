@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Asphalt vs Concrete Driveway: Which is Better for Illinois? (2025)',
+  title: 'Asphalt vs Concrete Driveway: Which is Better for Illinois? (2026)',
   description: 'Compare asphalt vs concrete driveways for Southern Illinois homes. Learn about costs, durability, maintenance, and which material handles freeze-thaw cycles better.',
   keywords: 'asphalt vs concrete driveway, best driveway material Illinois, asphalt driveway pros cons, concrete driveway cost comparison',
   alternates: {
@@ -17,8 +17,8 @@ const articleSchema = {
   "description": "Complete comparison of asphalt and concrete driveways for Southern Illinois homeowners.",
   "author": { "@type": "Organization", "name": "Pinpoint Parking" },
   "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
-  "datePublished": "2025-01-01",
-  "dateModified": "2025-01-01"
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
 };
 
 export default function AsphaltVsConcretePage() {

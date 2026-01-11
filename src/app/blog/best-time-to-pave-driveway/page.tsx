@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Best Time to Pave a Driveway: Seasonal Guide for Illinois (2025)',
+  title: 'Best Time to Pave a Driveway: Seasonal Guide for Illinois (2026)',
   description: 'Learn the best season and weather conditions for asphalt paving in Southern Illinois. Spring, summer, and fall considerations for optimal results.',
   keywords: 'best time to pave driveway, when to pave driveway, asphalt paving season, best weather for paving',
   alternates: {

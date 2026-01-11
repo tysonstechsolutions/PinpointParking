@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'ADA Parking Lot Requirements: Complete Compliance Guide (2025)',
+  title: 'ADA Parking Lot Requirements: Complete Compliance Guide (2026)',
   description: 'ADA parking requirements for Illinois businesses. Number of accessible spaces, dimensions, signage, and striping requirements. Avoid costly fines.',
   keywords: 'ADA parking requirements, handicap parking requirements Illinois, ADA compliant parking lot, accessible parking spaces',
   alternates: {

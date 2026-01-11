@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How Much Does Asphalt Paving Cost in 2025? | Illinois Pricing Guide',
+  title: 'How Much Does Asphalt Paving Cost in 2026? | Illinois Pricing Guide',
   description: 'Asphalt paving costs $3-$7 per square foot in Southern Illinois. Learn what affects pricing, get cost estimates for driveways and parking lots, and tips to save money.',
   keywords: 'asphalt paving cost, driveway paving cost Illinois, parking lot paving price, asphalt driveway cost per square foot',
   alternates: {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const articleSchema = {
   "@context": "https://schema.org",
   "@type": "Article",
-  "headline": "How Much Does Asphalt Paving Cost in 2025? Complete Illinois Pricing Guide",
+  "headline": "How Much Does Asphalt Paving Cost in 2026? Complete Illinois Pricing Guide",
   "description": "Comprehensive guide to asphalt paving costs in Southern Illinois, including driveways, parking lots, and factors affecting price.",
   "author": {
     "@type": "Organization",
@@ -23,8 +23,8 @@ const articleSchema = {
     "@type": "Organization",
     "name": "Pinpoint Parking"
   },
-  "datePublished": "2025-01-01",
-  "dateModified": "2025-01-01"
+  "datePublished": "2026-01-01",
+  "dateModified": "2026-01-01"
 };
 
 const faqSchema = {
@@ -80,7 +80,7 @@ export default function AsphaltPavingCostPage() {
             <span>/</span>
             <span className="current">Asphalt Paving Cost Guide</span>
           </nav>
-          <h1>How Much Does Asphalt Paving Cost in 2025?</h1>
+          <h1>How Much Does Asphalt Paving Cost in 2026?</h1>
           <p>Complete pricing guide for driveways and parking lots in Southern Illinois</p>
         </div>
       </section>

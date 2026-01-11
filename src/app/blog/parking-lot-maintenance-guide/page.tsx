@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Complete Parking Lot Maintenance Guide for Business Owners (2025)',
+  title: 'Complete Parking Lot Maintenance Guide for Business Owners (2026)',
   description: 'Learn how to maintain your commercial parking lot. Sealcoating schedules, crack repair, striping, and cost-saving tips for Illinois business owners.',
   keywords: 'parking lot maintenance, commercial parking lot care, parking lot sealcoating schedule, business parking lot repair',
   alternates: {

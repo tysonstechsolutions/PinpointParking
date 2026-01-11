@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'When to Sealcoat Your Driveway: Complete Timing Guide (2025)',
+  title: 'When to Sealcoat Your Driveway: Complete Timing Guide (2026)',
   description: 'Learn the best time to sealcoat your asphalt driveway. Ideal temperatures, seasons, and how often to sealcoat in Southern Illinois for maximum protection.',
   keywords: 'when to sealcoat driveway, best time to sealcoat, how often to sealcoat driveway, sealcoating season Illinois',
   alternates: {
