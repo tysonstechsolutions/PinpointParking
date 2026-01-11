@@ -31,6 +31,7 @@ const STEPS = {
   DATE: 'date',
   CONTACT: 'contact',
   SUMMARY: 'summary',
+  PAYMENT: 'payment',
   COMPLETE: 'complete'
 }
 
@@ -72,6 +73,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     deliveryDateLabel: '',
     name: '',
     phone: '',
+    jobId: 0,
+    invoiceId: 0,
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -449,14 +452,58 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       const result = await response.json()
       setIsTyping(false)
       if (result.success) {
-        await addBotMessage(`Booking confirmed!\n\nWe'll contact you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment.\n\nQuestions? Call ${config.phone}`)
+        // Store the job/invoice ID for payment
+        setBookingData(prev => ({ ...prev, jobId: result.jobId, invoiceId: result.invoiceId }))
+        await addBotMessage(`Booking confirmed!\n\nWould you like to pay now or pay later?`)
+        setStep(STEPS.PAYMENT)
       } else {
         await addBotMessage(`Something went wrong. Please call us at ${config.phone}`)
+        setStep(STEPS.COMPLETE)
       }
     } catch {
       setIsTyping(false)
       await addBotMessage(`Couldn't submit. Please call ${config.phone}`)
+      setStep(STEPS.COMPLETE)
     }
+  }
+
+  const handlePayNow = async () => {
+    addUserMessage("Pay Now")
+    setIsTyping(true)
+    try {
+      // Create a Stripe checkout session
+      const depositAmount = Math.round(bookingData.estimateLow * 0.25) // 25% deposit
+      const response = await fetch('/api/payments/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: bookingData.invoiceId || bookingData.jobId,
+          amountCents: depositAmount * 100,
+          description: `Deposit for ${bookingData.serviceName} - ${config.businessName}`,
+          customerEmail: '', // Optional
+          customerName: bookingData.name,
+          customerPhone: bookingData.phone,
+        }),
+      })
+      const result = await response.json()
+      setIsTyping(false)
+      if (result.checkoutUrl) {
+        await addBotMessage(`Redirecting to secure payment...`)
+        window.location.href = result.checkoutUrl
+      } else {
+        await addBotMessage(`Payment setup failed. We'll send you a payment link via text to ${bookingData.phone}.\n\nQuestions? Call ${config.phone}`)
+        setStep(STEPS.COMPLETE)
+      }
+    } catch {
+      setIsTyping(false)
+      await addBotMessage(`Payment setup failed. We'll send you a payment link via text to ${bookingData.phone}.\n\nQuestions? Call ${config.phone}`)
+      setStep(STEPS.COMPLETE)
+    }
+  }
+
+  const handlePayLater = async () => {
+    addUserMessage("Pay Later")
+    await addBotMessage(`No problem! We'll contact you at ${bookingData.phone} to confirm your ${bookingData.deliveryDateLabel} appointment and send you a payment link.\n\nQuestions? Call ${config.phone}`)
     setStep(STEPS.COMPLETE)
   }
 
@@ -975,6 +1022,41 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellow }}
                 >
                   Confirm Booking
+                </button>
+              </div>
+            )}
+
+            {/* PAYMENT */}
+            {!isTyping && step === STEPS.PAYMENT && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+                <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
+                  <div className="text-center mb-3">
+                    <span className="text-white font-bold">25% Deposit</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="font-black text-2xl" style={{ color: COLORS.yellow }}>
+                      ${Math.round(bookingData.estimateLow * 0.25).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-center mt-2">
+                    <span style={{ color: COLORS.gray, fontSize: '13px' }}>
+                      Remaining balance due upon completion
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handlePayNow}
+                  className="w-full rounded-xl py-4 font-black text-lg transition-all border-2 shadow-lg hover:scale-[1.02]"
+                  style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellow }}
+                >
+                  Pay Now - Secure Checkout
+                </button>
+                <button
+                  onClick={handlePayLater}
+                  className="w-full rounded-xl py-3 font-bold transition-all border-2 hover:opacity-80"
+                  style={{ backgroundColor: 'transparent', color: COLORS.gray, borderColor: COLORS.blackMedium }}
+                >
+                  Pay Later
                 </button>
               </div>
             )}

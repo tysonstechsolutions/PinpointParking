@@ -30,11 +30,10 @@ function base64Decode(str: string): string {
 function createToken(payload: object): string {
   const header = base64Encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const body = base64Encode(JSON.stringify(payload))
-  const signature = base64Encode(
-    createHmac('sha256', JWT_SECRET)
-      .update(`${header}.${body}`)
-      .digest('base64')
-  )
+  // Use direct base64url encoding for signature (matches middleware)
+  const signature = createHmac('sha256', JWT_SECRET)
+    .update(`${header}.${body}`)
+    .digest('base64url')
   return `${header}.${body}.${signature}`
 }
 
@@ -45,11 +44,10 @@ function verifyToken(token: string): SessionPayload | null {
     if (parts.length !== 3) return null
 
     const [header, body, signature] = parts
-    const expectedSignature = base64Encode(
-      createHmac('sha256', JWT_SECRET)
-        .update(`${header}.${body}`)
-        .digest('base64')
-    )
+    // Use direct base64url encoding for signature (matches middleware)
+    const expectedSignature = createHmac('sha256', JWT_SECRET)
+      .update(`${header}.${body}`)
+      .digest('base64url')
 
     if (signature !== expectedSignature) return null
 

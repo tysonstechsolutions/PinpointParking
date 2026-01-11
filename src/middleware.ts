@@ -2,17 +2,32 @@
 // MIDDLEWARE - ROUTE PROTECTION
 // ============================================
 // Protects /admin/* routes with authentication
+// Uses Web Crypto API for Edge runtime compatibility
 // ============================================
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createHmac } from 'crypto'
 
 const COOKIE_NAME = 'pinpoint_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
 
-// Simple token verification (must match auth.ts)
-function verifyToken(token: string): boolean {
+// Convert string to Uint8Array
+function stringToUint8Array(str: string): Uint8Array {
+  return new TextEncoder().encode(str)
+}
+
+// Base64url encode
+function base64urlEncode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+// Simple token verification using Web Crypto API (Edge compatible)
+async function verifyToken(token: string): Promise<boolean> {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return false
@@ -20,21 +35,34 @@ function verifyToken(token: string): boolean {
     const [header, body, signature] = parts
 
     // Decode and check expiration
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8'))
+    const payload = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')))
     if (payload.exp && payload.exp < Date.now()) return false
 
-    // Verify signature
-    const expectedSignature = Buffer.from(
-      createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64')
-    ).toString('base64url')
+    // Verify signature using Web Crypto API
+    const keyData = stringToUint8Array(JWT_SECRET)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData.buffer as ArrayBuffer,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
 
+    const dataToSign = stringToUint8Array(`${header}.${body}`)
+    const signatureBuffer = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      dataToSign.buffer as ArrayBuffer
+    )
+
+    const expectedSignature = base64urlEncode(signatureBuffer)
     return signature === expectedSignature
   } catch {
     return false
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Only protect /admin routes (but not the login API)
@@ -44,7 +72,7 @@ export function middleware(request: NextRequest) {
     if (pathname !== '/admin') {
       const token = request.cookies.get(COOKIE_NAME)?.value
 
-      if (!token || !verifyToken(token)) {
+      if (!token || !(await verifyToken(token))) {
         // Redirect to admin login page
         const loginUrl = new URL('/admin', request.url)
         loginUrl.searchParams.set('redirect', pathname)
@@ -59,7 +87,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/api/documents')) {
     const token = request.cookies.get(COOKIE_NAME)?.value
 
-    if (!token || !verifyToken(token)) {
+    if (!token || !(await verifyToken(token))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
