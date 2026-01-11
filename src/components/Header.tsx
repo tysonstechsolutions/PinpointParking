@@ -130,8 +130,8 @@ export default function Header() {
               </svg>
               <span>(618) 214-7656</span>
             </a>
-            <Link href="/contact" className="btn btn-primary">
-              Get Free Quote
+            <Link href="/book" className="btn btn-primary">
+              FREE Quote
             </Link>
           </div>
 

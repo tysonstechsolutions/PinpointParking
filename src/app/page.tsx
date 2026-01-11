@@ -5,35 +5,30 @@ const services = [
     title: 'Asphalt Paving',
     description: 'New driveways, parking lots, and roads built to last. Expert installation with proper base preparation and drainage.',
     href: '/services/asphalt-paving',
-    // Replace with your real work photo:
-    image: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?w=600&h=400&fit=crop',
+    image: '/media/parking-lot-aerial-2.jpg',
   },
   {
     title: 'Sealcoating',
     description: 'Protect and extend the life of your asphalt with professional sealcoating. Guards against UV rays, water, and chemicals.',
     href: '/services/sealcoating',
-    // Replace with your real work photo:
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
+    image: '/media/parking-lot-aerial.jpg',
   },
   {
     title: 'Line Striping',
     description: 'ADA-compliant parking lot striping, traffic markings, and custom layouts. Crisp, visible lines that last.',
     href: '/services/line-striping',
-    // Replace with your real work photo:
-    image: 'https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=600&h=400&fit=crop',
+    image: '/media/ada-striping.jpg',
   },
   {
     title: 'Crack Filling',
     description: 'Stop cracks before they spread. Professional crack sealing prevents water infiltration and costly repairs.',
     href: '/services/crack-filling',
-    // Replace with your real work photo:
     image: 'https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=600&h=400&fit=crop',
   },
   {
     title: 'Pothole Repair',
     description: 'Fast, permanent pothole repairs that eliminate hazards and restore smooth surfaces. Same-week service available.',
     href: '/services/pothole-repair',
-    // Replace with your real work photo:
     image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&h=400&fit=crop',
   },
 ];
@@ -81,17 +76,27 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <section className="hero">
+        <video
+          className="hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/media/parking-lot-aerial.jpg"
+        >
+          <source src="/media/hero-video.mp4" type="video/mp4" />
+        </video>
         <div className="hero-overlay"></div>
         <div className="hero-pattern"></div>
         <div className="container hero-content">
-          <div className="hero-badge">Southern Illinois&apos; Trusted Paving Professionals</div>
-          <h1>Professional Asphalt Paving &amp; Pavement Maintenance</h1>
+          <div className="hero-badge">Mount Vernon&apos;s #1 Rated Asphalt Contractor</div>
+          <h1>Get Your FREE Asphalt Quote in 24 Hours</h1>
           <p className="hero-subtitle">
-            Serving Mount Vernon and a 45-mile radius throughout Southern Illinois. From driveways to commercial parking lots, we deliver precision work that lasts.
+            Professional paving, sealcoating &amp; repairs for driveways and parking lots. Serving Mount Vernon and 45 miles of Southern Illinois. Same-week scheduling available.
           </p>
           <div className="hero-cta">
             <Link href="/book" className="btn btn-primary btn-lg">
-              Get Instant Estimate
+              Get FREE Estimate Now
             </Link>
             <a href="tel:6182147656" className="btn btn-outline btn-lg">
               Call (618) 214-7656
@@ -104,13 +109,13 @@ export default function Home() {
             </div>
             <div className="trust-divider"></div>
             <div className="trust-item">
-              <span className="trust-number">Free</span>
-              <span className="trust-label">Estimates &amp; Consultations</span>
+              <span className="trust-number">24hr</span>
+              <span className="trust-label">Quote Turnaround</span>
             </div>
             <div className="trust-divider"></div>
             <div className="trust-item">
-              <span className="trust-number">45mi</span>
-              <span className="trust-label">Service Radius</span>
+              <span className="trust-number">$0</span>
+              <span className="trust-label">For Estimates</span>
             </div>
           </div>
         </div>
@@ -226,14 +231,11 @@ export default function Home() {
 
             <div className="why-us-image">
               <div className="image-frame">
-                <div className="image-placeholder">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  <span>Professional Work Photo</span>
-                </div>
+                <img
+                  src="/media/parking-lot-aerial.jpg"
+                  alt="Aerial view of a freshly sealcoated parking lot with yellow striping - Pinpoint Parking"
+                  className="work-photo"
+                />
               </div>
               <div className="stats-box">
                 <div className="stat">
@@ -329,11 +331,11 @@ export default function Home() {
       <section className="cta-section">
         <div className="cta-pattern"></div>
         <div className="container cta-content">
-          <h2>Ready to Transform Your Pavement?</h2>
-          <p>Get an instant estimate for your paving project. We&apos;ll measure your property using satellite imagery and provide transparent pricing.</p>
+          <h2>Get Your FREE Quote Today</h2>
+          <p>Most quotes delivered within 24 hours. We measure your property using satellite imagery - no waiting around for an on-site visit. 100% free, no obligation.</p>
           <div className="cta-buttons">
             <Link href="/book" className="btn btn-dark btn-lg">
-              Get Instant Estimate
+              Get FREE Estimate Now
             </Link>
             <a href="tel:6182147656" className="btn btn-outline-dark btn-lg">
               Call (618) 214-7656

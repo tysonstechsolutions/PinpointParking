@@ -22,10 +22,10 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   metadataBase: new URL('https://pinpointparking.net'),
   title: {
-    default: "Pinpoint Parking | Asphalt Paving & Sealcoating in Mount Vernon, IL | Southern Illinois",
+    default: "Asphalt Paving Mount Vernon IL | FREE Quotes in 24hrs | Pinpoint Parking",
     template: "%s | Pinpoint Parking",
   },
-  description: "Pinpoint Parking provides professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair in Mount Vernon, IL and throughout Southern Illinois. Free estimates! Call 618-214-7656.",
+  description: "Get your FREE asphalt estimate in 24 hours! Professional paving, sealcoating & repairs in Mount Vernon & Southern IL. 100% satisfaction guaranteed. Same-week scheduling available. Call (618) 214-7656",
   keywords: [
     "asphalt paving Mount Vernon IL",
     "sealcoating Southern Illinois",
@@ -45,8 +45,8 @@ export const metadata: Metadata = {
     google: "eLdwuihfM48rnvIYtHCf1zR54Os4u0qUvR2kW_CVuM0",
   },
   openGraph: {
-    title: "Pinpoint Parking | Asphalt Paving & Sealcoating in Southern Illinois",
-    description: "Professional asphalt paving, sealcoating, and pavement maintenance serving Mount Vernon and a 45-mile radius in Southern Illinois. Free estimates!",
+    title: "FREE Asphalt Paving Quotes | Mount Vernon & Southern IL | Pinpoint Parking",
+    description: "Transform your driveway or parking lot! Get a FREE quote in 24 hours. Professional asphalt paving, sealcoating & repairs. 100% satisfaction guaranteed.",
     type: "website",
     url: "https://pinpointparking.net",
     siteName: "Pinpoint Parking",
@@ -62,8 +62,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pinpoint Parking | Asphalt Paving & Sealcoating",
-    description: "Professional asphalt paving, sealcoating, and pavement maintenance in Mount Vernon, IL and Southern Illinois. Free estimates!",
+    title: "FREE Asphalt Quotes in 24hrs | Mount Vernon IL | Pinpoint Parking",
+    description: "Get a FREE estimate for your paving project! Professional asphalt paving, sealcoating & repairs. 100% satisfaction guaranteed. Call (618) 214-7656",
     images: ["/og-image.png"],
   },
   robots: {
@@ -152,6 +152,73 @@ const localBusinessSchema = {
   }
 };
 
+// FAQ Schema - Shows expandable Q&As in Google search results (rich snippets)
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much does asphalt paving cost in Mount Vernon IL?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Asphalt paving in Mount Vernon and Southern Illinois typically costs $3-$7 per square foot for residential driveways. Commercial projects vary based on size and site preparation. Contact Pinpoint Parking at (618) 214-7656 for a free, accurate quote."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long does sealcoating last?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Quality sealcoating typically lasts 2-3 years depending on traffic and weather exposure. We recommend sealcoating every 2-3 years to maximize your asphalt's lifespan and appearance."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When is the best time to pave or sealcoat in Southern Illinois?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The ideal season is late spring through early fall when temperatures are consistently above 50°F. In Southern Illinois, this typically means May through September for optimal results."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do you offer free estimates for paving projects?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes! Pinpoint Parking offers 100% free estimates with no obligation. We can provide quotes within 24 hours using satellite imagery or schedule an on-site assessment. Call (618) 214-7656 or visit our website."
+      }
+    }
+  ]
+};
+
+// Service Schema - Helps Google understand your services
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "Asphalt Paving",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Pinpoint Parking"
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": {
+      "@type": "GeoCoordinates",
+      "latitude": "38.3173",
+      "longitude": "-88.9031"
+    },
+    "geoRadius": "72420"
+  },
+  "description": "Professional asphalt paving, sealcoating, line striping, and pavement repairs for residential and commercial properties.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free estimates within 24 hours"
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -163,6 +230,14 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
         />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
