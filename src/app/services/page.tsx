@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Our Services | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, line striping, crack filling, and pothole repair services in Mount Vernon, IL and Southern Illinois.',
+  title: 'Asphalt Services Mount Vernon IL ★ Paving, Sealcoating & More',
+  description: '⭐ 5-Star Rated! Full-service asphalt contractor: Paving ($3-$7/sqft), Sealcoating, Line Striping, Crack Filling & Pothole Repair. FREE Quotes in 24hrs. Call (618) 214-7656!',
+  keywords: ['asphalt services Mount Vernon IL', 'paving contractor Southern Illinois', 'sealcoating near me', 'parking lot maintenance'],
   alternates: {
     canonical: 'https://pinpointparking.net/services',
   },

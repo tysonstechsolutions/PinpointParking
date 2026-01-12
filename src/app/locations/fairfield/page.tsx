@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Fairfield, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Fairfield, IL. Serving Wayne County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Fairfield IL ★ Wayne County\'s Best | FREE Quote',
+  description: '⭐ 5-Star Rated in Fairfield! Driveways from $3/sqft. Serving Wayne County. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Fairfield IL', 'driveway paving Fairfield', 'sealcoating Fairfield IL', 'parking lot paving Wayne County'],
 };
 
 export default function FairfieldPage() {

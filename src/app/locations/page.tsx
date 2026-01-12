@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Service Areas | Pinpoint Parking',
-  description: 'Pinpoint Parking serves Mount Vernon, IL and all communities within a 45-mile radius including Carbondale, Marion, Centralia, Salem, and Herrin.',
+  title: 'Asphalt Paving Near Me ★ 15 Southern IL Cities | FREE Quotes',
+  description: '⭐ 5-Star Rated in Mount Vernon, Carbondale, Marion, Centralia, Salem & 10 more cities! 45-mile service radius. Same-week scheduling. FREE quotes - Call (618) 214-7656!',
+  keywords: ['asphalt paving near me', 'paving contractor Southern Illinois', 'asphalt Mount Vernon IL', 'paving Carbondale IL', 'sealcoating Marion IL'],
   alternates: {
     canonical: 'https://pinpointparking.net/locations',
   },

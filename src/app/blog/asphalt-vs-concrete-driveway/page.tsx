@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Asphalt vs Concrete Driveway: Which is Better for Illinois? (2026)',
-  description: 'Compare asphalt vs concrete driveways for Southern Illinois homes. Learn about costs, durability, maintenance, and which material handles freeze-thaw cycles better.',
-  keywords: 'asphalt vs concrete driveway, best driveway material Illinois, asphalt driveway pros cons, concrete driveway cost comparison',
+  title: 'Asphalt vs Concrete Driveway 2026 ★ Which Saves You More Money?',
+  description: '🏆 WINNER: Asphalt saves 40% upfront! Side-by-side comparison: costs, lifespan, repairs, freeze-thaw performance. See which is best for Illinois homes.',
+  keywords: 'asphalt vs concrete driveway, best driveway material Illinois, asphalt driveway pros cons, concrete driveway cost comparison, cheapest driveway option',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/asphalt-vs-concrete-driveway',
   },

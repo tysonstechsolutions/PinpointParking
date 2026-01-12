@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Herrin, IL | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, and pavement services in Herrin, IL. Serving Williamson County. Free estimates!',
+  title: 'Asphalt Paving Herrin IL ★ 5-Star Rated | FREE Quote in 24hrs',
+  description: '⭐ 5-Star Rated in Herrin! Driveways from $3/sqft. Serving Williamson County. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Herrin IL', 'driveway paving Herrin', 'sealcoating Herrin IL', 'parking lot paving Williamson County'],
 };
 
 export default function HerrinPage() {

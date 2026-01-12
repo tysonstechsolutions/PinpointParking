@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Harrisburg, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Harrisburg, IL. Serving Saline County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Harrisburg IL ★ Saline County\'s Best | FREE Quote',
+  description: '⭐ 5-Star Rated in Harrisburg! Driveways from $3/sqft. Serving Saline County businesses & homes. ✓ Licensed ✓ Insured. Call (618) 214-7656!',
+  keywords: ['asphalt paving Harrisburg IL', 'driveway paving Harrisburg', 'sealcoating Harrisburg IL', 'parking lot paving Saline County'],
 };
 
 export default function HarrisburgPage() {

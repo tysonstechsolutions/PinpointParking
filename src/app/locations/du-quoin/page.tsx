@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Du Quoin, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Du Quoin, IL. Serving Perry County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Du Quoin IL ★ Perry County\'s #1 | FREE Quote',
+  description: '⭐ 5-Star Rated in Du Quoin! State Fairgrounds area. Driveways from $3/sqft. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Du Quoin IL', 'driveway paving Du Quoin', 'sealcoating Du Quoin IL', 'parking lot paving Perry County'],
 };
 
 export default function DuQuoinPage() {

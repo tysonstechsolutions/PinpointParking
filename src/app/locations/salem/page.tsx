@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Salem, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Salem, IL. Serving Marion County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Salem IL ★ Marion County\'s Top Rated | FREE Quote',
+  description: '⭐ 5-Star Rated in Salem! Driveways from $3/sqft. Fast 25-mile service from Mt Vernon HQ. ✓ Licensed ✓ Insured. Call (618) 214-7656!',
+  keywords: ['asphalt paving Salem IL', 'driveway paving Salem', 'sealcoating Salem IL', 'parking lot paving Marion County'],
 };
 
 export default function SalemPage() {

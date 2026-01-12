@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Carterville, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Carterville, IL. Serving Williamson County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Carterville IL ★ 5-Star Rated | FREE Quote',
+  description: '⭐ 5-Star Rated in Carterville! John A. Logan area. Driveways from $3/sqft. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Carterville IL', 'driveway paving Carterville', 'sealcoating Carterville IL', 'parking lot paving Williamson County'],
 };
 
 export default function CartervillePage() {

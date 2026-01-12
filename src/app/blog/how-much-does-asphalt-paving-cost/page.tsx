@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How Much Does Asphalt Paving Cost in 2026? | Illinois Pricing Guide',
-  description: 'Asphalt paving costs $3-$7 per square foot in Southern Illinois. Learn what affects pricing, get cost estimates for driveways and parking lots, and tips to save money.',
-  keywords: 'asphalt paving cost, driveway paving cost Illinois, parking lot paving price, asphalt driveway cost per square foot',
+  title: 'Asphalt Paving Cost 2026 ★ $3-$7/sqft | Illinois Price Calculator',
+  description: '💰 REAL 2026 prices: Driveways $2,500-$6,000, Parking lots from $8K. See cost breakdown by size + 5 ways to save money. FREE quote from local contractor!',
+  keywords: 'asphalt paving cost 2026, driveway paving cost Illinois, parking lot paving price, asphalt driveway cost per square foot, how much does paving cost',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/how-much-does-asphalt-paving-cost',
   },

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Crack Filling & Sealing in Mount Vernon, IL | Asphalt Repair',
-  description: 'Professional asphalt crack filling and sealing in Mount Vernon, IL and Southern Illinois. Prevent potholes and costly repairs. Free estimates! Call 618-214-7656.',
-  keywords: 'crack filling Mount Vernon IL, asphalt crack sealing Southern Illinois, crack repair, driveway crack filling, parking lot crack repair',
+  title: 'Crack Filling Mount Vernon IL ★ Stop Potholes Before They Start | $0.50/ft',
+  description: '⭐ 5-Star Rated! Professional hot-pour crack sealing from $0.50/ft. Prevents costly pothole repairs! Lasts 3-5 years vs 1yr DIY. FREE quote - Call (618) 214-7656 Now!',
+  keywords: 'crack filling Mount Vernon IL, asphalt crack sealing Southern Illinois, crack repair, driveway crack filling, parking lot crack repair, prevent potholes',
   alternates: {
     canonical: 'https://pinpointparking.net/services/crack-filling',
   },

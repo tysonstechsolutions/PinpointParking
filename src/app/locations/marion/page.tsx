@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Marion, IL | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, and pavement services in Marion, IL. Serving Williamson County businesses and residents. Free estimates!',
+  title: 'Asphalt Paving Marion IL ★ Williamson County\'s Best | FREE Quote',
+  description: '⭐ 5-Star Rated in Marion! Driveways from $3/sqft. Serving Williamson County businesses & homeowners. Same-week scheduling. Call (618) 214-7656!',
+  keywords: ['asphalt paving Marion IL', 'driveway paving Marion', 'sealcoating Marion IL', 'parking lot paving Williamson County'],
 };
 
 export default function MarionPage() {

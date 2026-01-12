@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Effingham, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Effingham, IL. Serving Effingham County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Effingham IL ★ I-57/I-70 Crossroads | FREE Quote',
+  description: '⭐ 5-Star Rated in Effingham! Serving the Crossroads of America. Driveways from $3/sqft. ✓ Licensed ✓ Insured. Call (618) 214-7656!',
+  keywords: ['asphalt paving Effingham IL', 'driveway paving Effingham', 'sealcoating Effingham IL', 'parking lot paving Effingham County'],
 };
 
 export default function EffinghamPage() {

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving Blog | Tips, Guides & Cost Information',
-  description: 'Expert tips, guides, and cost information about asphalt paving, sealcoating, and pavement maintenance for Southern Illinois homeowners and businesses.',
-  keywords: 'asphalt paving blog, driveway tips, parking lot maintenance guide, sealcoating information',
+  title: 'Asphalt Paving Costs 2026 ★ Prices, Tips & FREE Guides | Southern IL',
+  description: '📖 Expert guides: Driveway costs ($3-$7/sqft), sealcoating tips, ADA requirements & more. Save money on your next paving project! By Southern IL\'s #1 rated contractor.',
+  keywords: 'asphalt paving cost 2026, driveway cost calculator, sealcoating tips, parking lot maintenance guide, how much does paving cost',
   alternates: {
     canonical: 'https://pinpointparking.net/blog',
   },

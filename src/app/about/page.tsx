@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'About Pinpoint Parking | Southern Illinois Asphalt Paving Company',
-  description: 'Learn about Pinpoint Parking - Southern Illinois\' trusted asphalt paving and pavement maintenance company. Serving Mount Vernon and a 45-mile radius with quality work.',
+  title: 'About Us ★ #1 Rated Asphalt Company in Southern Illinois',
+  description: '👷 Meet Southern IL\'s most trusted paving team! Family-owned, locally operated from Mount Vernon. ✓ Licensed ✓ Insured ✓ 100% Satisfaction Guaranteed. 45-mile service radius.',
+  keywords: ['about Pinpoint Parking', 'asphalt company Mount Vernon IL', 'paving contractor Southern Illinois', 'local paving company'],
   alternates: {
     canonical: 'https://pinpointparking.net/about',
   },

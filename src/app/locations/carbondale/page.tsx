@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Carbondale, IL | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, and pavement services in Carbondale, IL. Serving SIU area businesses and residents. Free estimates!',
+  title: 'Asphalt Paving Carbondale IL ★ SIU Area\'s #1 Contractor | FREE Quote',
+  description: '⭐ 5-Star Rated in Carbondale! Driveways from $3/sqft. Serving SIU, businesses & residents. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Carbondale IL', 'driveway paving Carbondale', 'sealcoating Carbondale IL', 'parking lot paving Jackson County'],
 };
 
 export default function CarbondalePage() {

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Best Time to Pave a Driveway: Seasonal Guide for Illinois (2026)',
-  description: 'Learn the best season and weather conditions for asphalt paving in Southern Illinois. Spring, summer, and fall considerations for optimal results.',
-  keywords: 'best time to pave driveway, when to pave driveway, asphalt paving season, best weather for paving',
+  title: 'Best Time to Pave Driveway 2026 ★ #1 Month for Illinois (Save Money)',
+  description: '🗓️ BEST: Late May - Early October. Pave when 50°F+ for best results! Month-by-month guide + tips to save money on your paving project.',
+  keywords: 'best time to pave driveway, when to pave driveway, asphalt paving season Illinois, best weather for paving, cheapest time to pave',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/best-time-to-pave-driveway',
   },

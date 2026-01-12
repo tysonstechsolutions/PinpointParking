@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Centralia, IL | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, and pavement services in Centralia, IL. Serving Marion County. Free estimates!',
+  title: 'Asphalt Paving Centralia IL ★ Only 19 Miles Away | FREE Quote',
+  description: '⭐ 5-Star Rated! Fast service to Centralia (19 mi from HQ). Driveways from $3/sqft. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Centralia IL', 'driveway paving Centralia', 'sealcoating Centralia IL', 'parking lot paving Marion County'],
 };
 
 export default function CentraliaPage() {

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving Services in Mount Vernon, IL | Driveways & Parking Lots',
-  description: 'Professional asphalt paving for driveways, parking lots, and roads in Mount Vernon, IL and Southern Illinois. Quality hot-mix asphalt, expert installation. Free estimates! Call 618-214-7656.',
-  keywords: 'asphalt paving Mount Vernon IL, driveway paving Southern Illinois, parking lot paving, asphalt contractor, new driveway installation',
+  title: 'Asphalt Paving Mount Vernon IL ★ Driveways from $3/sqft | FREE Quote',
+  description: '⭐ #1 Rated Asphalt Contractor! New driveways & parking lots from $3-$7/sqft. ✓ Licensed ✓ Insured ✓ 20+ Year Lifespan Guaranteed. Same-week scheduling! Call (618) 214-7656 for FREE quote.',
+  keywords: 'asphalt paving Mount Vernon IL, driveway paving Southern Illinois, parking lot paving, asphalt contractor, new driveway installation, cheap driveway paving, best asphalt company',
   alternates: {
     canonical: 'https://pinpointparking.net/services/asphalt-paving',
   },

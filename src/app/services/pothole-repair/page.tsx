@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Pothole Repair in Mount Vernon, IL | Fast Asphalt Patching',
-  description: 'Fast, permanent pothole repairs in Mount Vernon, IL and Southern Illinois. Same-week service available. Eliminate hazards and liability. Free estimates! Call 618-214-7656.',
-  keywords: 'pothole repair Mount Vernon IL, asphalt patching Southern Illinois, pothole filling, parking lot pothole repair, driveway pothole fix',
+  title: 'Pothole Repair Mount Vernon IL ★ Same-Week Service | From $50/hole',
+  description: '⭐ 5-Star Rated! Fast pothole repairs from $50. Same-week emergency service! Avoid vehicle damage lawsuits. Permanent hot-mix repairs. FREE quote - Call (618) 214-7656!',
+  keywords: 'pothole repair Mount Vernon IL, asphalt patching Southern Illinois, pothole filling, parking lot pothole repair, driveway pothole fix, emergency pothole repair',
   alternates: {
     canonical: 'https://pinpointparking.net/services/pothole-repair',
   },

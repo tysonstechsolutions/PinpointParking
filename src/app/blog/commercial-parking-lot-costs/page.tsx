@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Commercial Parking Lot Paving Costs: Complete Business Guide (2026)',
-  description: 'How much does a commercial parking lot cost? Pricing per square foot, by number of spaces, and factors affecting cost in Southern Illinois.',
-  keywords: 'commercial parking lot cost, parking lot paving price, business parking lot construction, asphalt parking lot cost per square foot',
+  title: 'Commercial Parking Lot Cost 2026 ★ $2.50-$5/sqft | Price Calculator',
+  description: '💰 REAL prices: 20-space lot = $15-25K, 50-space = $35-60K. See cost by size + 4 ways to reduce costs. FREE quote for Illinois businesses!',
+  keywords: 'commercial parking lot cost 2026, parking lot paving price, business parking lot construction, asphalt parking lot cost per square foot, parking lot cost calculator',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/commercial-parking-lot-costs',
   },

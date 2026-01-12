@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Sealcoating Services in Mount Vernon, IL | Driveway & Parking Lot Sealing',
-  description: 'Professional asphalt sealcoating in Mount Vernon, IL and Southern Illinois. Protect your driveway or parking lot from UV damage, water, and chemicals. Free estimates! Call 618-214-7656.',
-  keywords: 'sealcoating Mount Vernon IL, driveway sealing Southern Illinois, parking lot sealcoating, asphalt sealer, driveway protection',
+  title: 'Sealcoating Mount Vernon IL ★ Only $0.15/sqft | Double Your Asphalt Life',
+  description: '⭐ 5-Star Rated! Driveway sealcoating from $0.15/sqft. Doubles asphalt lifespan! Protects against UV, water & chemicals. FREE quote in 24hrs. Call (618) 214-7656 - Same week service!',
+  keywords: 'sealcoating Mount Vernon IL, driveway sealing Southern Illinois, parking lot sealcoating, asphalt sealer, driveway protection, cheap sealcoating near me',
   alternates: {
     canonical: 'https://pinpointparking.net/services/sealcoating',
   },

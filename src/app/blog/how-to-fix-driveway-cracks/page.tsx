@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How to Fix Driveway Cracks: DIY vs Professional Repair (2026)',
-  description: 'Learn when you can DIY driveway crack repair and when to call professionals. Types of cracks, repair methods, and costs in Southern Illinois.',
-  keywords: 'how to fix driveway cracks, driveway crack repair, asphalt crack filler, crack sealing cost',
+  title: 'How to Fix Driveway Cracks 2026 ★ DIY vs Pro (When to Call Expert)',
+  description: '🔧 DIY for cracks <1/4". Pro for larger cracks = 5x longer lasting! Step-by-step guide + cost comparison. Know when to DIY vs hire a pro.',
+  keywords: 'how to fix driveway cracks, driveway crack repair DIY, asphalt crack filler, crack sealing cost, driveway crack repair cost',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/how-to-fix-driveway-cracks',
   },

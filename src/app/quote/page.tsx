@@ -2,14 +2,15 @@ import PavingChatbot from '@/components/PavingChatbot'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Get a Free Quote | Instant Estimate',
-  description: 'Get an instant estimate for sealcoating, asphalt paving, or line striping. Our quick booking assistant will help you measure your area and schedule a free on-site estimate.',
+  title: 'Get FREE Quote in 60 Seconds ★ Instant Asphalt Estimate',
+  description: '⚡ Get your FREE paving quote in under 60 seconds! AI-powered instant estimates. Driveways, parking lots, sealcoating. No obligation. Start now!',
+  keywords: ['free paving quote', 'asphalt estimate', 'driveway quote online', 'instant paving estimate'],
   alternates: {
     canonical: 'https://pinpointparking.net/quote',
   },
   openGraph: {
-    title: 'Get a Free Quote | Pinpoint Parking',
-    description: 'Get an instant estimate for your paving project in Southern Illinois.',
+    title: '⚡ Get FREE Quote in 60 Seconds | Pinpoint Parking',
+    description: 'AI-powered instant estimates for paving, sealcoating & more. No obligation, no waiting!',
   },
 }
 

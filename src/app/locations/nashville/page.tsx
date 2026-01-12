@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Nashville, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Nashville, IL. Serving Washington County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Nashville IL ★ Washington County | FREE Quote',
+  description: '⭐ 5-Star Rated in Nashville! Driveways from $3/sqft. Fast 30-mile service. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Nashville IL', 'driveway paving Nashville', 'sealcoating Nashville IL', 'parking lot paving Washington County'],
 };
 
 export default function NashvillePage() {

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Complete Parking Lot Maintenance Guide for Business Owners (2026)',
-  description: 'Learn how to maintain your commercial parking lot. Sealcoating schedules, crack repair, striping, and cost-saving tips for Illinois business owners.',
-  keywords: 'parking lot maintenance, commercial parking lot care, parking lot sealcoating schedule, business parking lot repair',
+  title: 'Parking Lot Maintenance Guide 2026 ★ Save 50% on Repairs (Free Checklist)',
+  description: '📋 FREE maintenance checklist! Proper care saves 50% on repairs. Sealcoating schedule, crack filling timing, striping frequency. Business owner\'s complete guide.',
+  keywords: 'parking lot maintenance, commercial parking lot care, parking lot sealcoating schedule, business parking lot repair, parking lot maintenance checklist',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/parking-lot-maintenance-guide',
   },

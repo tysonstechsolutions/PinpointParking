@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Benton, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Benton, IL. Serving Franklin County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Benton IL ★ Franklin County\'s Best | FREE Quote',
+  description: '⭐ 5-Star Rated in Benton! Only 20 miles from HQ. Driveways from $3/sqft. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Benton IL', 'driveway paving Benton', 'sealcoating Benton IL', 'parking lot paving Franklin County'],
 };
 
 export default function BentonPage() {

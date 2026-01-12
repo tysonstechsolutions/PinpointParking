@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Murphysboro, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in Murphysboro, IL. Serving Jackson County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving Murphysboro IL ★ Jackson County | FREE Quote',
+  description: '⭐ 5-Star Rated in Murphysboro! Driveways from $3/sqft. Near Carbondale. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
+  keywords: ['asphalt paving Murphysboro IL', 'driveway paving Murphysboro', 'sealcoating Murphysboro IL', 'parking lot paving Jackson County'],
 };
 
 export default function MurphysboroPage() {

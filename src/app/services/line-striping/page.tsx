@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicePageLayout from '@/components/ServicePageLayout';
 
 export const metadata: Metadata = {
-  title: 'Parking Lot Striping in Mount Vernon, IL | ADA Compliant Line Marking',
-  description: 'Professional parking lot striping and pavement marking in Mount Vernon, IL and Southern Illinois. ADA compliant layouts, fire lanes, directional arrows. Free estimates! Call 618-214-7656.',
-  keywords: 'parking lot striping Mount Vernon IL, line striping Southern Illinois, ADA compliant parking, pavement marking, parking lot lines',
+  title: 'Parking Lot Striping Mount Vernon IL ★ ADA Compliant | Avoid $75K Fines',
+  description: '⭐ 5-Star Rated! Professional line striping & ADA compliant markings. Avoid fines up to $75,000! Fire lanes, handicap spaces, custom layouts. FREE quote - Call (618) 214-7656 Today!',
+  keywords: 'parking lot striping Mount Vernon IL, line striping Southern Illinois, ADA compliant parking, pavement marking, parking lot lines, handicap parking striping',
   alternates: {
     canonical: 'https://pinpointparking.net/services/line-striping',
   },

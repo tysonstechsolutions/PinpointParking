@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in Mount Vernon, IL | Pinpoint Parking',
-  description: 'Professional asphalt paving, sealcoating, and pavement services in Mount Vernon, IL. Pinpoint Parking headquarters. Free estimates!',
+  title: 'Asphalt Paving Mount Vernon IL ★★★★★ #1 Local Contractor | FREE Quote',
+  description: '⭐ Mount Vernon\'s TOP-RATED paving company! Driveways from $3/sqft. ✓ Local HQ ✓ Same-week service ✓ 100% satisfaction guarantee. Call (618) 214-7656!',
+  keywords: ['asphalt paving Mount Vernon IL', 'driveway paving Mount Vernon', 'sealcoating Mount Vernon IL', 'parking lot paving Jefferson County'],
 };
 
 export default function MountVernonPage() {

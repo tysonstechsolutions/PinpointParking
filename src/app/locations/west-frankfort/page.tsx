@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import LocationPageLayout from '@/components/LocationPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Asphalt Paving & Sealcoating in West Frankfort, IL',
-  description: 'Professional asphalt paving, sealcoating, and pavement maintenance in West Frankfort, IL. Serving Franklin County with quality workmanship. Free estimates! Call 618-214-7656.',
+  title: 'Asphalt Paving West Frankfort IL ★ 5-Star Rated | FREE Quote',
+  description: '⭐ 5-Star Rated in West Frankfort! Driveways from $3/sqft. Fast service to Franklin County. ✓ Licensed ✓ Insured. Call (618) 214-7656!',
+  keywords: ['asphalt paving West Frankfort IL', 'driveway paving West Frankfort', 'sealcoating West Frankfort IL', 'parking lot paving Franklin County'],
 };
 
 export default function WestFrankfortPage() {

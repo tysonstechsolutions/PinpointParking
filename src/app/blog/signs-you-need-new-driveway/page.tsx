@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: '7 Signs You Need a New Driveway (Don\'t Ignore #3)',
-  description: 'Learn the warning signs that indicate your driveway needs replacement vs repair. Alligator cracks, drainage issues, and more. Southern Illinois driveway guide.',
-  keywords: 'signs need new driveway, when to replace driveway, driveway replacement signs, cracked driveway repair or replace',
+  title: '7 Signs You Need New Driveway ★ #3 Means REPLACE NOW (2026 Guide)',
+  description: '⚠️ WARNING: If you see alligator cracks, it\'s too late to repair! 7 signs your driveway needs replacing. Repair vs replace guide + cost comparison.',
+  keywords: 'signs need new driveway, when to replace driveway, driveway replacement signs, cracked driveway repair or replace, alligator cracks driveway',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/signs-you-need-new-driveway',
   },

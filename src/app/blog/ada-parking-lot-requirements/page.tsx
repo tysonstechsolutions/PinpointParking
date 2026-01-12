@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'ADA Parking Lot Requirements: Complete Compliance Guide (2026)',
-  description: 'ADA parking requirements for Illinois businesses. Number of accessible spaces, dimensions, signage, and striping requirements. Avoid costly fines.',
-  keywords: 'ADA parking requirements, handicap parking requirements Illinois, ADA compliant parking lot, accessible parking spaces',
+  title: 'ADA Parking Requirements 2026 ★ Avoid $75,000 Fines (Free Chart)',
+  description: '⚠️ Fines up to $150K for violations! FREE ADA space calculator + requirements chart. How many handicap spots you need, dimensions, signage rules.',
+  keywords: 'ADA parking requirements 2026, handicap parking requirements Illinois, ADA compliant parking lot, accessible parking spaces, ADA parking fines',
   alternates: {
     canonical: 'https://pinpointparking.net/blog/ada-parking-lot-requirements',
   },
