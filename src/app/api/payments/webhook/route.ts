@@ -9,9 +9,20 @@ import { config } from '@/config/config'
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(request: NextRequest) {
+  // Debug: Log what we have
+  console.log('Webhook called - stripe configured:', !!stripe)
+  console.log('Webhook called - secret exists:', !!webhookSecret)
+  console.log('Webhook called - secret length:', webhookSecret?.length || 0)
+
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
-      { error: 'Webhook not configured' },
+      {
+        error: 'Webhook not configured',
+        debug: {
+          stripeConfigured: !!stripe,
+          webhookSecretExists: !!webhookSecret,
+        }
+      },
       { status: 503 }
     )
   }
