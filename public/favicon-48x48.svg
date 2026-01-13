@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Black background circle for contrast -->
+  <circle cx="24" cy="24" r="22" fill="#1a1714" stroke="#1a1714" stroke-width="2"/>
+
+  <!-- Outer yellow ring -->
+  <circle cx="24" cy="24" r="18" fill="none" stroke="#F5C518" stroke-width="3"/>
+
+  <!-- Center yellow dot -->
+  <circle cx="24" cy="24" r="6" fill="#F5C518"/>
+
+  <!-- Crosshair lines -->
+  <line x1="24" y1="3" x2="24" y2="12" stroke="#F5C518" stroke-width="3" stroke-linecap="round"/>
+  <line x1="24" y1="36" x2="24" y2="45" stroke="#F5C518" stroke-width="3" stroke-linecap="round"/>
+  <line x1="3" y1="24" x2="12" y2="24" stroke="#F5C518" stroke-width="3" stroke-linecap="round"/>
+  <line x1="36" y1="24" x2="45" y2="24" stroke="#F5C518" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -86,10 +86,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/favicon-48x48.svg', sizes: '48x48', type: 'image/svg+xml' },
+      { url: '/favicon.svg', sizes: '32x32', type: 'image/svg+xml' },
     ],
-    apple: '/icons/icon-192x192.png',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
   },
   appleWebApp: {
     capable: true,
