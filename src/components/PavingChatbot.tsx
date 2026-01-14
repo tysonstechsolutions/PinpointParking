@@ -480,7 +480,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       return
     }
 
-    setBookingData(prev => ({ ...prev, address }))
+    // Set default project type for sealcoating (will be updated if church is checked later)
+    setBookingData(prev => ({ ...prev, address, projectType: 'commercial', projectTypeName: 'Commercial' }))
     addUserMessage(address)
     setInputValue('')
 
@@ -775,7 +776,16 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       return
     }
 
-    setBookingData(prev => ({ ...prev, name, email, phone }))
+    // Update project type if church is checked
+    const projectTypeName = isChurch ? 'House of Worship' : 'Commercial'
+    setBookingData(prev => ({
+      ...prev,
+      name,
+      email,
+      phone,
+      projectType: isChurch ? 'house-of-worship' : 'commercial',
+      projectTypeName
+    }))
     addUserMessage(`${name}${email ? '\n' + email : ''}\n${phone}${isChurch ? '\n⛪ House of Worship' : ''}`)
     setContactName('')
     setContactEmail('')
@@ -822,20 +832,35 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     addUserMessage("Confirm")
     setIsTyping(true)
     try {
-      // For line striping, don't send projectType or condition (they use different values)
-      // Instead, add the striping details to notes
       const isLineStriping = bookingData.service === 'linestriping'
-      const stripingNotes = isLineStriping
-        ? `Striping type: ${bookingData.condition === 'new_layout' ? 'New layout' : 'Re-stripe existing'}`
-        : undefined
+      const isSealcoating = bookingData.service === 'sealcoating'
 
-      // Determine project type - church checkbox overrides for line striping
-      let projectType = bookingData.projectType
+      // Build notes for special services
+      let notes = undefined
       if (isLineStriping) {
+        notes = `Striping type: ${bookingData.condition === 'new_layout' ? 'New layout' : 'Re-stripe existing'}`
+      } else if (isSealcoating && includeStriping) {
+        notes = `Bundle: Sealcoating + Striping (10% discount applied)`
+      }
+
+      // Determine project type
+      // - Line striping & sealcoating default to commercial (or house-of-worship if checked)
+      // - Other services use the selected project type
+      let projectType = bookingData.projectType
+      if (isLineStriping || isSealcoating) {
         projectType = isChurch ? 'house-of-worship' : 'commercial'
       } else if (isChurch && projectType === 'commercial') {
-        // For other services, if they selected commercial but checked church, use house-of-worship
         projectType = 'house-of-worship'
+      }
+
+      // Determine condition - only send for paving, not striping/sealcoating
+      let condition = undefined
+      if (!isLineStriping && !isSealcoating && bookingData.condition) {
+        // Validate it's a valid condition value
+        const validConditions = ['good', 'fair', 'poor', 'unknown']
+        if (validConditions.includes(bookingData.condition)) {
+          condition = bookingData.condition
+        }
       }
 
       const response = await fetch('/api/paving-quote', {
@@ -844,7 +869,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           serviceType: bookingData.service,
           projectType: projectType,
           squareFootage: bookingData.squareFootage || undefined,
-          condition: isLineStriping ? undefined : bookingData.condition, // Don't send striping type as condition
+          condition: condition,
           address: bookingData.address,
           customerName: bookingData.name,
           customerEmail: bookingData.email || undefined,
@@ -852,7 +877,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           estimateLow: bookingData.estimateLow,
           estimateHigh: bookingData.estimateHigh,
           preferredDate: bookingData.deliveryDate,
-          notes: stripingNotes,
+          notes: notes,
         }),
       })
       const result = await response.json()
@@ -1710,7 +1735,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   <div className="flex justify-between"><span className="font-medium" style={{ color: COLORS.gray }}>Contact</span><span className="text-white font-bold text-right">{bookingData.name}<br/>{bookingData.phone}</span></div>
                   <div className="pt-3 flex justify-between items-center" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
                     <span className="text-white font-bold">Estimate</span>
-                    <span className="font-black text-xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}</span>
+                    <span className="font-black text-xl" style={{ color: COLORS.yellow }}>
+                      {bookingData.estimateLow === bookingData.estimateHigh
+                        ? `$${bookingData.estimateLow.toLocaleString()}`
+                        : `$${bookingData.estimateLow.toLocaleString()} - $${bookingData.estimateHigh.toLocaleString()}`
+                      }
+                    </span>
                   </div>
                 </div>
                 <button
