@@ -50,8 +50,9 @@ export default function HeroVideo() {
       loop
       playsInline
       preload="auto"
+      poster="/media/parking-lot-aerial.jpg"
     >
-      <source src="/media/hero-video.mp4" type="video/mp4" />
+      <source src="/media/sealcoating-video.mp4" type="video/mp4" />
     </video>
   )
 }
