@@ -28,11 +28,26 @@ const STEPS = {
   ADDRESS: 'address',
   MAP_MEASURING: 'map_measuring',
   CONDITION: 'condition',
+  STRIPING_TYPE: 'striping_type',
+  STRIPING_DETAILS: 'striping_details',
   DATE: 'date',
   CONTACT: 'contact',
   SUMMARY: 'summary',
   PAYMENT: 'payment',
   COMPLETE: 'complete'
+}
+
+const STRIPING_OPTIONS = [
+  { id: 'restripe', label: 'Yes, lines are visible', description: 'Re-painting existing lines', multiplier: 1 },
+  { id: 'new_layout', label: 'No, need new layout', description: 'Fresh layout or lines not visible', multiplier: 1.5 },
+]
+
+// Line striping per-unit pricing
+const STRIPING_PRICING = {
+  regularSpace: 15,    // $15 per regular space
+  handicapSpace: 35,   // $35 per handicap space (includes logo + loading zone)
+  arrow: 20,           // $20 per arrow
+  minimum: 500,        // $500 minimum job
 }
 
 interface PavingChatbotProps {
@@ -57,6 +72,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualSqFt, setManualSqFt] = useState('')
+
+  // Line striping specific state
+  const [stripingRegularSpaces, setStripingRegularSpaces] = useState(0)
+  const [stripingHandicapSpaces, setStripingHandicapSpaces] = useState(0)
+  const [stripingArrows, setStripingArrows] = useState(0)
+  const [stripingMultiplier, setStripingMultiplier] = useState(1)
 
   const [bookingData, setBookingData] = useState({
     service: '',
@@ -349,8 +370,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const project = config.projectTypes.find(p => p.id === projectId)!
     setBookingData(prev => ({ ...prev, projectType: projectId, projectTypeName: project.label, discount: project.discount || 0 }))
     addUserMessage(project.label)
-    await addBotMessage("What's the current condition of the pavement?")
-    setStep(STEPS.CONDITION)
+
+    // For line striping, ask about new layout vs restripe instead of condition
+    if (bookingData.service === 'linestriping') {
+      await addBotMessage("Is this a new layout or a restripe of existing lines?")
+      setStep(STEPS.STRIPING_TYPE)
+    } else {
+      await addBotMessage("What's the current condition of the pavement?")
+      setStep(STEPS.CONDITION)
+    }
   }
 
   const handleAddressSubmit = async () => {
@@ -368,6 +396,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setInputValue('')
     setContactName('')
     setContactPhone('')
+
+    // For line striping, skip map measuring - we already have the estimate from space counts
+    if (bookingData.service === 'linestriping') {
+      const estimate = bookingData.estimateLow // Already calculated in handleStripingDetailsSubmit
+      await addBotMessage(`Thanks ${name}! Your quote is:\n\n$${estimate.toLocaleString()}\n\nWhen would you like us to come out?`)
+      setStep(STEPS.DATE)
+      return
+    }
+
     setIsAnalyzing(true)
 
     try {
@@ -406,11 +443,23 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const handleMapConfirm = async () => {
     if (!drawnArea) return
 
-    // Calculate estimate with condition adjustment
-    const condition = config.conditions.find(c => c.id === bookingData.condition)
+    // Calculate estimate with condition/striping type adjustment
     const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
-    if (condition && condition.adjustment > 0) {
-      estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+
+    // Apply adjustment based on service type
+    if (bookingData.service === 'linestriping') {
+      // For line striping, apply striping type adjustment
+      const stripingType = STRIPING_OPTIONS.find(s => s.id === bookingData.condition)
+      if (stripingType && stripingType.adjustment > 0) {
+        estimate.low = Math.round(estimate.low * (1 + stripingType.adjustment))
+        estimate.high = Math.round(estimate.high * (1 + stripingType.adjustment))
+      }
+    } else {
+      // For other services, apply condition adjustment
+      const condition = config.conditions.find(c => c.id === bookingData.condition)
+      if (condition && condition.adjustment > 0) {
+        estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+      }
     }
 
     setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: estimate.low, estimateHigh: estimate.high }))
@@ -432,6 +481,55 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const condition = config.conditions.find(c => c.id === conditionId)!
     setBookingData(prev => ({ ...prev, condition: conditionId }))
     addUserMessage(condition.label)
+    await addBotMessage("Great! Enter your contact info and address below:")
+    setStep(STEPS.ADDRESS)
+  }
+
+  const handleStripingTypeSelect = async (typeId: string) => {
+    const stripingType = STRIPING_OPTIONS.find(s => s.id === typeId)!
+    setBookingData(prev => ({ ...prev, condition: typeId }))
+    setStripingMultiplier(stripingType.multiplier)
+    addUserMessage(stripingType.label)
+    await addBotMessage("How many parking spaces need to be striped?\n\nEnter the counts below:")
+    setStep(STEPS.STRIPING_DETAILS)
+  }
+
+  const calculateStripingEstimate = () => {
+    let total = (stripingRegularSpaces * STRIPING_PRICING.regularSpace) +
+                (stripingHandicapSpaces * STRIPING_PRICING.handicapSpace) +
+                (stripingArrows * STRIPING_PRICING.arrow)
+
+    // Apply new layout multiplier if applicable
+    total = Math.round(total * stripingMultiplier)
+
+    // Enforce minimum
+    total = Math.max(total, STRIPING_PRICING.minimum)
+
+    return total
+  }
+
+  const handleStripingDetailsSubmit = async () => {
+    if (stripingRegularSpaces <= 0 && stripingHandicapSpaces <= 0) {
+      await addBotMessage("Please enter at least 1 parking space.")
+      return
+    }
+
+    const estimate = calculateStripingEstimate()
+    const breakdown: string[] = []
+
+    if (stripingRegularSpaces > 0) breakdown.push(`${stripingRegularSpaces} regular spaces`)
+    if (stripingHandicapSpaces > 0) breakdown.push(`${stripingHandicapSpaces} handicap spaces`)
+    if (stripingArrows > 0) breakdown.push(`${stripingArrows} arrows`)
+    if (stripingMultiplier > 1) breakdown.push(`New layout (+50%)`)
+
+    setBookingData(prev => ({
+      ...prev,
+      squareFootage: stripingRegularSpaces + stripingHandicapSpaces, // Store total spaces
+      estimateLow: estimate,
+      estimateHigh: estimate,
+    }))
+
+    addUserMessage(breakdown.join(', '))
     await addBotMessage("Great! Enter your contact info and address below:")
     setStep(STEPS.ADDRESS)
   }
@@ -779,12 +877,23 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                         const sqft = parseInt(manualSqFt)
                         if (sqft && sqft > 0) {
                           setDrawnArea(sqft)
-                          // Calculate estimate with condition adjustment
-                          const condition = config.conditions.find(c => c.id === bookingData.condition)
+                          // Calculate estimate with condition/striping type adjustment
                           const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
-                          if (condition && condition.adjustment > 0) {
-                            estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+
+                          // Apply adjustment based on service type
+                          if (bookingData.service === 'linestriping') {
+                            const stripingType = STRIPING_OPTIONS.find(s => s.id === bookingData.condition)
+                            if (stripingType && stripingType.adjustment > 0) {
+                              estimate.low = Math.round(estimate.low * (1 + stripingType.adjustment))
+                              estimate.high = Math.round(estimate.high * (1 + stripingType.adjustment))
+                            }
+                          } else {
+                            const condition = config.conditions.find(c => c.id === bookingData.condition)
+                            if (condition && condition.adjustment > 0) {
+                              estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+                            }
                           }
+
                           setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high }))
                           addUserMessage(`${sqft.toLocaleString()} sq ft`)
                           addBotMessage(`Thanks ${bookingData.name}! Your estimated price is:\n\n$${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nWhen would you like us to come out?`)
@@ -984,6 +1093,162 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{condition.description}</p>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* STRIPING TYPE (for line striping only) */}
+            {!isTyping && step === STEPS.STRIPING_TYPE && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+                <p style={{ color: COLORS.gray, fontSize: '14px', margin: 0, textAlign: 'center' }}>
+                  Are existing lines clearly visible?
+                </p>
+                {STRIPING_OPTIONS.map(option => (
+                  <button
+                    key={option.id}
+                    onClick={() => handleStripingTypeSelect(option.id)}
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      border: `2px solid ${COLORS.yellow}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      backgroundColor: COLORS.blackLight,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLORS.blackLight; e.currentTarget.style.color = '#fff' }}
+                  >
+                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '15px', margin: 0 }}>{option.label}</p>
+                    <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{option.description}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* STRIPING DETAILS - Space counts */}
+            {!isTyping && step === STEPS.STRIPING_DETAILS && (
+              <div style={{
+                marginTop: '20px',
+                padding: '20px',
+                borderRadius: '12px',
+                border: `2px solid ${COLORS.yellow}`,
+                backgroundColor: COLORS.blackLight,
+              }}>
+                {/* Regular Spaces */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
+                    Regular Parking Spaces
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button
+                      onClick={() => setStripingRegularSpaces(Math.max(0, stripingRegularSpaces - 5))}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
+                    >-</button>
+                    <input
+                      type="number"
+                      value={stripingRegularSpaces || ''}
+                      onChange={(e) => setStripingRegularSpaces(Math.max(0, parseInt(e.target.value) || 0))}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
+                    />
+                    <button
+                      onClick={() => setStripingRegularSpaces(stripingRegularSpaces + 5)}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >+</button>
+                  </div>
+                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$15 per space</p>
+                </div>
+
+                {/* Handicap Spaces */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
+                    Handicap Spaces (with logo)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button
+                      onClick={() => setStripingHandicapSpaces(Math.max(0, stripingHandicapSpaces - 1))}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
+                    >-</button>
+                    <input
+                      type="number"
+                      value={stripingHandicapSpaces || ''}
+                      onChange={(e) => setStripingHandicapSpaces(Math.max(0, parseInt(e.target.value) || 0))}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
+                    />
+                    <button
+                      onClick={() => setStripingHandicapSpaces(stripingHandicapSpaces + 1)}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >+</button>
+                  </div>
+                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$35 per space (includes logo + loading zone)</p>
+                </div>
+
+                {/* Arrows */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
+                    Directional Arrows
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button
+                      onClick={() => setStripingArrows(Math.max(0, stripingArrows - 1))}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
+                    >-</button>
+                    <input
+                      type="number"
+                      value={stripingArrows || ''}
+                      onChange={(e) => setStripingArrows(Math.max(0, parseInt(e.target.value) || 0))}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
+                    />
+                    <button
+                      onClick={() => setStripingArrows(stripingArrows + 1)}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >+</button>
+                  </div>
+                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$20 per arrow</p>
+                </div>
+
+                {/* Live Estimate */}
+                <div style={{
+                  padding: '12px',
+                  borderRadius: '8px',
+                  backgroundColor: COLORS.blackMedium,
+                  marginBottom: '16px',
+                  textAlign: 'center',
+                }}>
+                  <p style={{ color: COLORS.gray, fontSize: '12px', margin: '0 0 4px 0' }}>Estimated Total</p>
+                  <p style={{ color: COLORS.yellow, fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+                    ${calculateStripingEstimate().toLocaleString()}
+                  </p>
+                  {stripingMultiplier > 1 && (
+                    <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>Includes +50% for new layout</p>
+                  )}
+                  <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>$500 minimum</p>
+                </div>
+
+                {/* Continue Button */}
+                <button
+                  onClick={handleStripingDetailsSubmit}
+                  disabled={stripingRegularSpaces <= 0 && stripingHandicapSpaces <= 0}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '15px',
+                    backgroundColor: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? COLORS.yellow : COLORS.blackMedium,
+                    color: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? COLORS.black : COLORS.gray,
+                    border: 'none',
+                    cursor: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Continue
+                </button>
+
+                {/* Fire lanes note */}
+                <p style={{ color: COLORS.gray, fontSize: '11px', textAlign: 'center', marginTop: '12px' }}>
+                  Need fire lanes, crosswalks, or custom stencils? Call us for a custom quote.
+                </p>
               </div>
             )}
 
