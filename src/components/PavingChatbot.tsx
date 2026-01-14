@@ -40,6 +40,7 @@ const COLORS = {
 const STEPS = {
   SERVICE: 'service',
   PROJECT_TYPE: 'project_type',
+  SEALCOAT_ADDRESS: 'sealcoat_address',
   ADDRESS: 'address',
   MAP_MEASURING: 'map_measuring',
   CONDITION: 'condition',
@@ -47,6 +48,7 @@ const STEPS = {
   STRIPING_SIZE: 'striping_size',
   ADD_STRIPING: 'add_striping',
   BUNDLE_STRIPING_SIZE: 'bundle_striping_size',
+  SEALCOAT_CONTACT: 'sealcoat_contact',
   DATE: 'date',
   CONTACT: 'contact',
   SUMMARY: 'summary',
@@ -453,9 +455,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       await addBotMessage("Are the existing lines clearly visible?")
       setStep(STEPS.STRIPING_TYPE)
     } else if (serviceId === 'sealcoating') {
-      // Sealcoating - ask about adding striping first, then go to address/map
-      await addBotMessage("Would you like to add line striping to your sealcoating? (10% bundle discount)")
-      setStep(STEPS.ADD_STRIPING)
+      // Sealcoating - go to address input for map, then ask about striping
+      await addBotMessage("What's the property address? We'll measure the area on the map.")
+      setStep(STEPS.SEALCOAT_ADDRESS)
     } else {
       await addBotMessage("What type of property is this?")
       setStep(STEPS.PROJECT_TYPE)
@@ -468,6 +470,52 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     addUserMessage(project.label)
     await addBotMessage("What's the current condition of the pavement?")
     setStep(STEPS.CONDITION)
+  }
+
+  // Sealcoat address - just address, goes to map first
+  const handleSealcoatAddressSubmit = async () => {
+    const address = inputValue.trim()
+    if (!address) {
+      await addBotMessage("Please enter the property address.")
+      return
+    }
+
+    setBookingData(prev => ({ ...prev, address }))
+    addUserMessage(address)
+    setInputValue('')
+
+    setIsAnalyzing(true)
+    try {
+      const response = await fetch('/api/estimate-area', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, projectType: 'commercial' })
+      })
+      const result = await response.json()
+      setIsAnalyzing(false)
+      if (result.coordinates) setMapCoordinates(result.coordinates)
+
+      if (result.success && result.polygonPoints?.length >= 3) {
+        setAiPolygonPoints(result.polygonPoints)
+        const sqft = result.squareFootage
+        setBookingData(prev => ({ ...prev, squareFootage: sqft, address: result.formattedAddress || address }))
+        await addBotMessage(`Found it! Draw or adjust the area to be sealed.`)
+        setStep(STEPS.MAP_MEASURING)
+        setTimeout(() => { loadMap(result.polygonPoints, address, result.coordinates); scrollToBottom() }, 100)
+      } else if (result.coordinates) {
+        await addBotMessage("Found the location! Draw the area to be sealed.")
+        setStep(STEPS.MAP_MEASURING)
+        setTimeout(() => { loadMap(undefined, address, result.coordinates); scrollToBottom() }, 100)
+      } else {
+        await addBotMessage("Draw the area to be sealed on the map.")
+        setStep(STEPS.MAP_MEASURING)
+        setTimeout(() => { loadMap(undefined, address, undefined); scrollToBottom() }, 100)
+      }
+    } catch {
+      setIsAnalyzing(false)
+      await addBotMessage("Let's find that location...")
+      setStep(STEPS.MAP_MEASURING)
+      setTimeout(() => { loadMap(undefined, address, undefined); scrollToBottom() }, 100)
+    }
   }
 
   const handleAddressSubmit = async () => {
@@ -545,38 +593,17 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const handleMapConfirm = async () => {
     if (!drawnArea) return
 
-    // For sealcoating, use the tier-based pricing
+    // For sealcoating, calculate price and ask about adding striping
     if (bookingData.service === 'sealcoating') {
       const sealPrice = calculateSealcoatingPrice(drawnArea)
       setSealcoatingPrice(sealPrice)
 
-      let totalPrice = sealPrice
-      let message = ''
-
-      if (includeStriping && bundleStripingPrice > 0) {
-        // Bundle with striping
-        totalPrice = sealPrice + bundleStripingPrice
-        const deposit = Math.round(totalPrice * 0.5)
-        message = `Area: ${drawnArea.toLocaleString()} sq ft\n\n` +
-          `Sealcoating: $${sealPrice.toLocaleString()}\n` +
-          `Striping (10% off): $${bundleStripingPrice.toLocaleString()}\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `Total: $${totalPrice.toLocaleString()}\n` +
-          `Deposit: $${deposit.toLocaleString()}\n\n` +
-          `When would you like us to come out?`
-      } else {
-        // Sealcoating only
-        const deposit = Math.round(sealPrice * 0.5)
-        message = `Area: ${drawnArea.toLocaleString()} sq ft\n\n` +
-          `Sealcoating: $${sealPrice.toLocaleString()}\n` +
-          `Deposit: $${deposit.toLocaleString()}\n\n` +
-          `When would you like us to come out?`
-      }
-
-      setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: totalPrice, estimateHigh: totalPrice }))
+      setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: sealPrice, estimateHigh: sealPrice }))
       addUserMessage(`Area confirmed: ${drawnArea.toLocaleString()} sq ft`)
-      await addBotMessage(`Thanks ${bookingData.name}!\n\n${message}`)
-      setStep(STEPS.DATE)
+
+      const deposit = Math.round(sealPrice * 0.5)
+      await addBotMessage(`Area: ${drawnArea.toLocaleString()} sq ft\nSealcoating: $${sealPrice.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nWould you like to add line striping? (10% bundle discount)`)
+      setStep(STEPS.ADD_STRIPING)
       return
     }
 
@@ -677,8 +704,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     } else {
       addUserMessage("No, just sealcoating")
       setIncludeStriping(false)
-      await addBotMessage("Enter your contact info and address below:")
-      setStep(STEPS.ADDRESS)
+      const deposit = Math.round(sealcoatingPrice * 0.5)
+      await addBotMessage(`Sealcoating Total: $${sealcoatingPrice.toLocaleString()}\nDeposit: $${deposit.toLocaleString()}\n\nEnter your contact info below:`)
+      setStep(STEPS.SEALCOAT_CONTACT)
     }
   }
 
@@ -715,13 +743,46 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       return
     }
 
-    // Store the striping price (with 10% discount) - we'll add sealcoating after map measuring
+    // Calculate bundle total
     const stripingBase = lotSize.price
     const stripingDiscounted = Math.round(stripingBase * (1 - BUNDLE_DISCOUNT))
     setBundleStripingPrice(stripingDiscounted)
 
-    await addBotMessage(`Great! Striping: $${stripingDiscounted.toLocaleString()} (10% bundle discount applied)\n\nNow enter your contact info and address so we can measure the sealcoating area:`)
-    setStep(STEPS.ADDRESS)
+    const totalPrice = sealcoatingPrice + stripingDiscounted
+    const savings = stripingBase - stripingDiscounted
+    const deposit = Math.round(totalPrice * 0.5)
+
+    setBookingData(prev => ({ ...prev, estimateLow: totalPrice, estimateHigh: totalPrice }))
+
+    await addBotMessage(`Bundle Summary:\n• Sealcoating: $${sealcoatingPrice.toLocaleString()}\n• Striping: $${stripingDiscounted.toLocaleString()} (was $${stripingBase.toLocaleString()})\n• You save: $${savings.toLocaleString()}\n\nTotal: $${totalPrice.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nEnter your contact info below:`)
+    setStep(STEPS.SEALCOAT_CONTACT)
+  }
+
+  // Sealcoat contact submission - just name/phone/email, address already collected
+  const handleSealcoatContactSubmit = async () => {
+    const name = contactName.trim()
+    const email = contactEmail.trim().toLowerCase()
+    const phone = contactPhone.trim().replace(/\D/g, '')
+
+    // Basic validation - email is optional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!name || phone.length < 10) {
+      await addBotMessage("Please fill in your name and phone number.")
+      return
+    }
+    if (email && !emailRegex.test(email)) {
+      await addBotMessage("Please enter a valid email address or leave it blank.")
+      return
+    }
+
+    setBookingData(prev => ({ ...prev, name, email, phone }))
+    addUserMessage(`${name}${email ? '\n' + email : ''}\n${phone}${isChurch ? '\n⛪ House of Worship' : ''}`)
+    setContactName('')
+    setContactEmail('')
+    setContactPhone('')
+
+    await addBotMessage(`Thanks ${name}! When would you like us to come out?`)
+    setStep(STEPS.DATE)
   }
 
   const handleDateSelect = async (date: Date) => {
@@ -857,6 +918,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const handleInputSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (step === STEPS.ADDRESS) handleAddressSubmit()
+    if (step === STEPS.SEALCOAT_ADDRESS) handleSealcoatAddressSubmit()
   }
 
   const handleClose = () => { if (onClose) onClose(); else setIsOpen(false) }
@@ -1860,6 +1922,195 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 Find My Property
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Sealcoat Address Input (address only - for map first) */}
+        {step === STEPS.SEALCOAT_ADDRESS && (
+          <div className="px-5 py-4" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
+            <form onSubmit={handleInputSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Property Address <span style={{ color: COLORS.yellow }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="123 Main St, Mount Vernon, IL 62864"
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  fontWeight: 'bold',
+                  fontSize: '15px',
+                  backgroundColor: COLORS.yellow,
+                  color: COLORS.black,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Find Property
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Sealcoat Contact Input (name/phone/email - address already collected) */}
+        {step === STEPS.SEALCOAT_CONTACT && (
+          <div className="px-5 py-4" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSealcoatContactSubmit() }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Your Name <span style={{ color: COLORS.yellow }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="John Smith"
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Email Address <span style={{ color: COLORS.gray, fontWeight: 'normal' }}>(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Phone Number <span style={{ color: COLORS.yellow }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="(618) 555-1234"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
+              {/* Church/House of Worship toggle */}
+              <div
+                onClick={() => setIsChurch(!isChurch)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  backgroundColor: isChurch ? COLORS.blackMedium : 'transparent',
+                  border: `2px solid ${isChurch ? COLORS.yellow : COLORS.blackMedium}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '4px',
+                    border: `2px solid ${isChurch ? COLORS.yellow : COLORS.gray}`,
+                    backgroundColor: isChurch ? COLORS.yellow : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isChurch && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={COLORS.black} strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+                <span style={{ color: isChurch ? COLORS.yellow : COLORS.gray, fontSize: '14px', fontWeight: '500' }}>
+                  ⛪ This is for a church or house of worship
+                </span>
+              </div>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  fontWeight: 'bold',
+                  fontSize: '15px',
+                  backgroundColor: COLORS.yellow,
+                  color: COLORS.black,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Continue
               </button>
             </form>
           </div>
