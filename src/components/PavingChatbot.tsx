@@ -472,7 +472,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setStep(STEPS.ADDRESS)
   }
 
-  // Sealcoat address - just address, goes to map first
+  // Sealcoat address - just address, goes to map first (no auto-polygon, customer draws manually)
   const handleSealcoatAddressSubmit = async () => {
     const address = inputValue.trim()
     if (!address) {
@@ -486,26 +486,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setInputValue('')
 
     setIsAnalyzing(true)
+
     try {
-      const response = await fetch('/api/estimate-area', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, projectType: 'commercial' })
-      })
+      // Use Google Geocoding to get coordinates without auto-polygon
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      const response = await fetch(geocodeUrl)
       const result = await response.json()
       setIsAnalyzing(false)
-      if (result.coordinates) setMapCoordinates(result.coordinates)
 
-      if (result.success && result.polygonPoints?.length >= 3) {
-        setAiPolygonPoints(result.polygonPoints)
-        const sqft = result.squareFootage
-        setBookingData(prev => ({ ...prev, squareFootage: sqft, address: result.formattedAddress || address }))
-        await addBotMessage(`Found it! Draw or adjust the area to be sealed.`)
+      if (result.results?.[0]?.geometry?.location) {
+        const coords = result.results[0].geometry.location
+        setMapCoordinates(coords)
+        await addBotMessage("Found it! Draw the area to be sealed.")
         setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => { loadMap(result.polygonPoints, address, result.coordinates); scrollToBottom() }, 100)
-      } else if (result.coordinates) {
-        await addBotMessage("Found the location! Draw the area to be sealed.")
-        setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => { loadMap(undefined, address, result.coordinates); scrollToBottom() }, 100)
+        setTimeout(() => { loadMap(undefined, address, coords); scrollToBottom() }, 100)
       } else {
         await addBotMessage("Draw the area to be sealed on the map.")
         setStep(STEPS.MAP_MEASURING)
@@ -953,7 +947,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   function renderChatWindow() {
     return (
       <div
-        className={`${embedded ? 'h-full' : 'fixed bottom-6 right-6 w-[420px] max-w-[calc(100vw-48px)] h-[600px] max-h-[calc(100vh-48px)]'} rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl`}
+        className={`${embedded ? 'h-full' : 'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] md:w-[480px] lg:w-[520px] max-w-[520px] h-[calc(100vh-100px)] sm:h-[600px] md:h-[700px] lg:h-[750px] max-h-[calc(100vh-48px)]'} rounded-2xl flex flex-col z-50 overflow-hidden shadow-2xl`}
         style={{ backgroundColor: COLORS.black, border: `3px solid ${COLORS.yellow}` }}
       >
         {/* Header */}

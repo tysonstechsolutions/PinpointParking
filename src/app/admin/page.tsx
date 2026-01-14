@@ -1,32 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
-
-interface Job {
-  id: number
-  customer_id: number
-  customer_name: string
-  customer_phone: string
-  customer_email: string
-  service_address: string
-  job_type: string
-  project_type: string
-  square_feet: number
-  condition: string
-  quote_cents: number
-  final_price_cents: number
-  scheduled_date: string
-  status: string
-  notes: string
-  internal_notes: string
-  created_at: string
-  invoice_id: number
-  placement_lat?: number
-  placement_lng?: number
-}
+import { useJobs, Job } from '@/context/JobsContext'
 
 // Capitalize names properly
 const capitalizeName = (name: string): string => {
@@ -38,39 +16,15 @@ const capitalizeName = (name: string): string => {
 }
 
 export default function AdminPage() {
+  const { jobs, loading, fetchJobs, deleteJob: contextDeleteJob, updateJobStatus } = useJobs()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-
-  // Fetch jobs from database
-  const fetchJobs = useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/jobs?order=created_at.desc`,
-        {
-          headers: {
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-        }
-      )
-      if (response.ok) {
-        const data = await response.json()
-        setJobs(data)
-      }
-    } catch (err) {
-      console.error('Error fetching jobs:', err)
-    }
-    setLoading(false)
-  }, [])
 
   // Login handler - uses server-side auth
   const handleLogin = async (e: React.FormEvent) => {
@@ -122,53 +76,18 @@ export default function AdminPage() {
     checkSession()
   }, [fetchJobs])
 
-  // Update job status
+  // Update job status - uses shared context
   const updateStatus = async (jobId: number, newStatus: string) => {
-    try {
-      await fetch(
-        `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      )
-      fetchJobs()
-    } catch (error) {
-      console.error('Error updating status:', error)
-    }
+    await updateJobStatus(jobId, newStatus)
   }
 
-  // Delete job
+  // Delete job - uses shared context
   const deleteJob = async (jobId: number) => {
     if (!confirm('Are you sure you want to delete this job? This cannot be undone.')) return
-    try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-            'Prefer': 'return=minimal',
-          },
-        }
-      )
-      if (response.ok) {
-        // Remove from local state immediately for instant UI update
-        setJobs(prev => prev.filter(job => job.id !== jobId))
-        setSelectedJob(null)
-      } else {
-        const errorText = await response.text()
-        console.error('Error deleting job:', response.status, errorText)
-        alert('Failed to delete job. Please try again.')
-      }
-    } catch (error) {
-      console.error('Error deleting job:', error)
+    const success = await contextDeleteJob(jobId)
+    if (success) {
+      setSelectedJob(null)
+    } else {
       alert('Failed to delete job. Please try again.')
     }
   }
@@ -483,7 +402,7 @@ export default function AdminPage() {
                     {/* Middle: Service & Size */}
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ color: '#9C9690', fontSize: '12px' }}>Service</p>
-                      <p style={{ fontWeight: '500', color: 'white' }}>{getServiceName(job.job_type)}</p>
+                      <p style={{ fontWeight: '500', color: 'white' }}>{getServiceName(job.job_type || '')}</p>
                       {job.square_feet && (
                         <p style={{ color: '#9C9690', fontSize: '14px' }}>
                           {job.square_feet.toLocaleString()} sq ft
@@ -494,9 +413,9 @@ export default function AdminPage() {
                     {/* Right: Date & Price */}
                     <div style={{ textAlign: 'right' }}>
                       <p style={{ color: '#9C9690', fontSize: '12px' }}>Scheduled</p>
-                      <p style={{ fontWeight: '500', color: 'white' }}>{formatDate(job.scheduled_date)}</p>
+                      <p style={{ fontWeight: '500', color: 'white' }}>{formatDate(job.scheduled_date || '')}</p>
                       <p style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '18px' }}>
-                        {formatCurrency(job.quote_cents || job.final_price_cents)}
+                        {formatCurrency(job.quote_cents || job.final_price_cents || 0)}
                       </p>
                     </div>
                   </div>
@@ -796,7 +715,7 @@ export default function AdminPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <p style={{ color: '#9C9690', fontSize: '12px' }}>Service</p>
-                    <p style={{ color: 'white', fontWeight: '500' }}>{getServiceName(selectedJob.job_type)}</p>
+                    <p style={{ color: 'white', fontWeight: '500' }}>{getServiceName(selectedJob.job_type || '')}</p>
                   </div>
                   {selectedJob.project_type && (
                     <div>
@@ -819,7 +738,7 @@ export default function AdminPage() {
                   {selectedJob.scheduled_date && (
                     <div>
                       <p style={{ color: '#9C9690', fontSize: '12px' }}>Preferred Date</p>
-                      <p style={{ color: 'white', fontWeight: '500' }}>{formatDate(selectedJob.scheduled_date)}</p>
+                      <p style={{ color: 'white', fontWeight: '500' }}>{formatDate(selectedJob.scheduled_date || '')}</p>
                     </div>
                   )}
                 </div>
@@ -839,14 +758,14 @@ export default function AdminPage() {
                   <div>
                     <p style={{ color: '#9C9690', fontSize: '12px' }}>Estimated Quote</p>
                     <p style={{ color: '#16a34a', fontSize: '24px', fontWeight: 'bold' }}>
-                      {formatCurrency(selectedJob.quote_cents)}
+                      {formatCurrency(selectedJob.quote_cents || 0)}
                     </p>
                   </div>
                   {selectedJob.final_price_cents && selectedJob.final_price_cents !== selectedJob.quote_cents && (
                     <div style={{ textAlign: 'right' }}>
                       <p style={{ color: '#9C9690', fontSize: '12px' }}>Final Price</p>
                       <p style={{ color: '#F5C518', fontSize: '24px', fontWeight: 'bold' }}>
-                        {formatCurrency(selectedJob.final_price_cents)}
+                        {formatCurrency(selectedJob.final_price_cents || 0)}
                       </p>
                     </div>
                   )}

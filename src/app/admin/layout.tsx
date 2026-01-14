@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { JobsProvider } from "@/context/JobsContext"
 
 export const metadata: Metadata = {
   title: "Admin | Pinpoint Parking",
@@ -21,5 +22,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <JobsProvider>{children}</JobsProvider>
 }

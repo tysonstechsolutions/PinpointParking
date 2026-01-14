@@ -1,23 +1,10 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
-
-interface Job {
-  id: number
-  customer_name: string
-  customer_phone: string
-  service_address: string
-  job_type: string
-  project_type: string
-  square_feet: number
-  quote_cents: number
-  scheduled_date: string
-  status: string
-  created_at: string
-}
+import { useJobs, Job } from '@/context/JobsContext'
 
 // Capitalize names properly
 const capitalizeName = (name: string): string => {
@@ -29,55 +16,18 @@ const capitalizeName = (name: string): string => {
 }
 
 export default function CalendarPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
+  const { jobs, loading, fetchJobs, updateJobDate: contextUpdateJobDate } = useJobs()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<'month' | 'week'>('month')
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-
-  const fetchJobs = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/jobs?order=scheduled_date.asc`,
-        {
-          headers: {
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-        }
-      )
-      if (response.ok) {
-        setJobs(await response.json())
-      }
-    } catch (err) {
-      console.error('Error:', err)
-    }
-    setLoading(false)
-  }, [])
 
   useEffect(() => {
     fetchJobs()
   }, [fetchJobs])
 
-  // Update job scheduled date
+  // Update job scheduled date - uses shared context
   const updateJobDate = async (jobId: number, newDate: string) => {
-    try {
-      await fetch(
-        `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-          body: JSON.stringify({ scheduled_date: newDate }),
-        }
-      )
-      fetchJobs()
-    } catch (error) {
-      console.error('Error updating date:', error)
-    }
+    await contextUpdateJobDate(jobId, newDate)
   }
 
   const formatCurrency = (cents: number) => {
@@ -378,7 +328,7 @@ export default function CalendarPage() {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {getServiceName(job.job_type)} - {capitalizeName(job.customer_name).split(' ')[0]}
+                            {getServiceName(job.job_type || '')} - {capitalizeName(job.customer_name).split(' ')[0]}
                           </div>
                         )
                       })}
@@ -472,13 +422,13 @@ export default function CalendarPage() {
                             }}
                           >
                             <div style={{ fontWeight: '600', fontSize: '13px' }}>
-                              {getServiceName(job.job_type)}
+                              {getServiceName(job.job_type || '')}
                             </div>
                             <div style={{ fontSize: '12px', marginTop: '4px' }}>
                               {capitalizeName(job.customer_name)}
                             </div>
                             <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px' }}>
-                              {formatCurrency(job.quote_cents)}
+                              {formatCurrency(job.quote_cents || 0)}
                             </div>
                           </div>
                         )
@@ -565,7 +515,7 @@ export default function CalendarPage() {
             }}>
               <div>
                 <h2 style={{ color: 'white', fontSize: '18px', fontWeight: 'bold', margin: 0 }}>
-                  {getServiceName(selectedJob.job_type)}
+                  {getServiceName(selectedJob.job_type || '')}
                 </h2>
                 <span
                   style={{
@@ -641,7 +591,7 @@ export default function CalendarPage() {
             }}>
               <span style={{ color: '#9C9690' }}>Quote</span>
               <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '18px' }}>
-                {formatCurrency(selectedJob.quote_cents)}
+                {formatCurrency(selectedJob.quote_cents || 0)}
               </span>
             </div>
 
