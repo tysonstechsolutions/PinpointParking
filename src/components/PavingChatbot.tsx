@@ -1494,6 +1494,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   const hasPrice = size.price > 0
                   const discountedPrice = hasPrice ? Math.round(size.price * (1 - BUNDLE_DISCOUNT)) : 0
                   const totalWithSeal = sealcoatingPrice + discountedPrice
+                  const savings = size.price - discountedPrice
 
                   return (
                     <button
@@ -1519,26 +1520,37 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                         e.currentTarget.style.transform = 'scale(1)'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{size.label}</div>
-                          <div style={{ color: COLORS.gray, fontSize: '13px', marginTop: '4px' }}>{size.description}</div>
-                        </div>
-                        {hasPrice ? (
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '18px' }}>
-                              ${totalWithSeal.toLocaleString()}
-                            </div>
-                            <div style={{ color: COLORS.gray, fontSize: '12px', textDecoration: 'line-through' }}>
-                              ${(sealcoatingPrice + size.price).toLocaleString()}
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '14px' }}>
-                            Call for Quote
-                          </div>
-                        )}
+                      <div style={{ marginBottom: hasPrice ? '8px' : '0' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{size.label}</div>
+                        <div style={{ color: COLORS.gray, fontSize: '13px', marginTop: '2px' }}>{size.description}</div>
                       </div>
+                      {hasPrice ? (
+                        <div style={{
+                          borderTop: `1px solid ${COLORS.blackMedium}`,
+                          paddingTop: '8px',
+                          fontSize: '13px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: COLORS.gray }}>Sealcoating:</span>
+                            <span style={{ color: 'white' }}>${sealcoatingPrice.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: COLORS.gray }}>Striping:</span>
+                            <span style={{ color: 'white' }}>${discountedPrice.toLocaleString()} <span style={{ color: COLORS.gray, textDecoration: 'line-through', fontSize: '11px' }}>${size.price.toLocaleString()}</span></span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${COLORS.blackMedium}` }}>
+                            <span style={{ fontWeight: 'bold', color: 'white' }}>Total:</span>
+                            <span style={{ fontWeight: 'bold', color: COLORS.yellow, fontSize: '16px' }}>${totalWithSeal.toLocaleString()}</span>
+                          </div>
+                          <div style={{ textAlign: 'right', color: '#22c55e', fontSize: '11px', marginTop: '2px' }}>
+                            Save ${savings.toLocaleString()}!
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '14px', marginTop: '8px' }}>
+                          Call for Quote
+                        </div>
+                      )}
                     </button>
                   )
                 })}
