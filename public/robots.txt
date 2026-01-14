@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
 
+# Block admin and API routes from crawling
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /api/*
+Disallow: /pay/*
+Disallow: /portal
+
 Sitemap: https://pinpointparking.net/sitemap.xml
