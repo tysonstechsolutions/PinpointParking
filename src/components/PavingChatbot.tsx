@@ -125,14 +125,21 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }
   }, [isOpen, messages.length])
 
+  const MINIMUM_JOB_COST = 500 // $500 minimum for all jobs
+
   const calculateEstimate = (sqft: number, serviceId: string, discount = 0) => {
     const service = config.services.find(s => s.id === serviceId)
-    if (!service) return { low: 0, high: 0 }
+    if (!service) return { low: MINIMUM_JOB_COST, high: MINIMUM_JOB_COST }
     let base = sqft * service.pricePerSqFt
     base = Math.max(base, service.minPrice)
     if (discount > 0) base = base * (1 - discount)
     const buffer = service.estimateBuffer || 0.20
-    return { low: Math.round(base * (1 - buffer)), high: Math.round(base * (1 + buffer)) }
+    let low = Math.round(base * (1 - buffer))
+    let high = Math.round(base * (1 + buffer))
+    // Enforce $500 minimum
+    low = Math.max(low, MINIMUM_JOB_COST)
+    high = Math.max(high, MINIMUM_JOB_COST)
+    return { low, high }
   }
 
   // Google Maps
@@ -412,6 +419,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setStep(STEPS.DATE)
   }
 
+  const INSPECTION_FEE = 50 // $50 for in-person inspection
+
+  const handleRequestInspection = async () => {
+    addUserMessage("Request In-Person Inspection ($50)")
+    setBookingData(prev => ({ ...prev, squareFootage: 0, estimateLow: INSPECTION_FEE, estimateHigh: INSPECTION_FEE }))
+    await addBotMessage(`Got it! We'll send someone out to measure and provide an exact quote.\n\nThe inspection fee is $50, which will be credited toward your project if you decide to proceed.\n\nWhen would you like us to come out?`)
+    setStep(STEPS.DATE)
+  }
+
   const handleConditionSelect = async (conditionId: string) => {
     const condition = config.conditions.find(c => c.id === conditionId)!
     setBookingData(prev => ({ ...prev, condition: conditionId }))
@@ -491,7 +507,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setIsTyping(true)
     try {
       // Create a Stripe checkout session
-      const depositAmount = Math.round(bookingData.estimateLow * 0.25) // 25% deposit
+      const depositAmount = Math.round(bookingData.estimateLow * 0.50) // 50% deposit
       const response = await fetch('/api/payments/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -870,6 +886,38 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     >
                       Having trouble? Enter size manually
                     </button>
+
+                    {/* In-Person Inspection Option */}
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      backgroundColor: COLORS.blackMedium,
+                      border: `1px solid ${COLORS.gray}`,
+                    }}>
+                      <p style={{ color: COLORS.gray, fontSize: '12px', margin: '0 0 8px 0', textAlign: 'center' }}>
+                        Need help measuring? We can come to you!
+                      </p>
+                      <button
+                        onClick={handleRequestInspection}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          backgroundColor: 'transparent',
+                          color: COLORS.yellow,
+                          border: `2px solid ${COLORS.yellow}`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = COLORS.yellow }}
+                      >
+                        Request In-Person Inspection - $50
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -1050,11 +1098,11 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
                 <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
                   <div className="text-center mb-3">
-                    <span className="text-white font-bold">25% Deposit</span>
+                    <span className="text-white font-bold">50% Deposit</span>
                   </div>
                   <div className="text-center">
                     <span className="font-black text-2xl" style={{ color: COLORS.yellow }}>
-                      ${Math.round(bookingData.estimateLow * 0.25).toLocaleString()}
+                      ${Math.round(bookingData.estimateLow * 0.50).toLocaleString()}
                     </span>
                   </div>
                   <div className="text-center mt-2">
@@ -1087,15 +1135,19 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         {/* Address Input with Name and Phone */}
         {step === STEPS.ADDRESS && (
           <div className="px-5 py-4" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
-            <form onSubmit={handleInputSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
+            <form onSubmit={handleInputSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Name field */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Your Name
+                </label>
                 <input
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder="John Smith"
                   style={{
-                    flex: 1,
+                    width: '100%',
                     padding: '12px 16px',
                     borderRadius: '10px',
                     fontSize: '15px',
@@ -1108,13 +1160,19 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
                   autoFocus
                 />
+              </div>
+              {/* Phone field */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Phone Number
+                </label>
                 <input
                   type="tel"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="Phone number"
+                  placeholder="(618) 555-1234"
                   style={{
-                    flex: 1,
+                    width: '100%',
                     padding: '12px 16px',
                     borderRadius: '10px',
                     fontSize: '15px',
@@ -1127,26 +1185,30 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
                 />
               </div>
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Enter your full address (street, city, state, zip)..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: '10px',
-                  fontSize: '15px',
-                  backgroundColor: COLORS.blackLight,
-                  color: '#fff',
-                  border: `2px solid ${COLORS.blackMedium}`,
-                  outline: 'none',
-                  resize: 'none',
-                  fontFamily: 'inherit',
-                }}
-                onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
-                onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
-              />
+              {/* Address field */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Property Address
+                </label>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="123 Main St, Mount Vernon, IL 62864"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
               <button
                 type="submit"
                 style={{
