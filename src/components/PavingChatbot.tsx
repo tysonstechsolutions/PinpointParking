@@ -65,13 +65,13 @@ const STRIPING_PRICING = {
   minimum: 500,        // $500 minimum job
 }
 
-// Predefined lot sizes for line striping
+// Predefined lot sizes for line striping with flat pricing
 const STRIPING_LOT_SIZES = [
-  { id: 'small', label: 'Small Lot', description: '10-25 spaces', spaces: 20, handicap: 2, arrows: 2 },
-  { id: 'medium', label: 'Medium Lot', description: '25-50 spaces', spaces: 40, handicap: 3, arrows: 4 },
-  { id: 'large', label: 'Large Lot', description: '50-100 spaces', spaces: 75, handicap: 4, arrows: 6 },
-  { id: 'xlarge', label: 'Extra Large', description: '100+ spaces', spaces: 120, handicap: 6, arrows: 8 },
-  { id: 'custom', label: 'Custom Quote', description: 'Complex or unique needs', spaces: 0, handicap: 0, arrows: 0 },
+  { id: 'small', label: 'Small Lot', description: 'Less than 20 spaces', price: 500 },
+  { id: 'medium', label: 'Medium Lot', description: '20-100 spaces', price: 1000 },
+  { id: 'large', label: 'Large Lot', description: '100-200 spaces', price: 2000 },
+  { id: 'xlarge', label: 'Extra Large', description: '200+ spaces', price: 0 },
+  { id: 'custom', label: 'Custom Quote', description: 'Complex or unique needs', price: 0 },
 ]
 
 interface PavingChatbotProps {
@@ -87,6 +87,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
+  const [isChurch, setIsChurch] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
@@ -461,15 +462,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const phone = contactPhone.trim().replace(/\D/g, '')
     const address = inputValue.trim()
 
-    // Basic email validation
+    // Basic validation - email is optional
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!name || !emailRegex.test(email) || phone.length < 10 || !address) {
-      await addBotMessage("Please fill in all fields with valid information.")
+    if (!name || phone.length < 10 || !address) {
+      await addBotMessage("Please fill in your name, phone number, and address.")
+      return
+    }
+    // If email is provided, validate it
+    if (email && !emailRegex.test(email)) {
+      await addBotMessage("Please enter a valid email address or leave it blank.")
       return
     }
 
     setBookingData(prev => ({ ...prev, address, name, email, phone }))
-    addUserMessage(`${name}\n${email}\n${phone}\n${address}`)
+    addUserMessage(`${name}${email ? '\n' + email : ''}\n${phone}\n${address}${isChurch ? '\n⛪ House of Worship' : ''}`)
     setInputValue('')
     setContactName('')
     setContactEmail('')
@@ -586,24 +592,21 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const lotSize = STRIPING_LOT_SIZES.find(s => s.id === sizeId)!
     addUserMessage(lotSize.label)
 
-    // Custom quote - redirect to call
-    if (sizeId === 'custom') {
-      await addBotMessage(`For custom or complex jobs, please call us at ${config.phone} for a personalized quote.`)
+    // Custom quote or extra large - redirect to call
+    if (sizeId === 'custom' || sizeId === 'xlarge') {
+      await addBotMessage(`For ${sizeId === 'xlarge' ? 'lots with 200+ spaces' : 'custom or complex jobs'}, please call us at ${config.phone} for a personalized quote.`)
       setStep(STEPS.COMPLETE)
       return
     }
 
-    // Set the spaces for this lot size
-    setStripingRegularSpaces(lotSize.spaces)
-    setStripingHandicapSpaces(lotSize.handicap)
-    setStripingArrows(lotSize.arrows)
-
-    const estimate = calculateStripingEstimateForLot(lotSize.spaces, lotSize.handicap, lotSize.arrows, stripingMultiplier)
+    // Apply multiplier for new layout (+50%)
+    const basePrice = lotSize.price
+    const estimate = stripingMultiplier > 1 ? Math.round(basePrice * stripingMultiplier) : basePrice
     const deposit = Math.round(estimate * 0.5)
 
     setBookingData(prev => ({
       ...prev,
-      squareFootage: lotSize.spaces + lotSize.handicap,
+      squareFootage: 0,
       estimateLow: estimate,
       estimateHigh: estimate,
     }))
@@ -649,13 +652,37 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     addUserMessage("Confirm")
     setIsTyping(true)
     try {
+      // For line striping, don't send projectType or condition (they use different values)
+      // Instead, add the striping details to notes
+      const isLineStriping = bookingData.service === 'linestriping'
+      const stripingNotes = isLineStriping
+        ? `Striping type: ${bookingData.condition === 'new_layout' ? 'New layout' : 'Re-stripe existing'}`
+        : undefined
+
+      // Determine project type - church checkbox overrides for line striping
+      let projectType = bookingData.projectType
+      if (isLineStriping) {
+        projectType = isChurch ? 'house-of-worship' : 'commercial'
+      } else if (isChurch && projectType === 'commercial') {
+        // For other services, if they selected commercial but checked church, use house-of-worship
+        projectType = 'house-of-worship'
+      }
+
       const response = await fetch('/api/paving-quote', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceType: bookingData.service, projectType: bookingData.projectType,
-          squareFootage: bookingData.squareFootage, condition: bookingData.condition,
-          address: bookingData.address, customerName: bookingData.name, customerEmail: bookingData.email, customerPhone: bookingData.phone,
-          estimateLow: bookingData.estimateLow, estimateHigh: bookingData.estimateHigh, preferredDate: bookingData.deliveryDate,
+          serviceType: bookingData.service,
+          projectType: projectType,
+          squareFootage: bookingData.squareFootage || undefined,
+          condition: isLineStriping ? undefined : bookingData.condition, // Don't send striping type as condition
+          address: bookingData.address,
+          customerName: bookingData.name,
+          customerEmail: bookingData.email || undefined,
+          customerPhone: bookingData.phone,
+          estimateLow: bookingData.estimateLow,
+          estimateHigh: bookingData.estimateHigh,
+          preferredDate: bookingData.deliveryDate,
+          notes: stripingNotes,
         }),
       })
       const result = await response.json()
@@ -1201,9 +1228,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
             {!isTyping && step === STEPS.STRIPING_SIZE && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
                 {STRIPING_LOT_SIZES.map(size => {
-                  const estimate = size.id !== 'custom'
-                    ? calculateStripingEstimateForLot(size.spaces, size.handicap, size.arrows, stripingMultiplier)
-                    : 0
+                  const hasPrice = size.price > 0
+                  const estimate = hasPrice ? (stripingMultiplier > 1 ? Math.round(size.price * stripingMultiplier) : size.price) : 0
                   const deposit = Math.round(estimate * 0.5)
 
                   return (
@@ -1235,7 +1261,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                           <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{size.label}</div>
                           <div style={{ color: COLORS.gray, fontSize: '13px', marginTop: '4px' }}>{size.description}</div>
                         </div>
-                        {size.id !== 'custom' && (
+                        {hasPrice ? (
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '18px' }}>
                               ${estimate.toLocaleString()}
@@ -1243,6 +1269,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                             <div style={{ color: COLORS.gray, fontSize: '12px' }}>
                               Deposit: ${deposit.toLocaleString()}
                             </div>
+                          </div>
+                        ) : (
+                          <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '14px' }}>
+                            Call for Quote
                           </div>
                         )}
                       </div>
@@ -1468,17 +1498,16 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   autoFocus
                 />
               </div>
-              {/* Email field */}
+              {/* Email field (optional) */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
-                  Email Address <span style={{ color: COLORS.yellow }}>*</span>
+                  Email Address <span style={{ color: COLORS.gray, fontWeight: 'normal' }}>(optional)</span>
                 </label>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="john@example.com"
-                  required
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1542,6 +1571,44 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
                   onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
                 />
+              </div>
+              {/* Church/House of Worship toggle */}
+              <div
+                onClick={() => setIsChurch(!isChurch)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  backgroundColor: isChurch ? COLORS.blackMedium : 'transparent',
+                  border: `2px solid ${isChurch ? COLORS.yellow : COLORS.blackMedium}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '4px',
+                    border: `2px solid ${isChurch ? COLORS.yellow : COLORS.gray}`,
+                    backgroundColor: isChurch ? COLORS.yellow : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isChurch && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={COLORS.black} strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+                <span style={{ color: isChurch ? COLORS.yellow : COLORS.gray, fontSize: '14px', fontWeight: '500' }}>
+                  ⛪ This is for a church or house of worship
+                </span>
               </div>
               <button
                 type="submit"
