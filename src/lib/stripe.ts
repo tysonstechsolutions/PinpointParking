@@ -4,18 +4,30 @@
 
 import Stripe from 'stripe'
 
-// Initialize Stripe with secret key
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+// Lazy initialization - create Stripe client on first use
+let _stripe: Stripe | null = null
 
-export const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey, {
-      apiVersion: '2025-12-15.clover',
-    })
-  : null
+export function getStripe(): Stripe | null {
+  if (_stripe) return _stripe
+
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecretKey) {
+    console.error('STRIPE_SECRET_KEY is not set')
+    return null
+  }
+
+  _stripe = new Stripe(stripeSecretKey, {
+    apiVersion: '2025-12-15.clover',
+  })
+  return _stripe
+}
+
+// For backwards compatibility
+export const stripe = null as Stripe | null // Will use getStripe() instead
 
 // Check if Stripe is configured
 export function isStripeConfigured(): boolean {
-  return !!stripeSecretKey
+  return !!process.env.STRIPE_SECRET_KEY
 }
 
 // Create a payment intent for an invoice
@@ -24,6 +36,7 @@ export async function createPaymentIntent(
   invoiceId: number,
   customerEmail?: string
 ): Promise<{ clientSecret: string; paymentIntentId: string } | null> {
+  const stripe = getStripe()
   if (!stripe) {
     console.error('Stripe is not configured')
     return null
@@ -54,6 +67,7 @@ export async function createPaymentIntent(
 
 // Retrieve payment intent status
 export async function getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent | null> {
+  const stripe = getStripe()
   if (!stripe) return null
 
   try {
@@ -73,6 +87,7 @@ export async function createCheckoutSession(
   successUrl?: string,
   cancelUrl?: string
 ): Promise<string | null> {
+  const stripe = getStripe()
   if (!stripe) {
     console.error('Stripe is not configured')
     return null
@@ -117,6 +132,7 @@ export function constructWebhookEvent(
   signature: string,
   webhookSecret: string
 ): Stripe.Event | null {
+  const stripe = getStripe()
   if (!stripe) return null
 
   try {

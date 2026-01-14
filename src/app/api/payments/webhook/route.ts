@@ -3,16 +3,18 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { constructWebhookEvent, stripe } from '@/lib/stripe'
+import { constructWebhookEvent, getStripe } from '@/lib/stripe'
 import { config } from '@/config/config'
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-
 export async function POST(request: NextRequest) {
+  // Get env vars at runtime, not build time
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  const stripe = getStripe()
+
   // Debug: Log what we have
   console.log('Webhook called - stripe configured:', !!stripe)
   console.log('Webhook called - secret exists:', !!webhookSecret)
-  console.log('Webhook called - secret length:', webhookSecret?.length || 0)
+  console.log('Webhook called - STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY)
 
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
@@ -21,6 +23,7 @@ export async function POST(request: NextRequest) {
         debug: {
           stripeConfigured: !!stripe,
           webhookSecretExists: !!webhookSecret,
+          secretKeyExists: !!process.env.STRIPE_SECRET_KEY,
         }
       },
       { status: 503 }
