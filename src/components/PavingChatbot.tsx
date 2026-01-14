@@ -427,23 +427,23 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const service = config.services.find(s => s.id === serviceId)!
     setBookingData(prev => ({ ...prev, service: serviceId, serviceName: service.name }))
     addUserMessage(service.name)
-    await addBotMessage("What type of property is this?")
-    setStep(STEPS.PROJECT_TYPE)
+
+    // Line striping skips project type - go straight to layout question
+    if (serviceId === 'linestriping') {
+      await addBotMessage("Are the existing lines clearly visible?")
+      setStep(STEPS.STRIPING_TYPE)
+    } else {
+      await addBotMessage("What type of property is this?")
+      setStep(STEPS.PROJECT_TYPE)
+    }
   }
 
   const handleProjectSelect = async (projectId: string) => {
     const project = config.projectTypes.find(p => p.id === projectId)!
     setBookingData(prev => ({ ...prev, projectType: projectId, projectTypeName: project.label, discount: project.discount || 0 }))
     addUserMessage(project.label)
-
-    // For line striping, ask about new layout vs restripe instead of condition
-    if (bookingData.service === 'linestriping') {
-      await addBotMessage("Is this a new layout or a restripe of existing lines?")
-      setStep(STEPS.STRIPING_TYPE)
-    } else {
-      await addBotMessage("What's the current condition of the pavement?")
-      setStep(STEPS.CONDITION)
-    }
+    await addBotMessage("What's the current condition of the pavement?")
+    setStep(STEPS.CONDITION)
   }
 
   const handleAddressSubmit = async () => {
