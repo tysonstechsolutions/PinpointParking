@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import HeroVideo from '@/components/HeroVideo';
 
 const services = [
   {
@@ -77,16 +78,7 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <section className="hero">
-        <video
-          className="hero-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="/media/parking-lot-aerial.jpg"
-        >
-          <source src="/media/hero-video.mp4" type="video/mp4" />
-        </video>
+        <HeroVideo />
         <div className="hero-overlay"></div>
         <div className="hero-pattern"></div>
         <div className="container hero-content">
