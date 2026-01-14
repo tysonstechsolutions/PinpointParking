@@ -347,11 +347,20 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }
 
   const handleAddressSubmit = async () => {
-    if (!inputValue.trim()) return
+    const name = contactName.trim()
+    const phone = contactPhone.trim().replace(/\D/g, '')
     const address = inputValue.trim()
-    setBookingData(prev => ({ ...prev, address }))
-    addUserMessage(address)
+
+    if (!name || phone.length < 10 || !address) {
+      await addBotMessage("Please fill in your name, phone number, and address.")
+      return
+    }
+
+    setBookingData(prev => ({ ...prev, address, name, phone }))
+    addUserMessage(`${name}\n${phone}\n${address}`)
     setInputValue('')
+    setContactName('')
+    setContactPhone('')
     setIsAnalyzing(true)
 
     try {
@@ -389,17 +398,25 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
   const handleMapConfirm = async () => {
     if (!drawnArea) return
-    setBookingData(prev => ({ ...prev, squareFootage: drawnArea }))
+
+    // Calculate estimate with condition adjustment
+    const condition = config.conditions.find(c => c.id === bookingData.condition)
+    const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
+    if (condition && condition.adjustment > 0) {
+      estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+    }
+
+    setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: estimate.low, estimateHigh: estimate.high }))
     addUserMessage(`Area confirmed: ${drawnArea.toLocaleString()} sq ft`)
-    await addBotMessage("To get your estimated price and send it to the contractor, we need your name and phone number.\n\nThe contractor will send you a link with the final price and a link for payment.")
-    setStep(STEPS.CONTACT)
+    await addBotMessage(`Thanks ${bookingData.name}! Your estimated price is:\n\n$${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nWhen would you like us to come out?`)
+    setStep(STEPS.DATE)
   }
 
   const handleConditionSelect = async (conditionId: string) => {
     const condition = config.conditions.find(c => c.id === conditionId)!
     setBookingData(prev => ({ ...prev, condition: conditionId }))
     addUserMessage(condition.label)
-    await addBotMessage("What's the address?")
+    await addBotMessage("Great! Enter your contact info and address below:")
     setStep(STEPS.ADDRESS)
   }
 
@@ -1065,31 +1082,87 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           </div>
         </div>
 
-        {/* Address Input */}
+        {/* Address Input with Name and Phone */}
         {step === STEPS.ADDRESS && (
           <div className="px-5 py-4" style={{ borderTop: `2px solid ${COLORS.blackMedium}` }}>
-            <form onSubmit={handleInputSubmit} className="flex gap-3">
-              <input
-                type="text"
+            <form onSubmit={handleInputSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Your name"
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                  autoFocus
+                />
+                <input
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="Phone number"
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
+              <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Enter full address..."
-                className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
+                placeholder="Enter your full address (street, city, state, zip)..."
+                rows={3}
                 style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  fontSize: '15px',
                   backgroundColor: COLORS.blackLight,
                   color: '#fff',
                   border: `2px solid ${COLORS.blackMedium}`,
+                  outline: 'none',
+                  resize: 'none',
+                  fontFamily: 'inherit',
                 }}
                 onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
                 onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
-                autoFocus
               />
               <button
                 type="submit"
-                className="px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
-                style={{ backgroundColor: COLORS.yellow, color: COLORS.black }}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  fontWeight: 'bold',
+                  fontSize: '15px',
+                  backgroundColor: COLORS.yellow,
+                  color: COLORS.black,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                Send
+                Find My Property
               </button>
             </form>
           </div>
