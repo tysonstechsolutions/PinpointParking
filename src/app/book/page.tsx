@@ -89,7 +89,9 @@ export default function BookingPage() {
         return !!formData.service
       case 'location':
         if (formData.service === 'linestriping') {
-          return !!formData.address && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)
+          const hasSpaces = formData.regularSpaces > 0 || formData.handicapSpaces > 0
+          const notTooMany = !stripingNeedsCall() // Block if 250+ spaces
+          return !!formData.address && hasSpaces && notTooMany
         }
         return !!formData.address && (drawnArea !== null && drawnArea > 0)
       case 'contact':
@@ -121,7 +123,16 @@ export default function BookingPage() {
   // PRICING
   // ============================================
 
-  // Calculate striping price separately (with minimum)
+  // Striping tier minimums based on total spaces
+  const getStripingMinimum = (totalSpaces: number): number => {
+    if (totalSpaces < 20) return 500
+    if (totalSpaces <= 50) return 750
+    if (totalSpaces <= 100) return 1150
+    if (totalSpaces <= 250) return 2000
+    return 0 // 250+ is call for pricing
+  }
+
+  // Calculate striping price separately (with tiered minimums)
   const calculateStripingPrice = (): number => {
     const stripingService = config.services.find(s => s.id === 'linestriping')!
     const pricePerStall = stripingService.pricePerStall || 4
@@ -129,7 +140,17 @@ export default function BookingPage() {
     const regularPrice = formData.regularSpaces * pricePerStall
     const handicapPrice = formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol)
     const basePrice = Math.round(regularPrice + handicapPrice)
-    return Math.max(basePrice, stripingService.minPrice)
+
+    const totalSpaces = formData.regularSpaces + formData.handicapSpaces
+    const tierMinimum = getStripingMinimum(totalSpaces)
+
+    return Math.max(basePrice, tierMinimum)
+  }
+
+  // Check if striping needs call for pricing (250+ spaces)
+  const stripingNeedsCall = (): boolean => {
+    const totalSpaces = formData.regularSpaces + formData.handicapSpaces
+    return totalSpaces > 250
   }
 
   // Calculate sealcoating price separately (without striping)
@@ -557,12 +578,39 @@ export default function BookingPage() {
               </div>
             </div>
 
+            {/* Pricing tiers info */}
+            <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+              <p className="text-sm font-semibold text-zinc-400 mb-2">Pricing Tiers (minimum prices):</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                <div className="text-zinc-500">Under 20: <span className="text-white">$500</span></div>
+                <div className="text-zinc-500">20-50: <span className="text-white">$750</span></div>
+                <div className="text-zinc-500">51-100: <span className="text-white">$1,150</span></div>
+                <div className="text-zinc-500">101-250: <span className="text-white">$2,000</span></div>
+              </div>
+              <p className="text-xs text-zinc-600 mt-2">250+ spaces: Call for custom pricing</p>
+            </div>
+
             {(formData.regularSpaces > 0 || formData.handicapSpaces > 0) && (
               <div className="p-6 bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/30 rounded-xl">
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-400 text-lg">Estimated Price</span>
-                  <span className="text-4xl font-bold text-white">${calculatePrice().toLocaleString()}</span>
-                </div>
+                {stripingNeedsCall() ? (
+                  <div className="text-center">
+                    <p className="text-xl text-white font-semibold mb-2">250+ Spaces</p>
+                    <p className="text-zinc-400">Please call for custom pricing</p>
+                    <a href={`tel:${config.phoneRaw}`} className="inline-block mt-3 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors">
+                      Call {config.phone}
+                    </a>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-zinc-400 text-lg">Estimated Price</span>
+                      <p className="text-sm text-zinc-500">
+                        {formData.regularSpaces + formData.handicapSpaces} spaces (min ${getStripingMinimum(formData.regularSpaces + formData.handicapSpaces).toLocaleString()})
+                      </p>
+                    </div>
+                    <span className="text-4xl font-bold text-white">${calculatePrice().toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
