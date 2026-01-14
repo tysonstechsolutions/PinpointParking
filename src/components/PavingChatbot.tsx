@@ -147,26 +147,16 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const mapLoadCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const mapEventListenersRef = useRef<google.maps.MapsEventListener[]>([])
 
+  // Scroll within chat container only (not the whole page)
   const scrollToBottom = () => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+      }
+    }, 100)
   }
 
-  // Force scroll to bottom when entering map step or when map loads
-  useEffect(() => {
-    if (step === STEPS.MAP_MEASURING && messagesContainerRef.current) {
-      // Scroll container to the very bottom to show buttons
-      const scrollToEnd = () => {
-        if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
-        }
-      }
-      // Scroll immediately and after a delay (for map render)
-      scrollToEnd()
-      setTimeout(scrollToEnd, 150)
-      setTimeout(scrollToEnd, 500)
-    }
-  }, [step, mapLoaded])
-
+  // Scroll chat container when messages change
   useEffect(() => { scrollToBottom() }, [messages])
 
   // Cleanup effect for Google Maps resources
