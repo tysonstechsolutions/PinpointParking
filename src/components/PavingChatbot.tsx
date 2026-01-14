@@ -554,32 +554,24 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       return
     }
 
-    // Sealcoating goes to map measuring to calculate price based on actual sq ft
-
+    // Regular paving flow - just geocode address and let user draw manually (no auto-polygon)
     setIsAnalyzing(true)
 
     try {
-      const response = await fetch('/api/estimate-area', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, projectType: bookingData.projectType })
-      })
+      // Use Google Geocoding to get coordinates without auto-polygon
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      const response = await fetch(geocodeUrl)
       const result = await response.json()
       setIsAnalyzing(false)
-      if (result.coordinates) setMapCoordinates(result.coordinates)
 
-      if (result.success && result.polygonPoints?.length >= 3) {
-        setAiPolygonPoints(result.polygonPoints)
-        const sqft = result.squareFootage
-        setBookingData(prev => ({ ...prev, squareFootage: sqft, address: result.formattedAddress || address }))
-        await addBotMessage(`Found it! Please verify the outlined area.`)
+      if (result.results?.[0]?.geometry?.location) {
+        const coords = result.results[0].geometry.location
+        setMapCoordinates(coords)
+        await addBotMessage("Found it! Draw the area you'd like paved.")
         setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => { loadMap(result.polygonPoints, address, result.coordinates); scrollToBottom() }, 100)
-      } else if (result.coordinates) {
-        await addBotMessage("Found the location!")
-        setStep(STEPS.MAP_MEASURING)
-        setTimeout(() => { loadMap(undefined, address, result.coordinates); scrollToBottom() }, 100)
+        setTimeout(() => { loadMap(undefined, address, coords); scrollToBottom() }, 100)
       } else {
-        await addBotMessage("Found it!")
+        await addBotMessage("Found it! Draw the area you'd like paved.")
         setStep(STEPS.MAP_MEASURING)
         setTimeout(() => { loadMap(undefined, address, undefined); scrollToBottom() }, 100)
       }
@@ -711,26 +703,25 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }
   }
 
-  // Calculate sealcoating price based on square footage using tier pricing
+  // Calculate sealcoating price based on square footage - guarantees 40% profit margin
   const calculateSealcoatingPrice = (sqft: number): number => {
-    if (sqft < 3000) return 750
-    if (sqft < 10000) {
-      // Scale between $750 and $2,500 for 0-10k sqft
-      const ratio = (sqft - 3000) / 7000
-      return Math.round(750 + (ratio * 1750))
-    }
-    if (sqft < 25000) {
-      // Scale between $2,500 and $5,500 for 10k-25k sqft
-      const ratio = (sqft - 10000) / 15000
-      return Math.round(2500 + (ratio * 3000))
-    }
-    if (sqft < 50000) {
-      // Scale between $5,500 and $9,000 for 25k-50k sqft
-      const ratio = (sqft - 25000) / 25000
-      return Math.round(5500 + (ratio * 3500))
-    }
-    // Over 50k - custom pricing, but estimate at ~$0.18/sqft
-    return Math.round(sqft * 0.18)
+    // Cost calculation:
+    // - Materials: $0.12/sqft (sealcoat + crack filler + sand)
+    // - Labor: Base 2 hrs + 1 hr per 5,000 sqft, × 3 workers × $22/hr
+    // - Overhead: $150 base + $50 per 10,000 sqft
+
+    const materialCost = sqft * 0.12
+    const laborHours = 2 + (sqft / 5000)
+    const laborCost = laborHours * 3 * 22 // 3 workers at $22/hr
+    const overheadCost = 150 + (sqft / 10000) * 50
+
+    const totalCost = materialCost + laborCost + overheadCost
+
+    // Price for 40% margin: cost / (1 - 0.40) = cost / 0.60
+    const price = totalCost / 0.60
+
+    // Minimum $750
+    return Math.max(750, Math.round(price / 50) * 50) // Round to nearest $50
   }
 
   const handleBundleStripingSizeSelect = async (sizeId: string) => {

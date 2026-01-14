@@ -30,7 +30,6 @@ const STEP_LABELS = [
 
 export default function BookingPage() {
   const [step, setStep] = useState(STEPS.SERVICE)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Map State
@@ -132,44 +131,8 @@ export default function BookingPage() {
   const handleAddressSubmit = async () => {
     if (!bookingData.address.trim()) return
 
-    setIsAnalyzing(true)
+    // Go directly to map for manual drawing (no auto-polygon)
     setStep(STEPS.MEASURING)
-
-    try {
-      const response = await fetch('/api/estimate-area', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: bookingData.address,
-          projectType: bookingData.projectType === 'residential' ? 'driveway' : 'parking-lot'
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success && data.squareFootage) {
-        const estimate = calculateEstimate(data.squareFootage, bookingData.service, bookingData.discount)
-        setBookingData(prev => ({
-          ...prev,
-          squareFootage: data.squareFootage,
-          aiConfidence: data.confidence,
-          aiDescription: data.description,
-          estimateLow: estimate.low,
-          estimateHigh: estimate.high,
-        }))
-      }
-    } catch (error) {
-      console.error('AI estimation error:', error)
-    }
-
-    setIsAnalyzing(false)
-  }
-
-  const handleAcceptMeasurement = () => {
-    setStep(STEPS.CONDITION)
-  }
-
-  const handleOpenMap = () => {
     setShowMap(true)
   }
 
@@ -281,11 +244,13 @@ export default function BookingPage() {
 
       mapRef.current = new (window as any).google.maps.Map(mapContainerRef.current, {
         center,
-        zoom: config.googleMaps.defaultZoom,
-        mapTypeId: 'satellite',
+        zoom: 20,
+        mapTypeId: 'hybrid',
         tilt: 0,
         disableDefaultUI: true,
         zoomControl: true,
+        gestureHandling: 'greedy',
+        scrollwheel: true,
       })
 
       drawingManagerRef.current = new (window as any).google.maps.drawing.DrawingManager({
@@ -598,115 +563,9 @@ export default function BookingPage() {
                   cursor: bookingData.address.trim() ? 'pointer' : 'not-allowed',
                 }}
               >
-                Analyze Property →
+                Draw on Map →
               </button>
             </div>
-          </div>
-        )}
-
-        {/* STEP 4: MEASURING */}
-        {step === STEPS.MEASURING && !showMap && (
-          <div>
-            <h1 style={{ color: '#FAF8F5', fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
-              {isAnalyzing ? 'Analyzing your property...' : 'Area Measurement'}
-            </h1>
-
-            {isAnalyzing ? (
-              <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛰️</div>
-                <p style={{ color: '#9C9690' }}>Using satellite imagery to measure your {bookingData.projectTypeName.toLowerCase()} area...</p>
-              </div>
-            ) : (
-              <>
-                {bookingData.squareFootage > 0 && (
-                  <div style={{
-                    backgroundColor: '#252220',
-                    border: '2px solid #22c55e',
-                    borderRadius: '16px',
-                    padding: '24px',
-                    marginBottom: '24px',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <span style={{ color: '#9C9690' }}>Estimated Area</span>
-                      <span style={{
-                        backgroundColor: bookingData.aiConfidence === 'high' ? '#22c55e' : '#f59e0b',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                      }}>
-                        {bookingData.aiConfidence} confidence
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#FAF8F5', marginBottom: '8px' }}>
-                      {bookingData.squareFootage.toLocaleString()} sq ft
-                    </div>
-                    <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '16px' }}>
-                      {bookingData.aiDescription}
-                    </p>
-                    <div style={{
-                      backgroundColor: '#1a1714',
-                      borderRadius: '12px',
-                      padding: '16px',
-                    }}>
-                      <div style={{ color: '#9C9690', fontSize: '14px', marginBottom: '4px' }}>Estimated Price Range</div>
-                      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#22c55e' }}>
-                        ${bookingData.estimateLow.toLocaleString()} - ${bookingData.estimateHigh.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'grid', gap: '12px' }}>
-                  {bookingData.squareFootage > 0 && (
-                    <button
-                      onClick={handleAcceptMeasurement}
-                      style={{
-                        padding: '16px',
-                        backgroundColor: '#22c55e',
-                        border: 'none',
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '16px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✓ This looks right - Continue
-                    </button>
-                  )}
-                  <button
-                    onClick={handleOpenMap}
-                    style={{
-                      padding: '16px',
-                      backgroundColor: '#252220',
-                      border: '2px solid #302d2a',
-                      borderRadius: '12px',
-                      color: '#FAF8F5',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🗺️ {bookingData.squareFootage > 0 ? 'Draw it myself instead' : 'Measure manually on map'}
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => setStep(STEPS.ADDRESS)}
-                  style={{
-                    marginTop: '24px',
-                    padding: '12px 24px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #302d2a',
-                    borderRadius: '8px',
-                    color: '#9C9690',
-                    cursor: 'pointer',
-                  }}
-                >
-                  ← Back
-                </button>
-              </>
-            )}
           </div>
         )}
 
@@ -757,7 +616,7 @@ export default function BookingPage() {
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  onClick={() => setShowMap(false)}
+                  onClick={() => { setShowMap(false); setStep(STEPS.ADDRESS) }}
                   style={{
                     padding: '14px 24px',
                     backgroundColor: 'transparent',
@@ -767,7 +626,7 @@ export default function BookingPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Cancel
+                  ← Back
                 </button>
                 <button
                   onClick={handleClearPolygon}
