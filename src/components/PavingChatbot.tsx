@@ -474,11 +474,13 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         await addBotMessage(`Booking confirmed!\n\nWould you like to pay now or pay later?`)
         setStep(STEPS.PAYMENT)
       } else {
-        await addBotMessage(`Something went wrong. Please call us at ${config.phone}`)
+        console.error('Quote API error:', result)
+        await addBotMessage(`Something went wrong: ${result.error || 'Unknown error'}. Please call us at ${config.phone}`)
         setStep(STEPS.COMPLETE)
       }
-    } catch {
+    } catch (err) {
       setIsTyping(false)
+      console.error('Quote submit error:', err)
       await addBotMessage(`Couldn't submit. Please call ${config.phone}`)
       setStep(STEPS.COMPLETE)
     }

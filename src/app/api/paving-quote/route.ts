@@ -480,8 +480,10 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Quote API error:', error)
+    // Return more details in development
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process quote'
     return NextResponse.json(
-      { success: false, error: 'Failed to process quote' },
+      { success: false, error: errorMessage, details: String(error) },
       { status: 500 }
     )
   }
