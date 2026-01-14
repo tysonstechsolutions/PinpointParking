@@ -2,9 +2,24 @@
 // SUPABASE CLIENT UTILITIES
 // ============================================
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lbrfuwkvajkhyceimfqu.supabase.co'
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxicmZ1d2t2YWpraHljZWltZnF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4MTY1ODksImV4cCI6MjA4MzM5MjU4OX0.YHB3pN-mq33LdYeVK6-Sma1OHk_JWv9QCpjGfBvMUEc'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+// Safely encode a value for use in PostgREST queries
+function encodeQueryValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return 'null'
+  }
+  if (typeof value === 'number') {
+    return String(value)
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+  // String values need URL encoding
+  return encodeURIComponent(String(value))
+}
 
 // Check if Supabase is configured
 export function isSupabaseConfigured(): boolean {
@@ -70,23 +85,37 @@ export const supabase = {
     }
   },
 
-  // Query helper
+  // Query helper with safe parameter encoding
   from(table: string) {
+    // Validate table name to prevent injection
+    const safeTable = encodeURIComponent(table)
+
     return {
       select: async <T>(columns = '*', options: { order?: string; limit?: number; eq?: Record<string, unknown> } = {}) => {
-        let url = `/rest/v1/${table}?select=${columns}`
-        if (options.order) url += `&order=${options.order}`
-        if (options.limit) url += `&limit=${options.limit}`
+        // Validate columns parameter
+        const safeColumns = columns.replace(/[^a-zA-Z0-9_,*]/g, '')
+        let url = `/rest/v1/${safeTable}?select=${safeColumns}`
+
+        if (options.order) {
+          // Validate order parameter (column.direction format)
+          const safeOrder = options.order.replace(/[^a-zA-Z0-9_.,]/g, '')
+          url += `&order=${safeOrder}`
+        }
+        if (options.limit) {
+          url += `&limit=${Math.max(1, Math.min(1000, options.limit))}`
+        }
         if (options.eq) {
           Object.entries(options.eq).forEach(([key, value]) => {
-            url += `&${key}=eq.${value}`
+            // Validate key and encode value
+            const safeKey = key.replace(/[^a-zA-Z0-9_]/g, '')
+            url += `&${safeKey}=eq.${encodeQueryValue(value)}`
           })
         }
         return supabase.fetch<T[]>(url)
       },
 
       insert: async <T>(data: Record<string, unknown>) => {
-        return supabase.fetch<T[]>(`/rest/v1/${table}`, {
+        return supabase.fetch<T[]>(`/rest/v1/${safeTable}`, {
           method: 'POST',
           headers: { 'Prefer': 'return=representation' },
           body: JSON.stringify(data),
@@ -94,8 +123,13 @@ export const supabase = {
       },
 
       update: async <T>(data: Record<string, unknown>, eq: Record<string, unknown>) => {
-        const eqParams = Object.entries(eq).map(([k, v]) => `${k}=eq.${v}`).join('&')
-        return supabase.fetch<T[]>(`/rest/v1/${table}?${eqParams}`, {
+        const eqParams = Object.entries(eq)
+          .map(([k, v]) => {
+            const safeKey = k.replace(/[^a-zA-Z0-9_]/g, '')
+            return `${safeKey}=eq.${encodeQueryValue(v)}`
+          })
+          .join('&')
+        return supabase.fetch<T[]>(`/rest/v1/${safeTable}?${eqParams}`, {
           method: 'PATCH',
           headers: { 'Prefer': 'return=representation' },
           body: JSON.stringify(data),
@@ -103,8 +137,13 @@ export const supabase = {
       },
 
       delete: async (eq: Record<string, unknown>) => {
-        const eqParams = Object.entries(eq).map(([k, v]) => `${k}=eq.${v}`).join('&')
-        return supabase.fetch(`/rest/v1/${table}?${eqParams}`, {
+        const eqParams = Object.entries(eq)
+          .map(([k, v]) => {
+            const safeKey = k.replace(/[^a-zA-Z0-9_]/g, '')
+            return `${safeKey}=eq.${encodeQueryValue(v)}`
+          })
+          .join('&')
+        return supabase.fetch(`/rest/v1/${safeTable}?${eqParams}`, {
           method: 'DELETE',
         })
       },

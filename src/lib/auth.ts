@@ -5,10 +5,19 @@
 // ============================================
 
 import { cookies } from 'next/headers'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { config } from '@/config/config'
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'pinpointparking'
+// Get JWT secret - MUST be set via environment variable
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD
+  if (!secret) {
+    console.error('CRITICAL: JWT_SECRET or ADMIN_PASSWORD environment variable is not set!')
+    throw new Error('Authentication not configured')
+  }
+  return secret
+}
+
 const COOKIE_NAME = 'pinpoint_admin_session'
 
 interface SessionPayload {
@@ -28,10 +37,11 @@ function base64Decode(str: string): string {
 
 // Create a simple signed token
 function createToken(payload: object): string {
+  const jwtSecret = getJwtSecret()
   const header = base64Encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const body = base64Encode(JSON.stringify(payload))
   // Use direct base64url encoding for signature (matches middleware)
-  const signature = createHmac('sha256', JWT_SECRET)
+  const signature = createHmac('sha256', jwtSecret)
     .update(`${header}.${body}`)
     .digest('base64url')
   return `${header}.${body}.${signature}`
@@ -40,16 +50,26 @@ function createToken(payload: object): string {
 // Verify and decode a token
 function verifyToken(token: string): SessionPayload | null {
   try {
+    const jwtSecret = getJwtSecret()
     const parts = token.split('.')
     if (parts.length !== 3) return null
 
     const [header, body, signature] = parts
+
+    // Validate header
+    const headerPayload = JSON.parse(base64Decode(header))
+    if (headerPayload.alg !== 'HS256') return null
+
     // Use direct base64url encoding for signature (matches middleware)
-    const expectedSignature = createHmac('sha256', JWT_SECRET)
+    const expectedSignature = createHmac('sha256', jwtSecret)
       .update(`${header}.${body}`)
       .digest('base64url')
 
-    if (signature !== expectedSignature) return null
+    // Use timing-safe comparison to prevent timing attacks
+    const signatureBuffer = Buffer.from(signature, 'utf8')
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+    if (signatureBuffer.length !== expectedBuffer.length) return null
+    if (!timingSafeEqual(signatureBuffer, expectedBuffer)) return null
 
     const payload = JSON.parse(base64Decode(body)) as SessionPayload
 
@@ -125,8 +145,8 @@ export async function setSessionCookie(token: string): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true, // Always use secure cookies
+    sameSite: 'strict', // Strict to prevent CSRF
     path: '/',
     maxAge: config.admin.sessionTimeout / 1000,
   })

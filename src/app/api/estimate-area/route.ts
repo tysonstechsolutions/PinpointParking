@@ -9,6 +9,37 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
+// Sanitize user input to prevent prompt injection
+function sanitizeForPrompt(input: string): string {
+  if (!input || typeof input !== 'string') return ''
+
+  return input
+    // Remove any potential prompt injection patterns
+    .replace(/\b(ignore|forget|disregard)\s+(previous|all|above|prior)\s+(instructions?|prompts?|rules?)/gi, '')
+    .replace(/\b(you\s+are|pretend\s+to\s+be|act\s+as|roleplay|new\s+instructions?)/gi, '')
+    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+    .replace(/<[^>]*>/g, '') // Remove HTML/XML tags
+    .replace(/[<>{}[\]]/g, '') // Remove special characters that could affect parsing
+    .trim()
+    .slice(0, 500) // Limit length
+}
+
+// Validate project type against whitelist
+const VALID_PROJECT_TYPES = [
+  'driveway',
+  'parking-lot',
+  'church',
+  'apartment',
+  'retail',
+  'industrial',
+  'residential',
+  'commercial',
+] as const
+
+function isValidProjectType(type: string): boolean {
+  return VALID_PROJECT_TYPES.includes(type as typeof VALID_PROJECT_TYPES[number])
+}
+
 interface GeocodeResult {
   lat: number
   lng: number
@@ -80,6 +111,9 @@ async function analyzeWithClaude(
 
   const client = new Anthropic({ apiKey })
 
+  // Sanitize address for prompt (even though it comes from geocoding, be safe)
+  const safeAddress = sanitizeForPrompt(address)
+
   const projectDescriptions: Record<string, string> = {
     'driveway': 'residential DRIVEWAY - the private paved path that goes PERPENDICULAR to the street, connecting FROM the street/road TO the house/garage. NOT the street itself.',
     'parking-lot': 'commercial parking lot (the entire paved parking area with spaces)',
@@ -89,6 +123,7 @@ async function analyzeWithClaude(
     'industrial': 'industrial facility paved area',
   }
 
+  // Use whitelisted description only
   const targetDescription = projectDescriptions[projectType] || 'paved asphalt area'
 
   const isDriveway = projectType === 'driveway'
@@ -117,7 +152,7 @@ async function analyzeWithClaude(
               type: 'text',
               text: `You are an expert at analyzing satellite imagery to identify and trace paved surface areas for asphalt paving quotes.
 
-Address: ${address}
+Address: ${safeAddress}
 Looking for: ${targetDescription}
 Image center coordinates: ${centerLat}, ${centerLng}
 Zoom level: ${zoom}
@@ -217,11 +252,22 @@ If you can see a paved area, trace it even if confidence is low. The customer wi
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { address, projectType } = body
+    const { address: rawAddress, projectType: rawProjectType } = body
 
-    if (!address) {
+    if (!rawAddress) {
       return NextResponse.json(
         { success: false, error: 'Address is required' },
+        { status: 400 }
+      )
+    }
+
+    // Sanitize inputs
+    const address = sanitizeForPrompt(rawAddress)
+    const projectType = isValidProjectType(rawProjectType) ? rawProjectType : 'driveway'
+
+    if (!address || address.length < 5) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid address provided' },
         { status: 400 }
       )
     }

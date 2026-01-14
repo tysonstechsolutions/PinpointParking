@@ -11,21 +11,11 @@ export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
   const stripe = getStripe()
 
-  // Debug: Log what we have
-  console.log('Webhook called - stripe configured:', !!stripe)
-  console.log('Webhook called - secret exists:', !!webhookSecret)
-  console.log('Webhook called - STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY)
-
+  // Log configuration status (server-side only, not exposed)
   if (!stripe || !webhookSecret) {
+    console.error('Stripe webhook not configured - stripe:', !!stripe, 'secret:', !!webhookSecret)
     return NextResponse.json(
-      {
-        error: 'Webhook not configured',
-        debug: {
-          stripeConfigured: !!stripe,
-          webhookSecretExists: !!webhookSecret,
-          secretKeyExists: !!process.env.STRIPE_SECRET_KEY,
-        }
-      },
+      { error: 'Service temporarily unavailable' },
       { status: 503 }
     )
   }

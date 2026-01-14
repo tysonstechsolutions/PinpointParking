@@ -41,12 +41,17 @@ async function findOrCreateCustomer({
   const cleanPhone = phone.replace(/\D/g, '')
 
   // Try to find existing customer by phone
+  // Properly encode values to prevent injection
   const conditions: string[] = []
   if (cleanPhone.length >= 10) {
-    conditions.push(`phone.ilike.%${cleanPhone.slice(-10)}%`)
+    // URL-encode the phone pattern to prevent injection
+    const phonePattern = encodeURIComponent(`%${cleanPhone.slice(-10)}%`)
+    conditions.push(`phone.ilike.${phonePattern}`)
   }
   if (email) {
-    conditions.push(`email.ilike.${email}`)
+    // URL-encode email to prevent injection
+    const safeEmail = encodeURIComponent(email.toLowerCase().trim())
+    conditions.push(`email.ilike.${safeEmail}`)
   }
 
   if (conditions.length > 0) {

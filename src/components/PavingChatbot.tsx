@@ -1,14 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { config } from '@/config/config'
 
 // Google Maps type declarations
 declare global {
   interface Window {
-    google: any
+    google: typeof google
   }
+}
+
+// Type definitions for Google Maps objects used in this component
+interface GoogleMapInstance {
+  setCenter: (center: google.maps.LatLngLiteral) => void
+  fitBounds: (bounds: google.maps.LatLngBounds, padding?: number) => void
+}
+
+interface GooglePolygonInstance {
+  setMap: (map: GoogleMapInstance | null) => void
+  getPath: () => google.maps.MVCArray<google.maps.LatLng>
+}
+
+interface GoogleDrawingManager {
+  setMap: (map: GoogleMapInstance | null) => void
+  setDrawingMode: (mode: google.maps.drawing.OverlayType | null) => void
 }
 
 // Website colors
@@ -61,6 +76,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [messages, setMessages] = useState<{type: string, text: string}[]>([])
   const [inputValue, setInputValue] = useState('')
   const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -93,6 +109,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     deliveryDate: '',
     deliveryDateLabel: '',
     name: '',
+    email: '',
     phone: '',
     jobId: 0,
     invoiceId: 0,
@@ -101,10 +118,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<any>(null)
-  const drawingManagerRef = useRef<any>(null)
-  const polygonRef = useRef<any>(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null)
+  const polygonRef = useRef<google.maps.Polygon | null>(null)
   const hasInitialized = useRef(false)
+  const mapLoadCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const mapEventListenersRef = useRef<google.maps.MapsEventListener[]>([])
 
   const scrollToBottom = () => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -127,6 +146,40 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }, [step, mapLoaded])
 
   useEffect(() => { scrollToBottom() }, [messages])
+
+  // Cleanup effect for Google Maps resources
+  useEffect(() => {
+    return () => {
+      // Clear any pending intervals
+      if (mapLoadCheckIntervalRef.current) {
+        clearInterval(mapLoadCheckIntervalRef.current)
+        mapLoadCheckIntervalRef.current = null
+      }
+
+      // Remove all event listeners
+      mapEventListenersRef.current.forEach(listener => {
+        if (listener) {
+          google.maps.event.removeListener(listener)
+        }
+      })
+      mapEventListenersRef.current = []
+
+      // Clean up polygon
+      if (polygonRef.current) {
+        polygonRef.current.setMap(null)
+        polygonRef.current = null
+      }
+
+      // Clean up drawing manager
+      if (drawingManagerRef.current) {
+        drawingManagerRef.current.setMap(null)
+        drawingManagerRef.current = null
+      }
+
+      // Clean up map
+      mapRef.current = null
+    }
+  }, [])
 
   const addBotMessage = async (text: string, delay = 400) => {
     setIsTyping(true)
@@ -198,12 +251,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           if (window.google?.maps?.drawing) {
             console.log('Google Maps loaded successfully')
             clearInterval(check)
+            mapLoadCheckIntervalRef.current = null
             resolve()
           }
         }, 100)
+        mapLoadCheckIntervalRef.current = check
         setTimeout(() => {
           console.log('Google Maps load timeout reached, google.maps exists:', !!window.google?.maps, 'drawing:', !!window.google?.maps?.drawing)
           clearInterval(check)
+          mapLoadCheckIntervalRef.current = null
           resolve()
         }, 10000)
       })
@@ -285,33 +341,42 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         const newEstimate = calculateEstimate(newSqft, bookingData.service, bookingData.discount)
         setBookingData(prev => ({ ...prev, squareFootage: newSqft, estimateLow: newEstimate.low, estimateHigh: newEstimate.high }))
       }
-      window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
-      window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
-      window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
+      // Track event listeners for cleanup
+      mapEventListenersRef.current.push(
+        window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea),
+        window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea),
+        window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
+      )
 
       const bounds = new window.google.maps.LatLngBounds()
-      polygon.getPath().forEach((latLng: any) => bounds.extend(latLng))
+      polygon.getPath().forEach((latLng: google.maps.LatLng) => bounds.extend(latLng))
       map.fitBounds(bounds, 50)
     } else {
       drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON)
     }
 
-    window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: any) => {
-      if (polygonRef.current) polygonRef.current.setMap(null)
-      polygonRef.current = polygon
-      const updateArea = () => {
-        const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
-        const sqft = Math.round(area * 10.7639)
-        setDrawnArea(sqft)
-        const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
-        setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high }))
-      }
-      updateArea()
-      window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea)
-      window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea)
-      window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
-      drawingManager.setDrawingMode(null)
-    })
+    // Track polygoncomplete listener for cleanup
+    mapEventListenersRef.current.push(
+      window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
+        if (polygonRef.current) polygonRef.current.setMap(null)
+        polygonRef.current = polygon
+        const updateArea = () => {
+          const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
+          const sqft = Math.round(area * 10.7639)
+          setDrawnArea(sqft)
+          const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
+          setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high }))
+        }
+        updateArea()
+        // Track these listeners too
+        mapEventListenersRef.current.push(
+          window.google.maps.event.addListener(polygon.getPath(), 'set_at', updateArea),
+          window.google.maps.event.addListener(polygon.getPath(), 'insert_at', updateArea),
+          window.google.maps.event.addListener(polygon.getPath(), 'remove_at', updateArea)
+        )
+        drawingManager.setDrawingMode(null)
+      })
+    )
 
     setMapLoaded(true)
   }
@@ -383,18 +448,22 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
   const handleAddressSubmit = async () => {
     const name = contactName.trim()
+    const email = contactEmail.trim().toLowerCase()
     const phone = contactPhone.trim().replace(/\D/g, '')
     const address = inputValue.trim()
 
-    if (!name || phone.length < 10 || !address) {
-      await addBotMessage("Please fill in your name, phone number, and address.")
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!name || !emailRegex.test(email) || phone.length < 10 || !address) {
+      await addBotMessage("Please fill in all fields with valid information.")
       return
     }
 
-    setBookingData(prev => ({ ...prev, address, name, phone }))
-    addUserMessage(`${name}\n${phone}\n${address}`)
+    setBookingData(prev => ({ ...prev, address, name, email, phone }))
+    addUserMessage(`${name}\n${email}\n${phone}\n${address}`)
     setInputValue('')
     setContactName('')
+    setContactEmail('')
     setContactPhone('')
 
     // For line striping, skip map measuring - we already have the estimate from space counts
@@ -566,7 +635,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         body: JSON.stringify({
           serviceType: bookingData.service, projectType: bookingData.projectType,
           squareFootage: bookingData.squareFootage, condition: bookingData.condition,
-          address: bookingData.address, customerName: bookingData.name, customerPhone: bookingData.phone,
+          address: bookingData.address, customerName: bookingData.name, customerEmail: bookingData.email, customerPhone: bookingData.phone,
           estimateLow: bookingData.estimateLow, estimateHigh: bookingData.estimateHigh, preferredDate: bookingData.deliveryDate,
         }),
       })
@@ -603,7 +672,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           invoiceId: bookingData.invoiceId || bookingData.jobId,
           amountCents: depositAmount * 100,
           description: `Deposit for ${bookingData.serviceName} - ${config.businessName}`,
-          customerEmail: '', // Optional
+          customerEmail: bookingData.email,
           customerName: bookingData.name,
           customerPhone: bookingData.phone,
         }),
@@ -1422,13 +1491,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               {/* Name field */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
-                  Your Name
+                  Your Name <span style={{ color: COLORS.yellow }}>*</span>
                 </label>
                 <input
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="John Smith"
+                  required
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1444,16 +1514,42 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   autoFocus
                 />
               </div>
+              {/* Email field */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
+                  Email Address <span style={{ color: COLORS.yellow }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    backgroundColor: COLORS.blackLight,
+                    color: '#fff',
+                    border: `2px solid ${COLORS.blackMedium}`,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = COLORS.yellow}
+                  onBlur={(e) => e.currentTarget.style.borderColor = COLORS.blackMedium}
+                />
+              </div>
               {/* Phone field */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
-                  Phone Number
+                  Phone Number <span style={{ color: COLORS.yellow }}>*</span>
                 </label>
                 <input
                   type="tel"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="(618) 555-1234"
+                  required
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1471,13 +1567,14 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               {/* Address field */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: COLORS.gray, marginBottom: '4px', textTransform: 'uppercase' }}>
-                  Property Address
+                  Property Address <span style={{ color: COLORS.yellow }}>*</span>
                 </label>
                 <input
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder="123 Main St, Mount Vernon, IL 62864"
+                  required
                   style={{
                     width: '100%',
                     padding: '12px 16px',

@@ -22,8 +22,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type and size
-    const fileValidation = validateFile(file)
+    // Validate file type, size, and magic bytes
+    const fileValidation = await validateFile(file)
     if (!fileValidation.valid) {
       return NextResponse.json({ error: fileValidation.error }, { status: 400 })
     }
