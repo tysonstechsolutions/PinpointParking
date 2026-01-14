@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { config } from '@/config/config'
 
@@ -8,13 +8,11 @@ import { config } from '@/config/config'
 // TYPES & CONSTANTS
 // ============================================
 
-type Step = 'service' | 'project' | 'location' | 'contact' | 'schedule' | 'review'
+type Step = 'service' | 'location' | 'contact' | 'schedule' | 'review'
 
 interface FormData {
   service: string
   serviceName: string
-  projectType: string
-  projectTypeName: string
   isChurch: boolean
   address: string
   squareFootage: number | null
@@ -23,10 +21,8 @@ interface FormData {
   email: string
   date: string
   notes: string
-  // Line striping specific
   regularSpaces: number
   handicapSpaces: number
-  // Sealcoating bundle
   addStriping: boolean
 }
 
@@ -41,8 +37,6 @@ const STEPS: { id: Step; label: string; icon: string }[] = [
 const INITIAL_FORM: FormData = {
   service: '',
   serviceName: '',
-  projectType: '',
-  projectTypeName: '',
   isChurch: false,
   address: '',
   squareFootage: null,
@@ -83,32 +77,23 @@ export default function BookingPage() {
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null)
 
   // ============================================
-  // STEP NAVIGATION
+  // NAVIGATION
   // ============================================
 
-  const getStepIndex = (step: Step) => STEPS.findIndex(s => s.id === step)
-  const currentStepIndex = getStepIndex(currentStep)
-
-  const getStepsForService = (): Step[] => {
-    if (formData.service === 'linestriping') {
-      return ['service', 'location', 'contact', 'schedule', 'review']
-    }
-    return ['service', 'location', 'contact', 'schedule', 'review']
-  }
+  const steps: Step[] = ['service', 'location', 'contact', 'schedule', 'review']
+  const currentIdx = steps.indexOf(currentStep)
 
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 'service':
         return !!formData.service
-      case 'project':
-        return !!formData.projectType
       case 'location':
         if (formData.service === 'linestriping') {
           return !!formData.address && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)
         }
         return !!formData.address && (drawnArea !== null && drawnArea > 0)
       case 'contact':
-        return !!formData.name && formData.phone.replace(/\D/g, '').length >= 10 && !!formData.address
+        return !!formData.name && formData.phone.replace(/\D/g, '').length >= 10
       case 'schedule':
         return !!formData.date
       case 'review':
@@ -119,23 +104,21 @@ export default function BookingPage() {
   }
 
   const nextStep = () => {
-    const steps = getStepsForService()
-    const currentIdx = steps.indexOf(currentStep)
     if (currentIdx < steps.length - 1 && canProceed()) {
       setCurrentStep(steps[currentIdx + 1])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   const prevStep = () => {
-    const steps = getStepsForService()
-    const currentIdx = steps.indexOf(currentStep)
     if (currentIdx > 0) {
       setCurrentStep(steps[currentIdx - 1])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   // ============================================
-  // PRICING CALCULATIONS
+  // PRICING
   // ============================================
 
   const calculatePrice = (): number => {
@@ -152,23 +135,15 @@ export default function BookingPage() {
       const service = config.services.find(s => s.id === 'sealcoating')!
       const sqft = drawnArea || formData.squareFootage || 0
       let price = Math.max(Math.round(sqft * service.pricePerSqFt), service.minPrice)
-
-      // Apply church discount
-      if (formData.isChurch) {
-        price = Math.round(price * 0.9)
-      }
-
-      // Add striping if bundled
+      if (formData.isChurch) price = Math.round(price * 0.9)
       if (formData.addStriping && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)) {
         const stripingService = config.services.find(s => s.id === 'linestriping')!
         const pricePerStall = stripingService.pricePerStall || 4
         const pricePerSymbol = stripingService.pricePerSymbol || 35
         const stripingPrice = (formData.regularSpaces * pricePerStall) +
           (formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol))
-        // 10% bundle discount on striping
         price += Math.round(stripingPrice * 0.9)
       }
-
       return price
     }
 
@@ -176,17 +151,15 @@ export default function BookingPage() {
       const service = config.services.find(s => s.id === 'paving')!
       const sqft = drawnArea || formData.squareFootage || 0
       const basePrice = sqft * service.pricePerSqFt
-      let discount = 0
-      if (formData.isChurch) discount = 0.10
-      const discountedPrice = basePrice * (1 - discount)
-      return Math.max(Math.round(discountedPrice), service.minPrice)
+      const discount = formData.isChurch ? 0.10 : 0
+      return Math.max(Math.round(basePrice * (1 - discount)), service.minPrice)
     }
 
     return 0
   }
 
   // ============================================
-  // MAP FUNCTIONALITY
+  // MAP
   // ============================================
 
   const loadMap = useCallback(async (address: string) => {
@@ -194,7 +167,6 @@ export default function BookingPage() {
     setIsLoadingMap(true)
 
     try {
-      // Geocode
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
       const response = await fetch(geocodeUrl)
       const result = await response.json()
@@ -204,7 +176,6 @@ export default function BookingPage() {
         coords = result.results[0].geometry.location
       }
 
-      // Load Google Maps if needed
       if (!window.google?.maps) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script')
@@ -225,7 +196,6 @@ export default function BookingPage() {
         mapTypeId: 'satellite',
         disableDefaultUI: true,
         zoomControl: true,
-        scrollwheel: true,
         gestureHandling: 'greedy',
       })
       mapInstanceRef.current = map
@@ -239,16 +209,13 @@ export default function BookingPage() {
           strokeColor: '#F5C518',
           strokeWeight: 3,
           editable: true,
-          draggable: false,
         },
       })
       drawingManager.setMap(map)
       drawingManagerRef.current = drawingManager
 
       window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
-        if (polygonRef.current) {
-          polygonRef.current.setMap(null)
-        }
+        if (polygonRef.current) polygonRef.current.setMap(null)
         polygonRef.current = polygon
         drawingManager.setDrawingMode(null)
 
@@ -259,7 +226,6 @@ export default function BookingPage() {
           setFormData(prev => ({ ...prev, squareFootage: sqft }))
         }
         updateArea()
-
         polygon.getPath().addListener('set_at', updateArea)
         polygon.getPath().addListener('insert_at', updateArea)
       })
@@ -284,7 +250,7 @@ export default function BookingPage() {
   }
 
   // ============================================
-  // FORM HANDLERS
+  // HELPERS
   // ============================================
 
   const formatPhone = (value: string) => {
@@ -317,7 +283,7 @@ export default function BookingPage() {
         customer_email: formData.email || null,
         service_address: formData.address,
         job_type: formData.service,
-        project_type: formData.projectType || (formData.isChurch ? 'house-of-worship' : 'commercial'),
+        project_type: formData.isChurch ? 'house-of-worship' : 'commercial',
         square_feet: formData.squareFootage,
         quote_cents: calculatePrice() * 100,
         scheduled_date: formData.date,
@@ -353,167 +319,168 @@ export default function BookingPage() {
   }
 
   // ============================================
-  // RENDER HELPERS
+  // PROGRESS BAR
   // ============================================
 
-  const renderProgressBar = () => {
-    const steps = getStepsForService()
-    const currentIdx = steps.indexOf(currentStep)
-    const progress = ((currentIdx) / (steps.length - 1)) * 100
+  const ProgressBar = () => (
+    <div className="w-full max-w-4xl mx-auto mb-12 px-4">
+      {/* Progress line */}
+      <div className="relative">
+        <div className="absolute top-6 left-0 right-0 h-1 bg-zinc-800 rounded-full" />
+        <div
+          className="absolute top-6 left-0 h-1 bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-500"
+          style={{ width: `${(currentIdx / (steps.length - 1)) * 100}%` }}
+        />
 
-    return (
-      <div className="mb-8">
-        {/* Progress line */}
-        <div className="relative h-1 bg-gray-800 rounded-full overflow-hidden mb-6">
-          <div
-            className="absolute left-0 top-0 h-full bg-gradient-to-r from-yellow-500 to-yellow-400 transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Step indicators */}
-        <div className="flex justify-between">
+        {/* Step circles */}
+        <div className="relative flex justify-between">
           {steps.map((step, idx) => {
-            const stepData = STEPS.find(s => s.id === step)!
-            const isActive = currentStep === step
-            const isCompleted = currentIdx > idx
+            const stepInfo = STEPS.find(s => s.id === step)!
+            const isActive = currentIdx === idx
+            const isComplete = currentIdx > idx
 
             return (
-              <div key={step} className="flex flex-col items-center flex-1">
+              <div key={step} className="flex flex-col items-center">
                 <div
                   className={`
-                    w-12 h-12 rounded-full flex items-center justify-center text-xl
-                    transition-all duration-300 mb-2
+                    w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold
+                    transition-all duration-300 border-4
                     ${isActive
-                      ? 'bg-yellow-500 text-gray-900 ring-4 ring-yellow-500/30 scale-110'
-                      : isCompleted
-                        ? 'bg-yellow-500 text-gray-900'
-                        : 'bg-gray-800 text-gray-500'
+                      ? 'bg-yellow-500 border-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/30'
+                      : isComplete
+                        ? 'bg-yellow-500 border-yellow-500 text-black'
+                        : 'bg-zinc-900 border-zinc-700 text-zinc-500'
                     }
                   `}
                 >
-                  {isCompleted ? '✓' : stepData.icon}
+                  {isComplete ? '✓' : stepInfo.icon}
                 </div>
-                <span className={`text-xs font-medium hidden sm:block ${
-                  isActive ? 'text-yellow-500' : isCompleted ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  {stepData.label}
+                <span className={`
+                  mt-3 text-sm font-medium hidden sm:block
+                  ${isActive ? 'text-yellow-500' : isComplete ? 'text-zinc-400' : 'text-zinc-600'}
+                `}>
+                  {stepInfo.label}
                 </span>
               </div>
             )
           })}
         </div>
       </div>
-    )
-  }
+    </div>
+  )
 
   // ============================================
-  // STEP RENDERS
+  // STEP 1: SERVICE SELECTION
   // ============================================
 
-  const renderServiceStep = () => (
-    <div className="animate-fadeIn">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-          What can we help you with?
+  const ServiceStep = () => (
+    <div className="w-full max-w-4xl mx-auto px-4">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+          What do you need done?
         </h1>
-        <p className="text-gray-400 text-lg">
-          Select the service you need for your property
+        <p className="text-xl text-zinc-400">
+          Choose the service that best fits your project
         </p>
       </div>
 
-      <div className="grid gap-4 max-w-xl mx-auto">
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
         {config.services.map((service) => {
           const isSelected = formData.service === service.id
           return (
             <button
               key={service.id}
-              onClick={() => setFormData(prev => ({
-                ...prev,
-                service: service.id,
-                serviceName: service.name
-              }))}
+              onClick={() => setFormData(prev => ({ ...prev, service: service.id, serviceName: service.name }))}
               className={`
-                relative p-6 rounded-2xl text-left transition-all duration-300
-                transform hover:scale-[1.02] active:scale-[0.98]
+                relative p-8 rounded-2xl text-left transition-all duration-300
                 ${isSelected
-                  ? 'bg-yellow-500/10 border-2 border-yellow-500 shadow-lg shadow-yellow-500/20'
-                  : 'bg-gray-900/50 border-2 border-gray-800 hover:border-gray-700'
+                  ? 'bg-yellow-500/10 border-2 border-yellow-500 shadow-xl shadow-yellow-500/10 scale-[1.02]'
+                  : 'bg-zinc-900/80 border-2 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                 }
               `}
             >
-              {/* Selected indicator */}
               {isSelected && (
-                <div className="absolute top-4 right-4 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <div className="absolute top-4 right-4 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               )}
 
-              <div className="flex items-start gap-4">
-                <span className="text-4xl">{service.emoji}</span>
-                <div className="flex-1">
-                  <h3 className={`text-xl font-semibold mb-1 ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
-                    {service.name}
-                  </h3>
-                  <p className="text-gray-400 text-sm mb-3">{service.description}</p>
+              <div className="text-5xl mb-4">{service.emoji}</div>
+              <h3 className={`text-2xl font-bold mb-2 ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
+                {service.name}
+              </h3>
+              <p className="text-zinc-400 mb-4">{service.description}</p>
 
-                  {/* Features */}
-                  <div className="flex flex-wrap gap-2">
-                    {service.bestFor.slice(0, 2).map((item, i) => (
-                      <span
-                        key={i}
-                        className="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {service.bestFor.slice(0, 2).map((item, i) => (
+                  <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-400">
+                    {item}
+                  </span>
+                ))}
               </div>
             </button>
           )
         })}
       </div>
 
-      {/* Trust signals */}
-      <div className="flex justify-center gap-6 mt-10 text-sm text-gray-500">
-        <span className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          Licensed & Insured
-        </span>
-        <span className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          Free Estimates
-        </span>
+      {/* Trust badges */}
+      <div className="flex flex-wrap justify-center gap-8 text-zinc-500">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <span>Licensed & Insured</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <span>Free Estimates</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <span>Satisfaction Guaranteed</span>
+        </div>
       </div>
     </div>
   )
 
-  const renderLocationStep = () => (
-    <div className="animate-fadeIn">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+  // ============================================
+  // STEP 2: LOCATION
+  // ============================================
+
+  const LocationStep = () => (
+    <div className="w-full max-w-3xl mx-auto px-4">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
           Where&apos;s the property?
         </h1>
-        <p className="text-gray-400 text-lg">
-          Enter the address and {formData.service === 'linestriping' ? 'tell us about your parking spaces' : 'outline your area'}
+        <p className="text-xl text-zinc-400">
+          {formData.service === 'linestriping'
+            ? 'Enter the address and tell us about your parking lot'
+            : 'Enter the address and outline your area on the map'
+          }
         </p>
       </div>
 
-      <div className="max-w-xl mx-auto space-y-6">
-        {/* Address input */}
+      <div className="space-y-6">
+        {/* Address */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
             Property Address
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📍</span>
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">📍</div>
             <input
               type="text"
               value={formData.address}
@@ -523,35 +490,37 @@ export default function BookingPage() {
                   loadMap(formData.address)
                 }
               }}
-              placeholder="123 Main St, Mount Vernon, IL"
-              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+              placeholder="123 Main Street, Mount Vernon, IL 62864"
+              className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
             />
           </div>
         </div>
 
-        {/* Church discount checkbox */}
+        {/* Church discount */}
         {(formData.service === 'sealcoating' || formData.service === 'paving') && (
-          <label className="flex items-center gap-3 p-4 bg-gray-900/50 rounded-xl cursor-pointer hover:bg-gray-900 transition-colors">
+          <label className="flex items-center gap-4 p-5 bg-zinc-900 rounded-xl cursor-pointer hover:bg-zinc-800/80 transition-colors border-2 border-zinc-800">
             <input
               type="checkbox"
               checked={formData.isChurch}
               onChange={(e) => setFormData(prev => ({ ...prev, isChurch: e.target.checked }))}
-              className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0"
+              className="w-6 h-6 rounded-lg border-2 border-zinc-600 bg-zinc-800 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 cursor-pointer"
             />
-            <div>
-              <span className="text-white font-medium">House of Worship</span>
-              <span className="text-green-500 text-sm ml-2">10% Discount</span>
+            <div className="flex-1">
+              <span className="text-lg text-white font-medium">House of Worship</span>
+              <span className="ml-3 px-3 py-1 bg-green-500/20 text-green-400 text-sm font-semibold rounded-full">
+                10% OFF
+              </span>
             </div>
           </label>
         )}
 
-        {/* Line striping: parking spaces */}
+        {/* Line striping inputs */}
         {formData.service === 'linestriping' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="grid sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Regular Spaces
+                <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+                  Regular Parking Spaces
                 </label>
                 <input
                   type="number"
@@ -559,12 +528,12 @@ export default function BookingPage() {
                   value={formData.regularSpaces || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, regularSpaces: parseInt(e.target.value) || 0 }))}
                   placeholder="0"
-                  className="w-full px-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition-all"
+                  className="w-full px-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 outline-none transition-all"
                 />
-                <p className="text-gray-500 text-xs mt-1">$4/space</p>
+                <p className="mt-2 text-zinc-500">$4 per space</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
                   Handicap Spaces
                 </label>
                 <input
@@ -573,16 +542,18 @@ export default function BookingPage() {
                   value={formData.handicapSpaces || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, handicapSpaces: parseInt(e.target.value) || 0 }))}
                   placeholder="0"
-                  className="w-full px-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition-all"
+                  className="w-full px-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 outline-none transition-all"
                 />
-                <p className="text-gray-500 text-xs mt-1">$43/space (incl. symbol)</p>
+                <p className="mt-2 text-zinc-500">$43 per space (includes symbol)</p>
               </div>
             </div>
 
             {(formData.regularSpaces > 0 || formData.handicapSpaces > 0) && (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <p className="text-gray-400 text-sm">Estimated Price</p>
-                <p className="text-2xl font-bold text-white">${calculatePrice().toLocaleString()}</p>
+              <div className="p-6 bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/30 rounded-xl">
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400 text-lg">Estimated Price</span>
+                  <span className="text-4xl font-bold text-white">${calculatePrice().toLocaleString()}</span>
+                </div>
               </div>
             )}
           </div>
@@ -592,80 +563,79 @@ export default function BookingPage() {
         {formData.service !== 'linestriping' && formData.address && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-300">
-                Outline Your Area
+              <label className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
+                Draw Your Area
               </label>
               {drawnArea && (
-                <button
-                  onClick={redrawPolygon}
-                  className="text-sm text-yellow-500 hover:text-yellow-400 transition-colors"
-                >
-                  Redraw
+                <button onClick={redrawPolygon} className="text-yellow-500 hover:text-yellow-400 font-medium">
+                  Redraw Area
                 </button>
               )}
             </div>
 
-            <div className="relative rounded-xl overflow-hidden border-2 border-gray-800">
-              <div ref={mapRef} className="w-full h-[300px] sm:h-[350px] bg-gray-900">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-zinc-700">
+              <div ref={mapRef} className="w-full h-[400px] bg-zinc-900">
                 {isLoadingMap && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                    <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                    <div className="w-10 h-10 border-3 border-yellow-500 border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
               </div>
 
-              {/* Instructions overlay */}
               {!drawnArea && mapLoaded && (
-                <div className="absolute bottom-4 left-4 right-4 bg-gray-900/90 backdrop-blur-sm rounded-lg p-3 text-center">
-                  <p className="text-yellow-500 font-medium text-sm">
-                    Click to draw your {formData.service === 'sealcoating' ? 'sealcoating' : 'paving'} area
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6">
+                  <p className="text-yellow-500 font-semibold text-lg text-center">
+                    Click to outline your {formData.service === 'sealcoating' ? 'sealcoating' : 'paving'} area
                   </p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Tap points to outline, connect back to start
+                  <p className="text-zinc-400 text-center mt-1">
+                    Click points around the perimeter, then connect back to start
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Area result */}
             {drawnArea && (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Area Measured</p>
-                  <p className="text-2xl font-bold text-white">{drawnArea.toLocaleString()} sq ft</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-400 text-sm">Estimated Price</p>
-                  <p className="text-2xl font-bold text-yellow-500">${calculatePrice().toLocaleString()}</p>
+              <div className="p-6 bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/30 rounded-xl">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-zinc-400 mb-1">Area Measured</p>
+                    <p className="text-3xl font-bold text-white">{drawnArea.toLocaleString()} sq ft</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-zinc-400 mb-1">Estimated Price</p>
+                    <p className="text-3xl font-bold text-yellow-500">${calculatePrice().toLocaleString()}</p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Add striping bundle for sealcoating */}
+            {/* Striping bundle for sealcoating */}
             {formData.service === 'sealcoating' && drawnArea && (
-              <div className="p-4 bg-gray-900 rounded-xl border border-gray-800">
-                <label className="flex items-center gap-3 cursor-pointer">
+              <div className="p-6 bg-zinc-900 rounded-xl border-2 border-zinc-800">
+                <label className="flex items-center gap-4 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.addStriping}
                     onChange={(e) => setFormData(prev => ({ ...prev, addStriping: e.target.checked }))}
-                    className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500 focus:ring-yellow-500"
+                    className="w-6 h-6 rounded-lg border-2 border-zinc-600 bg-zinc-800 text-yellow-500 focus:ring-yellow-500"
                   />
                   <div className="flex-1">
-                    <span className="text-white font-medium">Add Line Striping</span>
-                    <span className="text-green-500 text-sm ml-2">Save 10%</span>
+                    <span className="text-lg text-white font-medium">Add Line Striping</span>
+                    <span className="ml-3 px-3 py-1 bg-green-500/20 text-green-400 text-sm font-semibold rounded-full">
+                      Save 10%
+                    </span>
                   </div>
                 </label>
 
                 {formData.addStriping && (
-                  <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="grid sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-zinc-800">
                     <input
                       type="number"
                       min="0"
                       value={formData.regularSpaces || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, regularSpaces: parseInt(e.target.value) || 0 }))}
                       placeholder="Regular spaces"
-                      className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-yellow-500 outline-none"
+                      className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-yellow-500 outline-none"
                     />
                     <input
                       type="number"
@@ -673,15 +643,15 @@ export default function BookingPage() {
                       value={formData.handicapSpaces || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, handicapSpaces: parseInt(e.target.value) || 0 }))}
                       placeholder="Handicap spaces"
-                      className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-yellow-500 outline-none"
+                      className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-yellow-500 outline-none"
                     />
                   </div>
                 )}
               </div>
             )}
 
-            <p className="text-center text-gray-500 text-sm">
-              Prefer an on-site estimate? <a href={`tel:${config.phoneRaw}`} className="text-yellow-500 hover:underline">Call us</a> — $50 visit fee
+            <p className="text-center text-zinc-500">
+              Prefer an on-site estimate? <a href={`tel:${config.phoneRaw}`} className="text-yellow-500 hover:underline font-medium">Call us</a> — $50 visit fee
             </p>
           </div>
         )}
@@ -689,97 +659,111 @@ export default function BookingPage() {
     </div>
   )
 
-  const renderContactStep = () => (
-    <div className="animate-fadeIn">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+  // ============================================
+  // STEP 3: CONTACT
+  // ============================================
+
+  const ContactStep = () => (
+    <div className="w-full max-w-2xl mx-auto px-4">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
           How can we reach you?
         </h1>
-        <p className="text-gray-400 text-lg">
+        <p className="text-xl text-zinc-400">
           We&apos;ll send your quote and schedule confirmation
         </p>
       </div>
 
-      <div className="max-w-md mx-auto space-y-5">
+      <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+          <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+            Full Name
+          </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">👤</span>
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">👤</div>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="John Smith"
-              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+              className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+          <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+            Phone Number
+          </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📱</span>
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">📱</div>
             <input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }))}
               placeholder="(618) 555-1234"
-              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+              className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
             />
           </div>
-          <p className="text-gray-500 text-xs mt-1">We&apos;ll text you updates about your project</p>
+          <p className="mt-2 text-zinc-500">We&apos;ll text you updates about your project</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Email <span className="text-gray-500">(optional)</span>
+          <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+            Email <span className="text-zinc-500 font-normal normal-case">(optional)</span>
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">✉️</span>
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">✉️</div>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               placeholder="john@example.com"
-              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+              className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
             />
           </div>
         </div>
 
-        {/* Security note */}
-        <div className="flex items-center justify-center gap-2 text-gray-500 text-sm pt-4">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        {/* Security */}
+        <div className="flex items-center justify-center gap-3 pt-4 text-zinc-500">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
-          Your information is secure and never shared
+          <span>Your information is secure and never shared</span>
         </div>
       </div>
     </div>
   )
 
-  const renderScheduleStep = () => {
+  // ============================================
+  // STEP 4: SCHEDULE
+  // ============================================
+
+  const ScheduleStep = () => {
     const dates = getAvailableDates()
 
     return (
-      <div className="animate-fadeIn">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+      <div className="w-full max-w-2xl mx-auto px-4">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
             When works best?
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-xl text-zinc-400">
             Select your preferred service date
           </p>
         </div>
 
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Date</label>
+            <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+              Preferred Date
+            </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📅</span>
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">📅</div>
               <select
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all appearance-none cursor-pointer"
+                className="w-full pl-16 pr-12 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="">Select a date...</option>
                 {dates.map(date => (
@@ -792,31 +776,35 @@ export default function BookingPage() {
                   </option>
                 ))}
               </select>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">▼</span>
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Notes <span className="text-gray-500">(optional)</span>
+            <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
+              Special Instructions <span className="text-zinc-500 font-normal normal-case">(optional)</span>
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Gate codes, special instructions, etc."
-              rows={3}
-              className="w-full px-4 py-3 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all resize-none"
+              placeholder="Gate codes, best time to call, special requests..."
+              rows={4}
+              className="w-full px-6 py-4 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all resize-none"
             />
           </div>
 
-          {/* Quick info */}
-          <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-800">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">💡</span>
+          {/* Info box */}
+          <div className="p-6 bg-zinc-900/50 rounded-xl border border-zinc-800">
+            <div className="flex gap-4">
+              <div className="text-3xl">💡</div>
               <div>
-                <p className="text-white font-medium">Weather Dependent</p>
-                <p className="text-gray-400 text-sm">
-                  Asphalt work requires dry conditions. We&apos;ll contact you if we need to reschedule.
+                <p className="text-white font-semibold text-lg">Weather Dependent</p>
+                <p className="text-zinc-400 mt-1">
+                  Asphalt work requires dry conditions. We&apos;ll contact you if we need to reschedule due to weather.
                 </p>
               </div>
             </div>
@@ -826,130 +814,133 @@ export default function BookingPage() {
     )
   }
 
-  const renderReviewStep = () => {
+  // ============================================
+  // STEP 5: REVIEW
+  // ============================================
+
+  const ReviewStep = () => {
     const price = calculatePrice()
     const deposit = Math.round(price * 0.5)
-    const serviceName = config.services.find(s => s.id === formData.service)?.name || formData.service
+    const serviceName = config.services.find(s => s.id === formData.service)?.name || ''
 
     return (
-      <div className="animate-fadeIn">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+      <div className="w-full max-w-2xl mx-auto px-4">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
             Review Your Quote
           </h1>
-          <p className="text-gray-400 text-lg">
-            Confirm your details and submit
+          <p className="text-xl text-zinc-400">
+            Make sure everything looks good
           </p>
         </div>
 
-        <div className="max-w-md mx-auto">
-          {/* Summary card */}
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-6">
-            {/* Service */}
-            <div className="p-4 border-b border-gray-800">
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Service</p>
-              <p className="text-white font-semibold text-lg">
-                {serviceName}
-                {formData.addStriping && ' + Line Striping'}
-              </p>
-            </div>
-
-            {/* Location */}
-            <div className="p-4 border-b border-gray-800">
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Location</p>
-              <p className="text-white">{formData.address}</p>
-              {formData.squareFootage && (
-                <p className="text-gray-400 text-sm">{formData.squareFootage.toLocaleString()} sq ft</p>
-              )}
-              {formData.isChurch && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                  House of Worship - 10% Off
-                </span>
-              )}
-            </div>
-
-            {/* Contact */}
-            <div className="p-4 border-b border-gray-800">
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Contact</p>
-              <p className="text-white font-medium">{formData.name}</p>
-              <p className="text-gray-400 text-sm">{formData.phone}</p>
-              {formData.email && <p className="text-gray-400 text-sm">{formData.email}</p>}
-            </div>
-
-            {/* Date */}
-            <div className="p-4 border-b border-gray-800">
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Preferred Date</p>
-              <p className="text-white">
-                {new Date(formData.date + 'T12:00:00').toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
-            </div>
-
-            {/* Pricing */}
-            <div className="p-4 bg-gray-800/50">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-400">Estimated Total</span>
-                <span className="text-3xl font-bold text-white">${price.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500 text-sm">Deposit (50%)</span>
-                <span className="text-yellow-500 font-semibold">${deposit.toLocaleString()}</span>
-              </div>
-            </div>
+        {/* Summary card */}
+        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden mb-8">
+          <div className="p-6 border-b border-zinc-800">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Service</p>
+            <p className="text-2xl font-bold text-white">
+              {serviceName}
+              {formData.addStriping && ' + Line Striping'}
+            </p>
           </div>
 
-          {/* Trust signals */}
-          <div className="space-y-3 mb-6">
-            {[
-              { icon: '✓', text: 'Free on-site inspection included' },
-              { icon: '✓', text: 'Licensed, bonded & insured' },
-              { icon: '✓', text: 'Satisfaction guaranteed' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3 text-gray-400">
-                <span className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 text-xs">
-                  {item.icon}
-                </span>
-                {item.text}
-              </div>
-            ))}
+          <div className="p-6 border-b border-zinc-800">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Location</p>
+            <p className="text-lg text-white">{formData.address}</p>
+            {formData.squareFootage && (
+              <p className="text-zinc-400 mt-1">{formData.squareFootage.toLocaleString()} sq ft</p>
+            )}
+            {formData.isChurch && (
+              <span className="inline-block mt-2 px-3 py-1 bg-green-500/20 text-green-400 text-sm font-semibold rounded-full">
+                House of Worship - 10% Off
+              </span>
+            )}
           </div>
 
-          {submitError && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-6">
-              <p className="text-red-400 text-center">{submitError}</p>
+          <div className="p-6 border-b border-zinc-800">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Contact</p>
+            <p className="text-lg font-medium text-white">{formData.name}</p>
+            <p className="text-zinc-400">{formData.phone}</p>
+            {formData.email && <p className="text-zinc-400">{formData.email}</p>}
+          </div>
+
+          <div className="p-6 border-b border-zinc-800">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Date</p>
+            <p className="text-lg text-white">
+              {new Date(formData.date + 'T12:00:00').toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+
+          <div className="p-6 bg-zinc-800/50">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-zinc-400 text-lg">Estimated Total</span>
+              <span className="text-4xl font-bold text-white">${price.toLocaleString()}</span>
             </div>
-          )}
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-500">Deposit (50%)</span>
+              <span className="text-xl font-semibold text-yellow-500">${deposit.toLocaleString()}</span>
+            </div>
+          </div>
         </div>
+
+        {/* Trust signals */}
+        <div className="space-y-4 mb-8">
+          {[
+            'Free on-site inspection included',
+            'Licensed, bonded & insured',
+            'Satisfaction guaranteed',
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-4 text-zinc-400">
+              <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="text-lg">{item}</span>
+            </div>
+          ))}
+        </div>
+
+        {submitError && (
+          <div className="p-5 bg-red-500/10 border border-red-500/30 rounded-xl mb-6">
+            <p className="text-red-400 text-center text-lg">{submitError}</p>
+          </div>
+        )}
       </div>
     )
   }
 
-  const renderSuccess = () => (
-    <div className="animate-fadeIn text-center py-12">
-      <div className="w-24 h-24 mx-auto mb-6 bg-green-500/20 rounded-full flex items-center justify-center">
-        <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  // ============================================
+  // SUCCESS
+  // ============================================
+
+  const SuccessStep = () => (
+    <div className="w-full max-w-2xl mx-auto px-4 text-center py-12">
+      <div className="w-28 h-28 mx-auto mb-8 bg-green-500/20 rounded-full flex items-center justify-center">
+        <svg className="w-14 h-14 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       </div>
 
-      <h1 className="text-3xl font-bold text-white mb-3">Quote Request Sent!</h1>
-      <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
+      <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Quote Request Sent!</h1>
+      <p className="text-xl text-zinc-400 mb-10 max-w-md mx-auto">
         Thank you! We&apos;ll review your request and get back to you within 24 hours.
       </p>
 
       <div className="space-y-4 max-w-sm mx-auto">
         <Link
           href="/"
-          className="block w-full py-4 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-xl transition-colors"
+          className="block w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-black text-lg font-bold rounded-xl transition-colors"
         >
           Back to Home
         </Link>
         <a
           href={`tel:${config.phoneRaw}`}
-          className="block w-full py-4 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-colors"
+          className="block w-full py-5 bg-zinc-800 hover:bg-zinc-700 text-white text-lg font-semibold rounded-xl transition-colors"
         >
           Call Us: {config.phone}
         </a>
@@ -958,57 +949,46 @@ export default function BookingPage() {
   )
 
   // ============================================
-  // MAIN RENDER
+  // RENDER
   // ============================================
 
-  const renderCurrentStep = () => {
-    if (submitSuccess) return renderSuccess()
-
-    switch (currentStep) {
-      case 'service': return renderServiceStep()
-      case 'project': return renderServiceStep() // fallback
-      case 'location': return renderLocationStep()
-      case 'contact': return renderContactStep()
-      case 'schedule': return renderScheduleStep()
-      case 'review': return renderReviewStep()
-      default: return renderServiceStep()
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-[#0a0908] flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0a0908]/95 backdrop-blur-md border-b border-gray-800">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-yellow-500 font-bold text-xl hover:text-yellow-400 transition-colors">
+      <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-zinc-800">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+          <Link href="/" className="text-yellow-500 font-bold text-2xl hover:text-yellow-400 transition-colors">
             {config.businessName}
           </Link>
-          <a
-            href={`tel:${config.phoneRaw}`}
-            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-          >
+          <a href={`tel:${config.phoneRaw}`} className="text-zinc-400 hover:text-white transition-colors text-lg">
             <span className="hidden sm:inline">{config.phone}</span>
-            <span className="sm:hidden">📞</span>
+            <span className="sm:hidden text-2xl">📞</span>
           </a>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 px-4 py-8 pb-32">
-        <div className="max-w-3xl mx-auto">
-          {!submitSuccess && renderProgressBar()}
-          {renderCurrentStep()}
+      {/* Main */}
+      <main className="flex-1 py-12 pb-36">
+        {!submitSuccess && <ProgressBar />}
+
+        <div className="animate-fadeIn">
+          {submitSuccess ? <SuccessStep /> :
+           currentStep === 'service' ? <ServiceStep /> :
+           currentStep === 'location' ? <LocationStep /> :
+           currentStep === 'contact' ? <ContactStep /> :
+           currentStep === 'schedule' ? <ScheduleStep /> :
+           currentStep === 'review' ? <ReviewStep /> : null}
         </div>
       </main>
 
-      {/* Fixed bottom navigation */}
+      {/* Fixed bottom nav */}
       {!submitSuccess && (
-        <div className="fixed bottom-0 left-0 right-0 bg-[#0a0908] border-t border-gray-800 p-4 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-md border-t border-zinc-800 p-5 z-50">
           <div className="max-w-3xl mx-auto flex gap-4">
             {currentStep !== 'service' && (
               <button
                 onClick={prevStep}
-                className="flex-1 sm:flex-initial py-4 px-6 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+                className="flex-shrink-0 py-5 px-8 bg-zinc-800 hover:bg-zinc-700 text-white text-lg font-semibold rounded-xl transition-all flex items-center gap-3"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -1021,10 +1001,10 @@ export default function BookingPage() {
               <button
                 onClick={nextStep}
                 disabled={!canProceed()}
-                className={`flex-1 py-4 px-6 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-5 px-8 text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${
                   canProceed()
-                    ? 'bg-yellow-500 hover:bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-500/25'
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-lg shadow-yellow-500/30'
+                    : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 }`}
               >
                 Continue
@@ -1036,16 +1016,16 @@ export default function BookingPage() {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex-1 py-4 px-6 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/25 disabled:opacity-50"
+                className="flex-1 py-5 px-8 bg-yellow-500 hover:bg-yellow-400 text-black text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-yellow-500/30 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-6 h-6 border-3 border-black border-t-transparent rounded-full animate-spin" />
                     Submitting...
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                     Submit Quote Request
@@ -1057,14 +1037,13 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* Animation styles */}
       <style jsx global>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
         }
         .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out;
+          animation: fadeIn 0.5s ease-out;
         }
       `}</style>
     </div>
