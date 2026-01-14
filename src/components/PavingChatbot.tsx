@@ -69,13 +69,13 @@ const STRIPING_PRICING = {
   minimum: 500,        // $500 minimum job
 }
 
-// Predefined lot sizes for line striping with flat pricing
+// Predefined lot sizes for line striping with tiered pricing
 const STRIPING_LOT_SIZES = [
   { id: 'small', label: 'Small Lot', description: 'Less than 20 spaces', price: 500 },
-  { id: 'medium', label: 'Medium Lot', description: '20-100 spaces', price: 1000 },
-  { id: 'large', label: 'Large Lot', description: '100-200 spaces', price: 2000 },
-  { id: 'xlarge', label: 'Extra Large', description: '200+ spaces', price: 0 },
-  { id: 'custom', label: 'Custom Quote', description: 'Complex or unique needs', price: 0 },
+  { id: 'medium', label: 'Medium Lot', description: '20-50 spaces', price: 750 },
+  { id: 'large', label: 'Large Lot', description: '51-100 spaces', price: 1150 },
+  { id: 'xlarge', label: 'Extra Large', description: '101-250 spaces', price: 2000 },
+  { id: 'custom', label: '250+ Spaces', description: 'Call for custom pricing', price: 0 },
 ]
 
 // Bundle discount when adding striping to sealcoating
@@ -643,7 +643,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     // Custom quote or extra large - redirect to call
     if (sizeId === 'custom' || sizeId === 'xlarge') {
-      await addBotMessage(`For ${sizeId === 'xlarge' ? 'lots with 200+ spaces' : 'custom or complex jobs'}, please call us at ${config.phone} for a personalized quote.`)
+      await addBotMessage(`For ${sizeId === 'xlarge' ? 'lots with 250+ spaces' : 'custom or complex jobs'}, please call us at ${config.phone} for a personalized quote.`)
       setStep(STEPS.COMPLETE)
       return
     }
@@ -706,7 +706,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     // Custom quote or extra large - redirect to call
     if (sizeId === 'custom' || sizeId === 'xlarge') {
-      await addBotMessage(`For ${sizeId === 'xlarge' ? 'lots with 200+ spaces' : 'custom striping needs'}, please call us at ${config.phone} for a personalized quote.`)
+      await addBotMessage(`For ${sizeId === 'xlarge' ? 'lots with 250+ spaces' : 'custom striping needs'}, please call us at ${config.phone} for a personalized quote.`)
       setStep(STEPS.COMPLETE)
       return
     }
