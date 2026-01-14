@@ -564,8 +564,10 @@ p {
    SERVICES SECTION
    ============================================ */
 .services {
+    position: relative;
     padding: var(--section-padding) 0;
     background-color: var(--black-light);
+    overflow: hidden;
 }
 
 .services-grid {

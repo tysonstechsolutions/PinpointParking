@@ -339,7 +339,7 @@ export default function RootLayout({
       </head>
       <body className={`${oswald.variable} ${sourceSans.variable}`} style={{ fontFamily: 'var(--font-source-sans), sans-serif' }}>
         <Header />
-        <main>{children}</main>
+        <main style={{ position: 'relative', overflow: 'hidden' }}>{children}</main>
         <Footer />
         <ChatWidget />
         <ServiceWorkerRegistration />
