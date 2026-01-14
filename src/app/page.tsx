@@ -81,10 +81,10 @@ export default function Home() {
         <HeroVideo />
         <div className="hero-overlay"></div>
         <div className="container hero-content">
-          <div className="hero-badge">Mount Vernon&apos;s #1 Rated Asphalt Contractor</div>
+          <div className="hero-badge">🎖️ Disabled Army Veteran Owned • Local Crew • Not a Middleman</div>
           <h1>Get Your FREE Asphalt Quote in 24 Hours</h1>
           <p className="hero-subtitle">
-            Professional paving, sealcoating &amp; repairs for driveways and parking lots. Serving Mount Vernon and 45 miles of Southern Illinois. Same-week scheduling available.
+            We&apos;re not a broker or general contractor—our own crew does the work. Professional paving, sealcoating &amp; repairs for driveways and parking lots throughout Southern Illinois.
           </p>
           <div className="hero-cta">
             <Link href="/book" className="btn btn-primary btn-lg">
@@ -97,12 +97,12 @@ export default function Home() {
           <div className="hero-trust">
             <div className="trust-item">
               <span className="trust-number">100%</span>
-              <span className="trust-label">Satisfaction Guaranteed</span>
+              <span className="trust-label">Our Own Crew</span>
             </div>
             <div className="trust-divider"></div>
             <div className="trust-item">
-              <span className="trust-number">24hr</span>
-              <span className="trust-label">Quote Turnaround</span>
+              <span className="trust-number">Local</span>
+              <span className="trust-label">Mount Vernon Based</span>
             </div>
             <div className="trust-divider"></div>
             <div className="trust-item">
@@ -163,8 +163,8 @@ export default function Home() {
           <div className="why-us-content">
             <div className="why-us-text">
               <span className="section-label">Why Pinpoint Parking</span>
-              <h2>Precision Work. Lasting Results.</h2>
-              <p>We&apos;re not just another paving company. Pinpoint Parking combines technical expertise with genuine care for every project—whether it&apos;s a residential driveway or a commercial parking lot.</p>
+              <h2>Your Local Crew. Not a Middleman.</h2>
+              <p>When you hire Pinpoint Parking, you&apos;re hiring us—not a subcontractor we found online. Our own crew shows up, does the work, and stands behind it. No brokers, no hand-offs, no surprises.</p>
 
               <div className="benefits-list">
                 <div className="benefit-item">
@@ -201,8 +201,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div className="benefit-content">
-                    <h4>Local Expertise</h4>
-                    <p>We understand Southern Illinois soil conditions, drainage needs, and climate challenges.</p>
+                    <h4>We Do the Work Ourselves</h4>
+                    <p>No subcontractors, no outsourcing. Our own trained crew handles every project from start to finish.</p>
                   </div>
                 </div>
 
@@ -214,8 +214,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div className="benefit-content">
-                    <h4>On-Time Completion</h4>
-                    <p>We respect your schedule. Projects completed on time with minimal disruption to your property.</p>
+                    <h4>Local &amp; Accountable</h4>
+                    <p>We live and work in Southern Illinois. Our reputation depends on every job, so we treat your property like our own.</p>
                   </div>
                 </div>
               </div>
@@ -306,8 +306,8 @@ export default function Home() {
 
             <div className="process-step">
               <div className="step-number">03</div>
-              <h3>Professional Work</h3>
-              <p>Our experienced crew completes your project on schedule using quality materials.</p>
+              <h3>Our Crew Does the Work</h3>
+              <p>No subcontractors—our own trained team completes your project on schedule using quality materials.</p>
             </div>
 
             <div className="process-connector"></div>
@@ -325,8 +325,8 @@ export default function Home() {
       <section className="cta-section">
         <div className="cta-pattern"></div>
         <div className="container cta-content">
-          <h2>Get Your FREE Quote Today</h2>
-          <p>Most quotes delivered within 24 hours. We measure your property using satellite imagery - no waiting around for an on-site visit. 100% free, no obligation.</p>
+          <h2>Talk Directly to Your Local Paving Crew</h2>
+          <p>No call centers, no salespeople—when you reach out, you&apos;re talking to the same local team that will do your work. Get your free quote within 24 hours.</p>
           <div className="cta-buttons">
             <Link href="/book" className="btn btn-dark btn-lg">
               Get FREE Estimate Now
