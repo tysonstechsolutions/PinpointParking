@@ -80,7 +80,6 @@ export default function Home() {
       <section className="hero">
         <HeroVideo />
         <div className="hero-overlay"></div>
-        <div className="hero-pattern"></div>
         <div className="container hero-content">
           <div className="hero-badge">Mount Vernon&apos;s #1 Rated Asphalt Contractor</div>
           <h1>Get Your FREE Asphalt Quote in 24 Hours</h1>
