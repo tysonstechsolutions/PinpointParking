@@ -468,8 +468,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const project = config.projectTypes.find(p => p.id === projectId)!
     setBookingData(prev => ({ ...prev, projectType: projectId, projectTypeName: project.label, discount: project.discount || 0 }))
     addUserMessage(project.label)
-    await addBotMessage("What's the current condition of the pavement?")
-    setStep(STEPS.CONDITION)
+    await addBotMessage("Great! Enter your contact info and address below:")
+    setStep(STEPS.ADDRESS)
   }
 
   // Sealcoat address - just address, goes to map first
@@ -622,14 +622,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setBookingData(prev => ({ ...prev, squareFootage: 0, estimateLow: INSPECTION_FEE, estimateHigh: INSPECTION_FEE }))
     await addBotMessage(`Got it! We'll send someone out to measure and provide an exact quote.\n\nThe inspection fee is $50, which will be credited toward your project if you decide to proceed.\n\nWhen would you like us to come out?`)
     setStep(STEPS.DATE)
-  }
-
-  const handleConditionSelect = async (conditionId: string) => {
-    const condition = config.conditions.find(c => c.id === conditionId)!
-    setBookingData(prev => ({ ...prev, condition: conditionId }))
-    addUserMessage(condition.label)
-    await addBotMessage("Great! Enter your contact info and address below:")
-    setStep(STEPS.ADDRESS)
   }
 
   const handleStripingTypeSelect = async (typeId: string) => {
@@ -1246,10 +1238,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                       borderLeft: `3px solid ${COLORS.yellow}`,
                     }}>
                       <p style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
-                        {drawnArea ? '✓ Area outlined - drag corners to adjust' : '📍 Click points to outline the area'}
+                        {drawnArea ? '✓ Area outlined - drag corners to adjust' : '📍 Outline your asphalt area'}
                       </p>
                       <p style={{ color: COLORS.gray, fontSize: '12px', margin: 0 }}>
-                        {drawnArea ? 'Click Redraw to start over' : 'Click each corner, then close the shape'}
+                        {drawnArea ? 'Click Redraw to start over, then Confirm & Continue' : 'Click to outline, connect back to start, then Confirm & Continue'}
                       </p>
                     </div>
 
@@ -1296,7 +1288,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                           border: `2px solid ${drawnArea ? COLORS.yellow : COLORS.gray}`,
                         }}
                       >
-                        Confirm Area
+                        Confirm & Continue
                       </button>
                     </div>
 
@@ -1349,34 +1341,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     </div>
                   </>
                 )}
-              </div>
-            )}
-
-            {/* CONDITION */}
-            {!isTyping && step === STEPS.CONDITION && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
-                {config.conditions.map(condition => (
-                  <button
-                    key={condition.id}
-                    onClick={() => handleConditionSelect(condition.id)}
-                    style={{
-                      width: '100%',
-                      borderRadius: '12px',
-                      padding: '16px',
-                      textAlign: 'left',
-                      transition: 'all 0.2s',
-                      border: `2px solid ${COLORS.yellow}`,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                      backgroundColor: COLORS.blackLight,
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLORS.blackLight; e.currentTarget.style.color = '#fff' }}
-                  >
-                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '15px', margin: 0 }}>{condition.label}</p>
-                    <p style={{ fontSize: '13px', marginTop: '4px', color: COLORS.gray, margin: '4px 0 0 0' }}>{condition.description}</p>
-                  </button>
-                ))}
               </div>
             )}
 

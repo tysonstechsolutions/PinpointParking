@@ -10,11 +10,10 @@ const STEPS = {
   PROJECT_TYPE: 2,
   ADDRESS: 3,
   MEASURING: 4,
-  CONDITION: 5,
-  DATE: 6,
-  CONTACT: 7,
-  SUMMARY: 8,
-  COMPLETE: 9
+  DATE: 5,
+  CONTACT: 6,
+  SUMMARY: 7,
+  COMPLETE: 8
 }
 
 const STEP_LABELS = [
@@ -22,7 +21,6 @@ const STEP_LABELS = [
   'Type',
   'Address',
   'Measure',
-  'Condition',
   'Date',
   'Contact',
   'Review'
@@ -136,27 +134,17 @@ export default function BookingPage() {
     setShowMap(true)
   }
 
-  const handleConditionSelect = (conditionId: string) => {
-    const cond = config.conditions.find(c => c.id === conditionId)
-    if (cond) {
-      const adjustment = cond.adjustment || 0
-      let newLow = bookingData.estimateLow
-      let newHigh = bookingData.estimateHigh
+  const INSPECTION_FEE = 50
 
-      if (adjustment > 0) {
-        newLow = Math.round(newLow * (1 + adjustment))
-        newHigh = Math.round(newHigh * (1 + adjustment))
-      }
-
-      setBookingData(prev => ({
-        ...prev,
-        condition: conditionId,
-        conditionLabel: cond.label,
-        estimateLow: newLow,
-        estimateHigh: newHigh,
-      }))
-      setStep(STEPS.DATE)
-    }
+  const handleRequestInspection = () => {
+    setShowMap(false)
+    setBookingData(prev => ({
+      ...prev,
+      squareFootage: 0,
+      estimateLow: INSPECTION_FEE,
+      estimateHigh: INSPECTION_FEE,
+    }))
+    setStep(STEPS.DATE)
   }
 
   const handleDateSelect = (date: string, label: string) => {
@@ -304,7 +292,7 @@ export default function BookingPage() {
         estimateHigh: estimate.high,
       }))
       setShowMap(false)
-      setStep(STEPS.CONDITION)
+      setStep(STEPS.DATE) // Skip condition step - go directly to date
     }
   }
 
@@ -585,10 +573,10 @@ export default function BookingPage() {
               borderBottom: '1px solid #302d2a',
             }}>
               <h2 style={{ color: '#FAF8F5', fontSize: '18px', margin: 0 }}>
-                Draw around the area to measure
+                Outline Your Asphalt Area
               </h2>
               <p style={{ color: '#9C9690', fontSize: '14px', margin: '4px 0 0' }}>
-                Click to add points, close the shape to finish
+                Click on the map to outline your asphalt to the best of your ability. Connect back to your starting point to complete the shape, then click &quot;Confirm &amp; Continue&quot;.
               </p>
             </div>
 
@@ -614,111 +602,67 @@ export default function BookingPage() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => { setShowMap(false); setStep(STEPS.ADDRESS) }}
+                    style={{
+                      padding: '14px 24px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #302d2a',
+                      borderRadius: '8px',
+                      color: '#9C9690',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={handleClearPolygon}
+                    style={{
+                      padding: '14px 24px',
+                      backgroundColor: '#302d2a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#FAF8F5',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Clear & Redraw
+                  </button>
+                  <button
+                    onClick={handleConfirmDrawnArea}
+                    disabled={!drawnArea}
+                    style={{
+                      flex: 1,
+                      padding: '14px 24px',
+                      backgroundColor: drawnArea ? '#22c55e' : '#3A3733',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      cursor: drawnArea ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    Confirm & Continue →
+                  </button>
+                </div>
                 <button
-                  onClick={() => { setShowMap(false); setStep(STEPS.ADDRESS) }}
+                  onClick={handleRequestInspection}
                   style={{
-                    padding: '14px 24px',
+                    padding: '12px 24px',
                     backgroundColor: 'transparent',
                     border: '1px solid #302d2a',
                     borderRadius: '8px',
                     color: '#9C9690',
                     cursor: 'pointer',
+                    fontSize: '14px',
                   }}
                 >
-                  ← Back
-                </button>
-                <button
-                  onClick={handleClearPolygon}
-                  style={{
-                    padding: '14px 24px',
-                    backgroundColor: '#302d2a',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#FAF8F5',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Clear & Redraw
-                </button>
-                <button
-                  onClick={handleConfirmDrawnArea}
-                  disabled={!drawnArea}
-                  style={{
-                    flex: 1,
-                    padding: '14px 24px',
-                    backgroundColor: drawnArea ? '#22c55e' : '#3A3733',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    cursor: drawnArea ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  Use This Measurement →
+                  Have us come measure instead ($50 inspection fee)
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* STEP 5: CONDITION */}
-        {step === STEPS.CONDITION && (
-          <div>
-            <h1 style={{ color: '#FAF8F5', fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
-              Current pavement condition?
-            </h1>
-            <p style={{ color: '#9C9690', marginBottom: '32px' }}>
-              This affects prep work and final pricing
-            </p>
-
-            <div style={{ display: 'grid', gap: '12px' }}>
-              {config.conditions.map(cond => (
-                <button
-                  key={cond.id}
-                  onClick={() => handleConditionSelect(cond.id)}
-                  style={{
-                    padding: '20px 24px',
-                    backgroundColor: '#252220',
-                    border: '2px solid #302d2a',
-                    borderRadius: '12px',
-                    color: '#FAF8F5',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.borderColor = '#22c55e')}
-                  onMouseOut={e => (e.currentTarget.style.borderColor = '#302d2a')}
-                >
-                  <div>
-                    <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>{cond.label}</div>
-                    <div style={{ color: '#9C9690', fontSize: '14px' }}>{cond.description}</div>
-                  </div>
-                  {cond.adjustment > 0 && (
-                    <span style={{ color: '#f59e0b', fontSize: '14px' }}>
-                      +{Math.round(cond.adjustment * 100)}%
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setStep(STEPS.MEASURING)}
-              style={{
-                marginTop: '24px',
-                padding: '12px 24px',
-                backgroundColor: 'transparent',
-                border: '1px solid #302d2a',
-                borderRadius: '8px',
-                color: '#9C9690',
-                cursor: 'pointer',
-              }}
-            >
-              ← Back
-            </button>
           </div>
         )}
 
@@ -756,7 +700,7 @@ export default function BookingPage() {
             </div>
 
             <button
-              onClick={() => setStep(STEPS.CONDITION)}
+              onClick={() => { setStep(STEPS.ADDRESS); setShowMap(false) }}
               style={{
                 marginTop: '24px',
                 padding: '12px 24px',
@@ -892,11 +836,7 @@ export default function BookingPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: '1px solid #302d2a' }}>
                   <span style={{ color: '#9C9690' }}>Area</span>
-                  <span style={{ color: '#FAF8F5' }}>{bookingData.squareFootage.toLocaleString()} sq ft</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: '1px solid #302d2a' }}>
-                  <span style={{ color: '#9C9690' }}>Condition</span>
-                  <span style={{ color: '#FAF8F5' }}>{bookingData.conditionLabel}</span>
+                  <span style={{ color: '#FAF8F5' }}>{bookingData.squareFootage > 0 ? `${bookingData.squareFootage.toLocaleString()} sq ft` : 'On-site measurement'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: '1px solid #302d2a' }}>
                   <span style={{ color: '#9C9690' }}>Requested Date</span>

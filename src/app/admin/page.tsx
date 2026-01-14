@@ -147,20 +147,29 @@ export default function AdminPage() {
   const deleteJob = async (jobId: number) => {
     if (!confirm('Are you sure you want to delete this job? This cannot be undone.')) return
     try {
-      await fetch(
+      const response = await fetch(
         `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
         {
           method: 'DELETE',
           headers: {
             'apikey': config.supabase.anonKey,
             'Authorization': `Bearer ${config.supabase.anonKey}`,
+            'Prefer': 'return=minimal',
           },
         }
       )
-      setSelectedJob(null)
-      fetchJobs()
+      if (response.ok) {
+        // Remove from local state immediately for instant UI update
+        setJobs(prev => prev.filter(job => job.id !== jobId))
+        setSelectedJob(null)
+      } else {
+        const errorText = await response.text()
+        console.error('Error deleting job:', response.status, errorText)
+        alert('Failed to delete job. Please try again.')
+      }
     } catch (error) {
       console.error('Error deleting job:', error)
+      alert('Failed to delete job. Please try again.')
     }
   }
 
