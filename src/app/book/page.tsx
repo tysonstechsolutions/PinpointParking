@@ -110,8 +110,10 @@ export default function BookingPage() {
 
   const calculateStripingPrice = (regular: number, handicap: number): number => {
     const service = config.services.find(s => s.id === 'linestriping')!
-    const regularPrice = regular * service.pricePerStall
-    const handicapPrice = handicap * (service.pricePerStall * 2 + service.pricePerSymbol)
+    const pricePerStall = service.pricePerStall || 4
+    const pricePerSymbol = service.pricePerSymbol || 35
+    const regularPrice = regular * pricePerStall
+    const handicapPrice = handicap * (pricePerStall * 2 + pricePerSymbol)
     return Math.max(Math.round(regularPrice + handicapPrice), service.minPrice)
   }
 
