@@ -45,7 +45,6 @@ const STEPS = {
   CONDITION: 'condition',
   STRIPING_TYPE: 'striping_type',
   STRIPING_SIZE: 'striping_size',
-  SEALCOATING_SIZE: 'sealcoating_size',
   ADD_STRIPING: 'add_striping',
   BUNDLE_STRIPING_SIZE: 'bundle_striping_size',
   DATE: 'date',
@@ -75,15 +74,6 @@ const STRIPING_LOT_SIZES = [
   { id: 'large', label: 'Large Lot', description: '100-200 spaces', price: 2000 },
   { id: 'xlarge', label: 'Extra Large', description: '200+ spaces', price: 0 },
   { id: 'custom', label: 'Custom Quote', description: 'Complex or unique needs', price: 0 },
-]
-
-// Predefined lot sizes for sealcoating with flat pricing
-const SEALCOATING_LOT_SIZES = [
-  { id: 'mini', label: 'Driveway / Mini Lot', description: 'Less than 3,000 sq ft (<10 spaces)', price: 750 },
-  { id: 'small', label: 'Small Lot', description: '3,000-10,000 sq ft (10-30 spaces)', price: 2500 },
-  { id: 'medium', label: 'Medium Lot', description: '10,000-25,000 sq ft (30-75 spaces)', price: 5500 },
-  { id: 'large', label: 'Large Lot', description: '25,000-50,000 sq ft (75-150 spaces)', price: 9000 },
-  { id: 'xlarge', label: 'Extra Large', description: '50,000+ sq ft (150+ spaces)', price: 0 },
 ]
 
 // Bundle discount when adding striping to sealcoating
@@ -463,9 +453,9 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       await addBotMessage("Are the existing lines clearly visible?")
       setStep(STEPS.STRIPING_TYPE)
     } else if (serviceId === 'sealcoating') {
-      // Sealcoating goes straight to lot size selection
-      await addBotMessage("What size is the area to be sealed?")
-      setStep(STEPS.SEALCOATING_SIZE)
+      // Sealcoating - ask about adding striping first, then go to address/map
+      await addBotMessage("Would you like to add line striping to your sealcoating? (10% bundle discount)")
+      setStep(STEPS.ADD_STRIPING)
     } else {
       await addBotMessage("What type of property is this?")
       setStep(STEPS.PROJECT_TYPE)
@@ -505,25 +495,17 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setContactEmail('')
     setContactPhone('')
 
-    // For line striping and sealcoating, skip map measuring - we already have the estimate from size selection
-    if (bookingData.service === 'linestriping' || bookingData.service === 'sealcoating') {
+    // For line striping only, skip map measuring - we already have the estimate from space counts
+    if (bookingData.service === 'linestriping') {
       const estimate = bookingData.estimateLow
       const deposit = Math.round(estimate * 0.5)
 
-      // Build service description for sealcoating bundles
-      let serviceDesc = ''
-      if (bookingData.service === 'sealcoating' && includeStriping) {
-        serviceDesc = `Sealcoating + Striping Bundle`
-      } else if (bookingData.service === 'sealcoating') {
-        serviceDesc = `Sealcoating`
-      } else {
-        serviceDesc = `Line Striping`
-      }
-
-      await addBotMessage(`Thanks ${name}!\n\n${serviceDesc}: $${estimate.toLocaleString()}\nDeposit: $${deposit.toLocaleString()}\n\nWhen would you like us to come out?`)
+      await addBotMessage(`Thanks ${name}!\n\nLine Striping: $${estimate.toLocaleString()}\nDeposit: $${deposit.toLocaleString()}\n\nWhen would you like us to come out?`)
       setStep(STEPS.DATE)
       return
     }
+
+    // Sealcoating goes to map measuring to calculate price based on actual sq ft
 
     setIsAnalyzing(true)
 
@@ -563,10 +545,45 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const handleMapConfirm = async () => {
     if (!drawnArea) return
 
-    // Calculate estimate with condition/striping type adjustment
+    // For sealcoating, use the tier-based pricing
+    if (bookingData.service === 'sealcoating') {
+      const sealPrice = calculateSealcoatingPrice(drawnArea)
+      setSealcoatingPrice(sealPrice)
+
+      let totalPrice = sealPrice
+      let message = ''
+
+      if (includeStriping && bundleStripingPrice > 0) {
+        // Bundle with striping
+        totalPrice = sealPrice + bundleStripingPrice
+        const deposit = Math.round(totalPrice * 0.5)
+        message = `Area: ${drawnArea.toLocaleString()} sq ft\n\n` +
+          `Sealcoating: $${sealPrice.toLocaleString()}\n` +
+          `Striping (10% off): $${bundleStripingPrice.toLocaleString()}\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `Total: $${totalPrice.toLocaleString()}\n` +
+          `Deposit: $${deposit.toLocaleString()}\n\n` +
+          `When would you like us to come out?`
+      } else {
+        // Sealcoating only
+        const deposit = Math.round(sealPrice * 0.5)
+        message = `Area: ${drawnArea.toLocaleString()} sq ft\n\n` +
+          `Sealcoating: $${sealPrice.toLocaleString()}\n` +
+          `Deposit: $${deposit.toLocaleString()}\n\n` +
+          `When would you like us to come out?`
+      }
+
+      setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: totalPrice, estimateHigh: totalPrice }))
+      addUserMessage(`Area confirmed: ${drawnArea.toLocaleString()} sq ft`)
+      await addBotMessage(`Thanks ${bookingData.name}!\n\n${message}`)
+      setStep(STEPS.DATE)
+      return
+    }
+
+    // For paving, use the original estimate calculation
     const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
 
-    // Apply condition adjustment (for paving/sealcoating only - line striping uses space-based pricing)
+    // Apply condition adjustment
     const condition = config.conditions.find(c => c.id === bookingData.condition)
     if (condition && condition.adjustment > 0) {
       estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
@@ -651,31 +668,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setStep(STEPS.ADDRESS)
   }
 
-  const handleSealcoatingSizeSelect = async (sizeId: string) => {
-    const lotSize = SEALCOATING_LOT_SIZES.find(s => s.id === sizeId)!
-    addUserMessage(lotSize.label)
-
-    // Extra large - redirect to call
-    if (sizeId === 'xlarge') {
-      await addBotMessage(`For lots over 50,000 sq ft, please call us at ${config.phone} for a personalized quote.`)
-      setStep(STEPS.COMPLETE)
-      return
-    }
-
-    const sealPrice = lotSize.price
-    setSealcoatingPrice(sealPrice)
-    const deposit = Math.round(sealPrice * 0.5)
-
-    setBookingData(prev => ({
-      ...prev,
-      estimateLow: sealPrice,
-      estimateHigh: sealPrice,
-    }))
-
-    await addBotMessage(`${lotSize.description}\nSealcoating: $${sealPrice.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nWould you like to add line striping? (10% bundle discount)`)
-    setStep(STEPS.ADD_STRIPING)
-  }
-
   const handleAddStripingChoice = async (addStriping: boolean) => {
     if (addStriping) {
       addUserMessage("Yes, add striping")
@@ -690,6 +682,28 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }
   }
 
+  // Calculate sealcoating price based on square footage using tier pricing
+  const calculateSealcoatingPrice = (sqft: number): number => {
+    if (sqft < 3000) return 750
+    if (sqft < 10000) {
+      // Scale between $750 and $2,500 for 0-10k sqft
+      const ratio = (sqft - 3000) / 7000
+      return Math.round(750 + (ratio * 1750))
+    }
+    if (sqft < 25000) {
+      // Scale between $2,500 and $5,500 for 10k-25k sqft
+      const ratio = (sqft - 10000) / 15000
+      return Math.round(2500 + (ratio * 3000))
+    }
+    if (sqft < 50000) {
+      // Scale between $5,500 and $9,000 for 25k-50k sqft
+      const ratio = (sqft - 25000) / 25000
+      return Math.round(5500 + (ratio * 3500))
+    }
+    // Over 50k - custom pricing, but estimate at ~$0.18/sqft
+    return Math.round(sqft * 0.18)
+  }
+
   const handleBundleStripingSizeSelect = async (sizeId: string) => {
     const lotSize = STRIPING_LOT_SIZES.find(s => s.id === sizeId)!
     addUserMessage(lotSize.label)
@@ -701,22 +715,12 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
       return
     }
 
-    // Apply 10% bundle discount to striping
+    // Store the striping price (with 10% discount) - we'll add sealcoating after map measuring
     const stripingBase = lotSize.price
     const stripingDiscounted = Math.round(stripingBase * (1 - BUNDLE_DISCOUNT))
     setBundleStripingPrice(stripingDiscounted)
 
-    const totalPrice = sealcoatingPrice + stripingDiscounted
-    const savings = stripingBase - stripingDiscounted
-    const deposit = Math.round(totalPrice * 0.5)
-
-    setBookingData(prev => ({
-      ...prev,
-      estimateLow: totalPrice,
-      estimateHigh: totalPrice,
-    }))
-
-    await addBotMessage(`Bundle Summary:\n• Sealcoating: $${sealcoatingPrice.toLocaleString()}\n• Striping: $${stripingDiscounted.toLocaleString()} (was $${stripingBase.toLocaleString()})\n• You save: $${savings.toLocaleString()}\n\nTotal: $${totalPrice.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nEnter your contact info and address below:`)
+    await addBotMessage(`Great! Striping: $${stripingDiscounted.toLocaleString()} (10% bundle discount applied)\n\nNow enter your contact info and address so we can measure the sealcoating area:`)
     setStep(STEPS.ADDRESS)
   }
 
@@ -1389,63 +1393,6 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     Prices include +50% for new layout
                   </p>
                 )}
-              </div>
-            )}
-
-            {/* SEALCOATING SIZE */}
-            {!isTyping && step === STEPS.SEALCOATING_SIZE && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
-                {SEALCOATING_LOT_SIZES.map(size => {
-                  const hasPrice = size.price > 0
-                  const deposit = Math.round(size.price * 0.5)
-
-                  return (
-                    <button
-                      key={size.id}
-                      onClick={() => handleSealcoatingSizeSelect(size.id)}
-                      style={{
-                        width: '100%',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        textAlign: 'left',
-                        border: `2px solid ${COLORS.blackMedium}`,
-                        backgroundColor: COLORS.blackLight,
-                        color: 'white',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = COLORS.yellow
-                        e.currentTarget.style.transform = 'scale(1.02)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = COLORS.blackMedium
-                        e.currentTarget.style.transform = 'scale(1)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{size.label}</div>
-                          <div style={{ color: COLORS.gray, fontSize: '13px', marginTop: '4px' }}>{size.description}</div>
-                        </div>
-                        {hasPrice ? (
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '18px' }}>
-                              ${size.price.toLocaleString()}
-                            </div>
-                            <div style={{ color: COLORS.gray, fontSize: '12px' }}>
-                              Deposit: ${deposit.toLocaleString()}
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '14px' }}>
-                            Call for Quote
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
               </div>
             )}
 
