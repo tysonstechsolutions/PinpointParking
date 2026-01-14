@@ -779,12 +779,16 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                         const sqft = parseInt(manualSqFt)
                         if (sqft && sqft > 0) {
                           setDrawnArea(sqft)
-                          setBookingData(prev => ({ ...prev, squareFootage: sqft }))
-                          addUserMessage(`${sqft.toLocaleString()} sq ft`)
+                          // Calculate estimate with condition adjustment
+                          const condition = config.conditions.find(c => c.id === bookingData.condition)
                           const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
-                          setBookingData(prev => ({ ...prev, estimateLow: estimate.low, estimateHigh: estimate.high }))
-                          addBotMessage(`Got it! ${sqft.toLocaleString()} square feet. What's the current condition?`)
-                          setStep(STEPS.CONDITION)
+                          if (condition && condition.adjustment > 0) {
+                            estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
+                          }
+                          setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high }))
+                          addUserMessage(`${sqft.toLocaleString()} sq ft`)
+                          addBotMessage(`Thanks ${bookingData.name}! Your estimated price is:\n\n$${estimate.low.toLocaleString()} - $${estimate.high.toLocaleString()}\n\nWhen would you like us to come out?`)
+                          setStep(STEPS.DATE)
                         } else {
                           addBotMessage('Please enter a valid square footage.')
                         }
@@ -806,6 +810,38 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                     <p style={{ color: COLORS.gray, fontSize: '12px', textAlign: 'center', margin: 0 }}>
                       Tip: A typical 2-car driveway is 400-600 sq ft
                     </p>
+
+                    {/* In-Person Inspection Option */}
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      backgroundColor: COLORS.blackMedium,
+                      border: `1px solid ${COLORS.gray}`,
+                    }}>
+                      <p style={{ color: COLORS.gray, fontSize: '12px', margin: '0 0 8px 0', textAlign: 'center' }}>
+                        Not sure of the size? We can come measure for you!
+                      </p>
+                      <button
+                        onClick={handleRequestInspection}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          backgroundColor: 'transparent',
+                          color: COLORS.yellow,
+                          border: `2px solid ${COLORS.yellow}`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.yellow; e.currentTarget.style.color = COLORS.black }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = COLORS.yellow }}
+                      >
+                        Request In-Person Inspection - $50
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
