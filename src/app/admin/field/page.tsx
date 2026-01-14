@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { cacheJobs, getCachedJobs, addPendingAction, syncPendingActions } from '@/lib/offlineStorage'
+import AdminNav from '@/components/AdminNav'
 
 interface Job {
   id: number
@@ -134,6 +135,8 @@ export default function FieldModePage() {
       backgroundColor: '#1a1714',
       paddingBottom: '80px',
     }}>
+      <AdminNav />
+
       {/* Header */}
       <div style={{
         backgroundColor: '#252220',

@@ -547,6 +547,38 @@ export default function AdminPage() {
                         </button>
                       </>
                     )}
+                    {job.status === 'cancelled' && (
+                      <button
+                        onClick={() => deleteJob(job.id)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#7f1d1d',
+                          color: '#fca5a5',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🗑 Delete
+                      </button>
+                    )}
+                    {job.status !== 'cancelled' && job.status !== 'completed' && (
+                      <button
+                        onClick={() => deleteJob(job.id)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: 'transparent',
+                          color: '#9C9690',
+                          border: '1px solid #3A3733',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🗑
+                      </button>
+                    )}
                     {job.status === 'approved' && (
                       <button
                         onClick={() => updateStatus(job.id, 'scheduled')}
@@ -921,6 +953,24 @@ export default function AdminPage() {
                     }}
                   >
                     ✓ Mark Complete
+                  </button>
+                )}
+                {selectedJob.status === 'cancelled' && (
+                  <button
+                    onClick={() => deleteJob(selectedJob.id)}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#7f1d1d',
+                      color: '#fca5a5',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🗑 Permanently Delete
                   </button>
                 )}
                 <button
