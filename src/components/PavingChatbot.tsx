@@ -44,7 +44,7 @@ const STEPS = {
   MAP_MEASURING: 'map_measuring',
   CONDITION: 'condition',
   STRIPING_TYPE: 'striping_type',
-  STRIPING_DETAILS: 'striping_details',
+  STRIPING_SIZE: 'striping_size',
   DATE: 'date',
   CONTACT: 'contact',
   SUMMARY: 'summary',
@@ -53,8 +53,8 @@ const STEPS = {
 }
 
 const STRIPING_OPTIONS = [
-  { id: 'restripe', label: 'Yes, lines are visible', description: 'Re-painting existing lines', multiplier: 1 },
-  { id: 'new_layout', label: 'No, need new layout', description: 'Fresh layout or lines not visible', multiplier: 1.5 },
+  { id: 'restripe', label: 'Yes, lines are visible', description: 'Re-stripe existing lines', multiplier: 1 },
+  { id: 'new_layout', label: 'No, need new layout', description: 'New layout (+50%)', multiplier: 1.5 },
 ]
 
 // Line striping per-unit pricing
@@ -64,6 +64,15 @@ const STRIPING_PRICING = {
   arrow: 20,           // $20 per arrow
   minimum: 500,        // $500 minimum job
 }
+
+// Predefined lot sizes for line striping
+const STRIPING_LOT_SIZES = [
+  { id: 'small', label: 'Small Lot', description: '10-25 spaces', spaces: 20, handicap: 2, arrows: 2 },
+  { id: 'medium', label: 'Medium Lot', description: '25-50 spaces', spaces: 40, handicap: 3, arrows: 4 },
+  { id: 'large', label: 'Large Lot', description: '50-100 spaces', spaces: 75, handicap: 4, arrows: 6 },
+  { id: 'xlarge', label: 'Extra Large', description: '100+ spaces', spaces: 120, handicap: 6, arrows: 8 },
+  { id: 'custom', label: 'Custom Quote', description: 'Complex or unique needs', spaces: 0, handicap: 0, arrows: 0 },
+]
 
 interface PavingChatbotProps {
   onClose?: () => void
@@ -468,7 +477,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
     // For line striping, skip map measuring - we already have the estimate from space counts
     if (bookingData.service === 'linestriping') {
-      const estimate = bookingData.estimateLow // Already calculated in handleStripingDetailsSubmit
+      const estimate = bookingData.estimateLow // Already calculated in handleStripingSizeSelect
       await addBotMessage(`Thanks ${name}! Your quote is:\n\n$${estimate.toLocaleString()}\n\nWhen would you like us to come out?`)
       setStep(STEPS.DATE)
       return
@@ -549,55 +558,57 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     setBookingData(prev => ({ ...prev, condition: typeId }))
     setStripingMultiplier(stripingType.multiplier)
     addUserMessage(stripingType.label)
-    await addBotMessage("How many parking spaces need to be striped?\n\nEnter the counts below:")
-    setStep(STEPS.STRIPING_DETAILS)
+    await addBotMessage("What size is the parking lot?")
+    setStep(STEPS.STRIPING_SIZE)
   }
 
-  const calculateStripingEstimate = () => {
+  // Calculate estimate for a given lot size
+  const calculateStripingEstimateForLot = (spaces: number, handicap: number, arrows: number, multiplier: number) => {
     // Calculate base cost for regular spaces (subject to minimum)
-    let regularSpacesCost = stripingRegularSpaces * STRIPING_PRICING.regularSpace
-
-    // Apply $500 minimum to the regular spaces base
+    let regularSpacesCost = spaces * STRIPING_PRICING.regularSpace
     regularSpacesCost = Math.max(regularSpacesCost, STRIPING_PRICING.minimum)
 
-    // Add handicap spaces and arrows on top (not subject to minimum)
-    const handicapCost = stripingHandicapSpaces * STRIPING_PRICING.handicapSpace
-    const arrowsCost = stripingArrows * STRIPING_PRICING.arrow
+    // Add handicap spaces and arrows on top
+    const handicapCost = handicap * STRIPING_PRICING.handicapSpace
+    const arrowsCost = arrows * STRIPING_PRICING.arrow
 
     let total = regularSpacesCost + handicapCost + arrowsCost
 
     // Apply new layout multiplier if applicable (+50%)
-    if (stripingMultiplier > 1) {
-      total = Math.round(total * stripingMultiplier)
+    if (multiplier > 1) {
+      total = Math.round(total * multiplier)
     }
 
     return total
   }
 
-  const handleStripingDetailsSubmit = async () => {
-    if (stripingRegularSpaces <= 0 && stripingHandicapSpaces <= 0) {
-      await addBotMessage("Please enter at least 1 parking space.")
+  const handleStripingSizeSelect = async (sizeId: string) => {
+    const lotSize = STRIPING_LOT_SIZES.find(s => s.id === sizeId)!
+    addUserMessage(lotSize.label)
+
+    // Custom quote - redirect to call
+    if (sizeId === 'custom') {
+      await addBotMessage(`For custom or complex jobs, please call us at ${config.phone} for a personalized quote.`)
+      setStep(STEPS.COMPLETE)
       return
     }
 
-    const estimate = calculateStripingEstimate()
-    const deposit = Math.round(estimate * 0.5)
-    const breakdown: string[] = []
+    // Set the spaces for this lot size
+    setStripingRegularSpaces(lotSize.spaces)
+    setStripingHandicapSpaces(lotSize.handicap)
+    setStripingArrows(lotSize.arrows)
 
-    if (stripingRegularSpaces > 0) breakdown.push(`${stripingRegularSpaces} regular spaces`)
-    if (stripingHandicapSpaces > 0) breakdown.push(`${stripingHandicapSpaces} handicap spaces`)
-    if (stripingArrows > 0) breakdown.push(`${stripingArrows} arrows`)
-    if (stripingMultiplier > 1) breakdown.push(`New layout (+50%)`)
+    const estimate = calculateStripingEstimateForLot(lotSize.spaces, lotSize.handicap, lotSize.arrows, stripingMultiplier)
+    const deposit = Math.round(estimate * 0.5)
 
     setBookingData(prev => ({
       ...prev,
-      squareFootage: stripingRegularSpaces + stripingHandicapSpaces, // Store total spaces
+      squareFootage: lotSize.spaces + lotSize.handicap,
       estimateLow: estimate,
       estimateHigh: estimate,
     }))
 
-    addUserMessage(breakdown.join(', '))
-    await addBotMessage(`Total: $${estimate.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nEnter your contact info and address below:`)
+    await addBotMessage(`${lotSize.description}\nTotal: $${estimate.toLocaleString()} (Deposit: $${deposit.toLocaleString()})${stripingMultiplier > 1 ? '\nIncludes +50% for new layout' : ''}\n\nEnter your contact info and address below:`)
     setStep(STEPS.ADDRESS)
   }
 
@@ -1186,131 +1197,63 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
               </div>
             )}
 
-            {/* STRIPING DETAILS - Space counts */}
-            {!isTyping && step === STEPS.STRIPING_DETAILS && (
-              <div style={{
-                marginTop: '20px',
-                padding: '20px',
-                borderRadius: '12px',
-                border: `2px solid ${COLORS.yellow}`,
-                backgroundColor: COLORS.blackLight,
-              }}>
-                {/* Regular Spaces */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
-                    Regular Parking Spaces
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button
-                      onClick={() => setStripingRegularSpaces(Math.max(0, stripingRegularSpaces - 5))}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
-                    >-</button>
-                    <input
-                      type="number"
-                      value={stripingRegularSpaces || ''}
-                      onChange={(e) => setStripingRegularSpaces(Math.max(0, parseInt(e.target.value) || 0))}
-                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
-                    />
-                    <button
-                      onClick={() => setStripingRegularSpaces(stripingRegularSpaces + 5)}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
-                    >+</button>
-                  </div>
-                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$15 per space</p>
-                </div>
+            {/* STRIPING SIZE - Lot size selection */}
+            {!isTyping && step === STEPS.STRIPING_SIZE && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+                {STRIPING_LOT_SIZES.map(size => {
+                  const estimate = size.id !== 'custom'
+                    ? calculateStripingEstimateForLot(size.spaces, size.handicap, size.arrows, stripingMultiplier)
+                    : 0
+                  const deposit = Math.round(estimate * 0.5)
 
-                {/* Handicap Spaces */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
-                    Handicap Spaces (with logo)
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  return (
                     <button
-                      onClick={() => setStripingHandicapSpaces(Math.max(0, stripingHandicapSpaces - 1))}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
-                    >-</button>
-                    <input
-                      type="number"
-                      value={stripingHandicapSpaces || ''}
-                      onChange={(e) => setStripingHandicapSpaces(Math.max(0, parseInt(e.target.value) || 0))}
-                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
-                    />
-                    <button
-                      onClick={() => setStripingHandicapSpaces(stripingHandicapSpaces + 1)}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
-                    >+</button>
-                  </div>
-                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$35 per space (includes logo + loading zone)</p>
-                </div>
-
-                {/* Arrows */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', color: 'white', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
-                    Directional Arrows
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button
-                      onClick={() => setStripingArrows(Math.max(0, stripingArrows - 1))}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.blackMedium, color: 'white', fontSize: '18px', cursor: 'pointer' }}
-                    >-</button>
-                    <input
-                      type="number"
-                      value={stripingArrows || ''}
-                      onChange={(e) => setStripingArrows(Math.max(0, parseInt(e.target.value) || 0))}
-                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${COLORS.blackMedium}`, backgroundColor: COLORS.blackMedium, color: 'white', textAlign: 'center', fontSize: '18px' }}
-                    />
-                    <button
-                      onClick={() => setStripingArrows(stripingArrows + 1)}
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', border: 'none', backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: '18px', cursor: 'pointer', fontWeight: 'bold' }}
-                    >+</button>
-                  </div>
-                  <p style={{ color: COLORS.gray, fontSize: '12px', marginTop: '4px' }}>$20 per arrow</p>
-                </div>
-
-                {/* Live Estimate */}
-                <div style={{
-                  padding: '12px',
-                  borderRadius: '8px',
-                  backgroundColor: COLORS.blackMedium,
-                  marginBottom: '16px',
-                  textAlign: 'center',
-                }}>
-                  <p style={{ color: COLORS.gray, fontSize: '12px', margin: '0 0 4px 0' }}>Estimated Total</p>
-                  <p style={{ color: COLORS.yellow, fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-                    ${calculateStripingEstimate().toLocaleString()}
+                      key={size.id}
+                      onClick={() => handleStripingSizeSelect(size.id)}
+                      style={{
+                        width: '100%',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        textAlign: 'left',
+                        border: `2px solid ${COLORS.blackMedium}`,
+                        backgroundColor: COLORS.blackLight,
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = COLORS.yellow
+                        e.currentTarget.style.transform = 'scale(1.02)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = COLORS.blackMedium
+                        e.currentTarget.style.transform = 'scale(1)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{size.label}</div>
+                          <div style={{ color: COLORS.gray, fontSize: '13px', marginTop: '4px' }}>{size.description}</div>
+                        </div>
+                        {size.id !== 'custom' && (
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: COLORS.yellow, fontWeight: 'bold', fontSize: '18px' }}>
+                              ${estimate.toLocaleString()}
+                            </div>
+                            <div style={{ color: COLORS.gray, fontSize: '12px' }}>
+                              Deposit: ${deposit.toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+                {stripingMultiplier > 1 && (
+                  <p style={{ color: COLORS.gray, fontSize: '12px', textAlign: 'center', marginTop: '4px' }}>
+                    Prices include +50% for new layout
                   </p>
-                  <p style={{ color: 'white', fontSize: '14px', margin: '8px 0 0 0' }}>
-                    Deposit: ${Math.round(calculateStripingEstimate() * 0.5).toLocaleString()}
-                  </p>
-                  {stripingMultiplier > 1 && (
-                    <p style={{ color: COLORS.gray, fontSize: '11px', margin: '8px 0 0 0' }}>Includes +50% for new layout</p>
-                  )}
-                  <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>$500 minimum job charge</p>
-                </div>
-
-                {/* Continue Button */}
-                <button
-                  onClick={handleStripingDetailsSubmit}
-                  disabled={stripingRegularSpaces <= 0 && stripingHandicapSpaces <= 0}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '10px',
-                    fontWeight: 'bold',
-                    fontSize: '15px',
-                    backgroundColor: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? COLORS.yellow : COLORS.blackMedium,
-                    color: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? COLORS.black : COLORS.gray,
-                    border: 'none',
-                    cursor: (stripingRegularSpaces > 0 || stripingHandicapSpaces > 0) ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  Continue
-                </button>
-
-                {/* Fire lanes note */}
-                <p style={{ color: COLORS.gray, fontSize: '11px', textAlign: 'center', marginTop: '12px' }}>
-                  Need fire lanes, crosswalks, or custom stencils? Call us for a custom quote.
-                </p>
+                )}
               </div>
             )}
 
