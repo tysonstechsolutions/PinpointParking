@@ -1,141 +1,201 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { config } from '@/config/config'
 
-// Steps
-const STEPS = {
-  SERVICE: 1,
-  PROJECT_TYPE: 2,
-  CONTACT: 3,
-  MAP: 4,
-  SCHEDULE: 5,
-  CONFIRM: 6,
+// ============================================
+// TYPES & CONSTANTS
+// ============================================
+
+type Step = 'service' | 'project' | 'location' | 'contact' | 'schedule' | 'review'
+
+interface FormData {
+  service: string
+  serviceName: string
+  projectType: string
+  projectTypeName: string
+  isChurch: boolean
+  address: string
+  squareFootage: number | null
+  name: string
+  phone: string
+  email: string
+  date: string
+  notes: string
+  // Line striping specific
+  regularSpaces: number
+  handicapSpaces: number
+  // Sealcoating bundle
+  addStriping: boolean
 }
 
-// Sealcoating steps
-const SEALCOAT_STEPS = {
-  ADDRESS: 1,
-  MAP: 2,
-  STRIPING: 3,
-  STRIPING_SPACES: 4,
-  CONTACT: 5,
-  SCHEDULE: 6,
-  CONFIRM: 7,
-}
+const STEPS: { id: Step; label: string; icon: string }[] = [
+  { id: 'service', label: 'Service', icon: '🎯' },
+  { id: 'location', label: 'Location', icon: '📍' },
+  { id: 'contact', label: 'Contact', icon: '👤' },
+  { id: 'schedule', label: 'Schedule', icon: '📅' },
+  { id: 'review', label: 'Review', icon: '✓' },
+]
 
-// Line striping steps
-const STRIPING_STEPS = {
-  ADDRESS: 1,
-  SPACES: 2,
-  CONTACT: 3,
-  SCHEDULE: 4,
-  CONFIRM: 5,
-}
-
-const COLORS = {
-  bg: '#1a1714',
-  card: '#252220',
-  border: '#3d3a37',
-  yellow: '#F5C518',
-  yellowHover: '#e3b416',
-  gray: '#9C9690',
-  lightGray: '#d4d0cc',
-  white: '#ffffff',
-  green: '#22c55e',
-  red: '#ef4444',
+const INITIAL_FORM: FormData = {
+  service: '',
+  serviceName: '',
+  projectType: '',
+  projectTypeName: '',
+  isChurch: false,
+  address: '',
+  squareFootage: null,
+  name: '',
+  phone: '',
+  email: '',
+  date: '',
+  notes: '',
+  regularSpaces: 0,
+  handicapSpaces: 0,
+  addStriping: false,
 }
 
 declare global {
   interface Window {
     google: typeof google
-    initMap: () => void
   }
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function BookingPage() {
-  // Common state
-  const [currentStep, setCurrentStep] = useState(1)
-  const [selectedService, setSelectedService] = useState<string | null>(null)
-  const [projectType, setProjectType] = useState<string | null>(null)
-  const [isChurch, setIsChurch] = useState(false)
-
-  // Contact info
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [address, setAddress] = useState('')
-
-  // Map/area
-  const [squareFootage, setSquareFootage] = useState<number | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const [isLoadingMap, setIsLoadingMap] = useState(false)
-  const [drawnArea, setDrawnArea] = useState<number | null>(null)
-  const [mapCoordinates, setMapCoordinates] = useState<{lat: number, lng: number} | null>(null)
-
-  // Line striping specific
-  const [regularSpaces, setRegularSpaces] = useState('')
-  const [handicapSpaces, setHandicapSpaces] = useState('')
-
-  // Sealcoat + striping bundle
-  const [addStriping, setAddStriping] = useState(false)
-
-  // Scheduling
-  const [selectedDate, setSelectedDate] = useState('')
-  const [notes, setNotes] = useState('')
-
-  // Pricing
-  const [estimate, setEstimate] = useState<number | null>(null)
-  const [sealcoatingPrice, setSealcoatingPrice] = useState<number | null>(null)
-  const [stripingPrice, setStripingPrice] = useState<number | null>(null)
-
-  // Submission
+  const [currentStep, setCurrentStep] = useState<Step>('service')
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Refs
+  // Map state
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [isLoadingMap, setIsLoadingMap] = useState(false)
+  const [drawnArea, setDrawnArea] = useState<number | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const polygonRef = useRef<google.maps.Polygon | null>(null)
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null)
 
-  // Calculate prices
-  const calculateSealcoatingPrice = (sqft: number): number => {
-    const service = config.services.find(s => s.id === 'sealcoating')!
-    const basePrice = sqft * service.pricePerSqFt
-    return Math.max(Math.round(basePrice), service.minPrice)
+  // ============================================
+  // STEP NAVIGATION
+  // ============================================
+
+  const getStepIndex = (step: Step) => STEPS.findIndex(s => s.id === step)
+  const currentStepIndex = getStepIndex(currentStep)
+
+  const getStepsForService = (): Step[] => {
+    if (formData.service === 'linestriping') {
+      return ['service', 'location', 'contact', 'schedule', 'review']
+    }
+    return ['service', 'location', 'contact', 'schedule', 'review']
   }
 
-  const calculateStripingPrice = (regular: number, handicap: number): number => {
-    const service = config.services.find(s => s.id === 'linestriping')!
-    const pricePerStall = service.pricePerStall || 4
-    const pricePerSymbol = service.pricePerSymbol || 35
-    const regularPrice = regular * pricePerStall
-    const handicapPrice = handicap * (pricePerStall * 2 + pricePerSymbol)
-    return Math.max(Math.round(regularPrice + handicapPrice), service.minPrice)
-  }
-
-  const calculatePavingEstimate = (sqft: number, discount: number = 0): { low: number, high: number } => {
-    const service = config.services.find(s => s.id === 'paving')!
-    const basePrice = sqft * service.pricePerSqFt
-    const discountedPrice = basePrice * (1 - discount)
-    const buffer = service.estimateBuffer
-    return {
-      low: Math.max(Math.round(discountedPrice * (1 - buffer)), service.minPrice),
-      high: Math.round(discountedPrice * (1 + buffer))
+  const canProceed = (): boolean => {
+    switch (currentStep) {
+      case 'service':
+        return !!formData.service
+      case 'project':
+        return !!formData.projectType
+      case 'location':
+        if (formData.service === 'linestriping') {
+          return !!formData.address && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)
+        }
+        return !!formData.address && (drawnArea !== null && drawnArea > 0)
+      case 'contact':
+        return !!formData.name && formData.phone.replace(/\D/g, '').length >= 10 && !!formData.address
+      case 'schedule':
+        return !!formData.date
+      case 'review':
+        return true
+      default:
+        return false
     }
   }
 
-  // Load Google Maps
-  const loadMap = useCallback(async (addr: string) => {
-    if (mapLoaded || isLoadingMap) return
+  const nextStep = () => {
+    const steps = getStepsForService()
+    const currentIdx = steps.indexOf(currentStep)
+    if (currentIdx < steps.length - 1 && canProceed()) {
+      setCurrentStep(steps[currentIdx + 1])
+    }
+  }
+
+  const prevStep = () => {
+    const steps = getStepsForService()
+    const currentIdx = steps.indexOf(currentStep)
+    if (currentIdx > 0) {
+      setCurrentStep(steps[currentIdx - 1])
+    }
+  }
+
+  // ============================================
+  // PRICING CALCULATIONS
+  // ============================================
+
+  const calculatePrice = (): number => {
+    if (formData.service === 'linestriping') {
+      const service = config.services.find(s => s.id === 'linestriping')!
+      const pricePerStall = service.pricePerStall || 4
+      const pricePerSymbol = service.pricePerSymbol || 35
+      const regularPrice = formData.regularSpaces * pricePerStall
+      const handicapPrice = formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol)
+      return Math.max(Math.round(regularPrice + handicapPrice), service.minPrice)
+    }
+
+    if (formData.service === 'sealcoating') {
+      const service = config.services.find(s => s.id === 'sealcoating')!
+      const sqft = drawnArea || formData.squareFootage || 0
+      let price = Math.max(Math.round(sqft * service.pricePerSqFt), service.minPrice)
+
+      // Apply church discount
+      if (formData.isChurch) {
+        price = Math.round(price * 0.9)
+      }
+
+      // Add striping if bundled
+      if (formData.addStriping && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)) {
+        const stripingService = config.services.find(s => s.id === 'linestriping')!
+        const pricePerStall = stripingService.pricePerStall || 4
+        const pricePerSymbol = stripingService.pricePerSymbol || 35
+        const stripingPrice = (formData.regularSpaces * pricePerStall) +
+          (formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol))
+        // 10% bundle discount on striping
+        price += Math.round(stripingPrice * 0.9)
+      }
+
+      return price
+    }
+
+    if (formData.service === 'paving') {
+      const service = config.services.find(s => s.id === 'paving')!
+      const sqft = drawnArea || formData.squareFootage || 0
+      const basePrice = sqft * service.pricePerSqFt
+      let discount = 0
+      if (formData.isChurch) discount = 0.10
+      const discountedPrice = basePrice * (1 - discount)
+      return Math.max(Math.round(discountedPrice), service.minPrice)
+    }
+
+    return 0
+  }
+
+  // ============================================
+  // MAP FUNCTIONALITY
+  // ============================================
+
+  const loadMap = useCallback(async (address: string) => {
+    if (mapLoaded || isLoadingMap || !address) return
     setIsLoadingMap(true)
 
     try {
-      // Geocode address
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      // Geocode
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
       const response = await fetch(geocodeUrl)
       const result = await response.json()
 
@@ -143,30 +203,22 @@ export default function BookingPage() {
       if (result.results?.[0]?.geometry?.location) {
         coords = result.results[0].geometry.location
       }
-      setMapCoordinates(coords)
 
-      // Load Google Maps script if not already loaded
+      // Load Google Maps if needed
       if (!window.google?.maps) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script')
           script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`
           script.async = true
-          script.defer = true
           script.onload = () => resolve()
           script.onerror = reject
           document.head.appendChild(script)
         })
       }
 
-      // Wait for map container
       await new Promise(resolve => setTimeout(resolve, 100))
+      if (!mapRef.current) return
 
-      if (!mapRef.current) {
-        setIsLoadingMap(false)
-        return
-      }
-
-      // Initialize map
       const map = new window.google.maps.Map(mapRef.current, {
         center: coords,
         zoom: 19,
@@ -174,18 +226,18 @@ export default function BookingPage() {
         disableDefaultUI: true,
         zoomControl: true,
         scrollwheel: true,
+        gestureHandling: 'greedy',
       })
       mapInstanceRef.current = map
 
-      // Drawing manager
       const drawingManager = new window.google.maps.drawing.DrawingManager({
         drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
         drawingControl: false,
         polygonOptions: {
           fillColor: '#F5C518',
-          fillOpacity: 0.3,
+          fillOpacity: 0.35,
           strokeColor: '#F5C518',
-          strokeWeight: 2,
+          strokeWeight: 3,
           editable: true,
           draggable: false,
         },
@@ -193,7 +245,6 @@ export default function BookingPage() {
       drawingManager.setMap(map)
       drawingManagerRef.current = drawingManager
 
-      // Handle polygon complete
       window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
         if (polygonRef.current) {
           polygonRef.current.setMap(null)
@@ -205,11 +256,10 @@ export default function BookingPage() {
           const area = window.google.maps.geometry.spherical.computeArea(polygon.getPath())
           const sqft = Math.round(area * 10.764)
           setDrawnArea(sqft)
-          setSquareFootage(sqft)
+          setFormData(prev => ({ ...prev, squareFootage: sqft }))
         }
         updateArea()
 
-        // Listen for edits
         polygon.getPath().addListener('set_at', updateArea)
         polygon.getPath().addListener('insert_at', updateArea)
       })
@@ -233,7 +283,10 @@ export default function BookingPage() {
     }
   }
 
-  // Format phone
+  // ============================================
+  // FORM HANDLERS
+  // ============================================
+
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, '')
     if (digits.length <= 3) return digits
@@ -241,11 +294,10 @@ export default function BookingPage() {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`
   }
 
-  // Get available dates
   const getAvailableDates = () => {
     const dates: string[] = []
     const today = new Date()
-    for (let i = config.booking.minDaysOut; i <= config.booking.maxDaysOut; i++) {
+    for (let i = config.booking.minDaysOut; i <= Math.min(config.booking.maxDaysOut, 45); i++) {
       const date = new Date(today)
       date.setDate(date.getDate() + i)
       if (config.booking.skipSundays && date.getDay() === 0) continue
@@ -254,24 +306,23 @@ export default function BookingPage() {
     return dates
   }
 
-  // Submit booking
   const handleSubmit = async () => {
     setIsSubmitting(true)
     setSubmitError(null)
 
     try {
       const jobData = {
-        customer_name: name,
-        customer_phone: phone.replace(/\D/g, ''),
-        customer_email: email || null,
-        service_address: address,
-        job_type: selectedService,
-        project_type: projectType || (isChurch ? 'house-of-worship' : 'commercial'),
-        square_feet: squareFootage,
-        quote_cents: (estimate || sealcoatingPrice || stripingPrice || 0) * 100,
-        scheduled_date: selectedDate,
+        customer_name: formData.name,
+        customer_phone: formData.phone.replace(/\D/g, ''),
+        customer_email: formData.email || null,
+        service_address: formData.address,
+        job_type: formData.service,
+        project_type: formData.projectType || (formData.isChurch ? 'house-of-worship' : 'commercial'),
+        square_feet: formData.squareFootage,
+        quote_cents: calculatePrice() * 100,
+        scheduled_date: formData.date,
         status: 'quote',
-        notes: notes || null,
+        notes: formData.notes || null,
       }
 
       const response = await fetch(`${config.supabase.url}/rest/v1/jobs`, {
@@ -287,817 +338,735 @@ export default function BookingPage() {
 
       if (!response.ok) throw new Error('Failed to submit')
 
-      // Send notification
       await fetch('/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'new_booking',
-          data: jobData,
-        }),
-      }).catch(() => {}) // Ignore notification errors
+        body: JSON.stringify({ type: 'new_booking', data: jobData }),
+      }).catch(() => {})
 
       setSubmitSuccess(true)
-    } catch (err) {
+    } catch {
       setSubmitError('Something went wrong. Please call us instead.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Get total price for display
-  const getTotalPrice = () => {
-    if (selectedService === 'sealcoating') {
-      if (addStriping && sealcoatingPrice && stripingPrice) {
-        const bundleDiscount = Math.round((sealcoatingPrice + stripingPrice) * 0.1)
-        return sealcoatingPrice + stripingPrice - bundleDiscount
-      }
-      return sealcoatingPrice
-    }
-    if (selectedService === 'linestriping') {
-      return stripingPrice
-    }
-    return estimate
+  // ============================================
+  // RENDER HELPERS
+  // ============================================
+
+  const renderProgressBar = () => {
+    const steps = getStepsForService()
+    const currentIdx = steps.indexOf(currentStep)
+    const progress = ((currentIdx) / (steps.length - 1)) * 100
+
+    return (
+      <div className="mb-8">
+        {/* Progress line */}
+        <div className="relative h-1 bg-gray-800 rounded-full overflow-hidden mb-6">
+          <div
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-yellow-500 to-yellow-400 transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Step indicators */}
+        <div className="flex justify-between">
+          {steps.map((step, idx) => {
+            const stepData = STEPS.find(s => s.id === step)!
+            const isActive = currentStep === step
+            const isCompleted = currentIdx > idx
+
+            return (
+              <div key={step} className="flex flex-col items-center flex-1">
+                <div
+                  className={`
+                    w-12 h-12 rounded-full flex items-center justify-center text-xl
+                    transition-all duration-300 mb-2
+                    ${isActive
+                      ? 'bg-yellow-500 text-gray-900 ring-4 ring-yellow-500/30 scale-110'
+                      : isCompleted
+                        ? 'bg-yellow-500 text-gray-900'
+                        : 'bg-gray-800 text-gray-500'
+                    }
+                  `}
+                >
+                  {isCompleted ? '✓' : stepData.icon}
+                </div>
+                <span className={`text-xs font-medium hidden sm:block ${
+                  isActive ? 'text-yellow-500' : isCompleted ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  {stepData.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
-  // Service selection step
+  // ============================================
+  // STEP RENDERS
+  // ============================================
+
   const renderServiceStep = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">What can we help you with?</h2>
-        <p className="text-gray-400">Select the service you need</p>
+    <div className="animate-fadeIn">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+          What can we help you with?
+        </h1>
+        <p className="text-gray-400 text-lg">
+          Select the service you need for your property
+        </p>
       </div>
 
-      <div className="grid gap-4">
-        {config.services.map(service => (
-          <button
-            key={service.id}
-            onClick={() => {
-              setSelectedService(service.id)
-              if (service.id === 'sealcoating') {
-                setCurrentStep(SEALCOAT_STEPS.ADDRESS)
-              } else if (service.id === 'linestriping') {
-                setCurrentStep(STRIPING_STEPS.ADDRESS)
-              } else {
-                setCurrentStep(STEPS.PROJECT_TYPE)
-              }
-            }}
-            className="w-full p-6 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] group"
-            style={{
-              backgroundColor: COLORS.card,
-              border: `2px solid ${COLORS.border}`,
-            }}
-          >
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">{service.emoji}</span>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-white group-hover:text-yellow-400 transition-colors">
-                  {service.name}
-                </h3>
-                <p className="text-gray-400 mt-1">{service.description}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {service.bestFor.slice(0, 2).map((item, i) => (
-                    <span key={i} className="text-xs px-2 py-1 rounded-full bg-gray-700 text-gray-300">
-                      {item}
-                    </span>
-                  ))}
+      <div className="grid gap-4 max-w-xl mx-auto">
+        {config.services.map((service) => {
+          const isSelected = formData.service === service.id
+          return (
+            <button
+              key={service.id}
+              onClick={() => setFormData(prev => ({
+                ...prev,
+                service: service.id,
+                serviceName: service.name
+              }))}
+              className={`
+                relative p-6 rounded-2xl text-left transition-all duration-300
+                transform hover:scale-[1.02] active:scale-[0.98]
+                ${isSelected
+                  ? 'bg-yellow-500/10 border-2 border-yellow-500 shadow-lg shadow-yellow-500/20'
+                  : 'bg-gray-900/50 border-2 border-gray-800 hover:border-gray-700'
+                }
+              `}
+            >
+              {/* Selected indicator */}
+              {isSelected && (
+                <div className="absolute top-4 right-4 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+
+              <div className="flex items-start gap-4">
+                <span className="text-4xl">{service.emoji}</span>
+                <div className="flex-1">
+                  <h3 className={`text-xl font-semibold mb-1 ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
+                    {service.name}
+                  </h3>
+                  <p className="text-gray-400 text-sm mb-3">{service.description}</p>
+
+                  {/* Features */}
+                  <div className="flex flex-wrap gap-2">
+                    {service.bestFor.slice(0, 2).map((item, i) => (
+                      <span
+                        key={i}
+                        className="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <svg className="w-6 h-6 text-gray-500 group-hover:text-yellow-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </button>
-        ))}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Trust signals */}
+      <div className="flex justify-center gap-6 mt-10 text-sm text-gray-500">
+        <span className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Licensed & Insured
+        </span>
+        <span className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Free Estimates
+        </span>
       </div>
     </div>
   )
 
-  // Project type step (for paving)
-  const renderProjectTypeStep = () => (
-    <div className="space-y-6">
+  const renderLocationStep = () => (
+    <div className="animate-fadeIn">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">What type of property?</h2>
-        <p className="text-gray-400">This helps us provide an accurate estimate</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+          Where&apos;s the property?
+        </h1>
+        <p className="text-gray-400 text-lg">
+          Enter the address and {formData.service === 'linestriping' ? 'tell us about your parking spaces' : 'outline your area'}
+        </p>
       </div>
 
-      <div className="grid gap-4">
-        {config.projectTypes.map(type => (
-          <button
-            key={type.id}
-            onClick={() => {
-              setProjectType(type.id)
-              setIsChurch(type.id === 'house-of-worship')
-              setCurrentStep(STEPS.CONTACT)
-            }}
-            className="w-full p-5 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] group"
-            style={{
-              backgroundColor: COLORS.card,
-              border: `2px solid ${COLORS.border}`,
-            }}
-          >
-            <div className="flex items-center gap-4">
-              <span className="text-2xl">{type.emoji}</span>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white group-hover:text-yellow-400 transition-colors">
-                  {type.label}
-                </h3>
-                <p className="text-gray-400 text-sm">{type.description}</p>
-                {type.discount > 0 && (
-                  <span className="inline-block mt-2 text-xs px-2 py-1 rounded-full bg-green-900 text-green-400">
-                    {Math.round(type.discount * 100)}% Discount
-                  </span>
-                )}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-
-  // Contact info step
-  const renderContactStep = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Contact Information</h2>
-        <p className="text-gray-400">We&apos;ll use this to send your quote</p>
-      </div>
-
-      <div className="space-y-4">
+      <div className="max-w-xl mx-auto space-y-6">
+        {/* Address input */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="John Smith"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-          />
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Property Address
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📍</span>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              onBlur={() => {
+                if (formData.address && formData.service !== 'linestriping' && !mapLoaded) {
+                  loadMap(formData.address)
+                }
+              }}
+              placeholder="123 Main St, Mount Vernon, IL"
+              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number *</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(formatPhone(e.target.value))}
-            placeholder="(618) 555-1234"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Email (optional)</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="john@example.com"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Property Address *</label>
-          <input
-            type="text"
-            value={address}
-            onChange={e => setAddress(e.target.value)}
-            placeholder="123 Main St, Mount Vernon, IL"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-          />
-        </div>
-
-        {selectedService === 'sealcoating' && (
-          <label className="flex items-center gap-3 mt-4 cursor-pointer">
+        {/* Church discount checkbox */}
+        {(formData.service === 'sealcoating' || formData.service === 'paving') && (
+          <label className="flex items-center gap-3 p-4 bg-gray-900/50 rounded-xl cursor-pointer hover:bg-gray-900 transition-colors">
             <input
               type="checkbox"
-              checked={isChurch}
-              onChange={e => setIsChurch(e.target.checked)}
-              className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500 focus:ring-yellow-500"
+              checked={formData.isChurch}
+              onChange={(e) => setFormData(prev => ({ ...prev, isChurch: e.target.checked }))}
+              className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0"
             />
-            <span className="text-gray-300">This is a House of Worship (10% discount)</span>
+            <div>
+              <span className="text-white font-medium">House of Worship</span>
+              <span className="text-green-500 text-sm ml-2">10% Discount</span>
+            </div>
           </label>
         )}
-      </div>
 
-      <button
-        onClick={() => {
-          if (!name || phone.replace(/\D/g, '').length < 10 || !address) return
-          if (selectedService === 'paving') {
-            setCurrentStep(STEPS.MAP)
-            setTimeout(() => loadMap(address), 100)
-          } else if (selectedService === 'sealcoating') {
-            setCurrentStep(SEALCOAT_STEPS.SCHEDULE)
-          } else if (selectedService === 'linestriping') {
-            setCurrentStep(STRIPING_STEPS.SCHEDULE)
-          }
-        }}
-        disabled={!name || phone.replace(/\D/g, '').length < 10 || !address}
-        className="w-full py-4 rounded-xl font-semibold text-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-      >
-        Continue
-      </button>
-    </div>
-  )
-
-  // Map step
-  const renderMapStep = () => (
-    <div className="space-y-4">
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-white mb-2">Outline Your Area</h2>
-        <p className="text-gray-400 text-sm">Click the map to draw your {selectedService === 'sealcoating' ? 'sealcoating' : 'paving'} area</p>
-      </div>
-
-      <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: COLORS.border }}>
-        <div ref={mapRef} className="w-full h-[350px] bg-gray-800">
-          {isLoadingMap && (
-            <div className="h-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-yellow-400 border-t-transparent"></div>
+        {/* Line striping: parking spaces */}
+        {formData.service === 'linestriping' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Regular Spaces
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.regularSpaces || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, regularSpaces: parseInt(e.target.value) || 0 }))}
+                  placeholder="0"
+                  className="w-full px-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition-all"
+                />
+                <p className="text-gray-500 text-xs mt-1">$4/space</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Handicap Spaces
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.handicapSpaces || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, handicapSpaces: parseInt(e.target.value) || 0 }))}
+                  placeholder="0"
+                  className="w-full px-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition-all"
+                />
+                <p className="text-gray-500 text-xs mt-1">$43/space (incl. symbol)</p>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {drawnArea && (
-        <div className="p-4 rounded-xl" style={{ backgroundColor: COLORS.card }}>
-          <div className="text-center">
-            <span className="text-gray-400">Area:</span>
-            <span className="text-2xl font-bold text-white ml-2">{drawnArea.toLocaleString()} sq ft</span>
+            {(formData.regularSpaces > 0 || formData.handicapSpaces > 0) && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <p className="text-gray-400 text-sm">Estimated Price</p>
+                <p className="text-2xl font-bold text-white">${calculatePrice().toLocaleString()}</p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex gap-3">
-        <button
-          onClick={redrawPolygon}
-          className="flex-1 py-3 rounded-xl font-medium transition-colors"
-          style={{ backgroundColor: COLORS.card, color: COLORS.gray, border: `1px solid ${COLORS.border}` }}
-        >
-          Redraw
-        </button>
-        <button
-          onClick={() => {
-            if (!drawnArea) return
-            if (selectedService === 'paving') {
-              const discount = isChurch ? 0.10 : 0
-              const est = calculatePavingEstimate(drawnArea, discount)
-              setEstimate(Math.round((est.low + est.high) / 2))
-              setCurrentStep(STEPS.SCHEDULE)
-            } else if (selectedService === 'sealcoating') {
-              const price = calculateSealcoatingPrice(drawnArea)
-              setSealcoatingPrice(price)
-              setCurrentStep(SEALCOAT_STEPS.STRIPING)
-            }
-          }}
-          disabled={!drawnArea}
-          className="flex-[2] py-3 rounded-xl font-semibold transition-all disabled:opacity-50"
-          style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-        >
-          Confirm Area
-        </button>
-      </div>
-
-      <p className="text-center text-gray-500 text-sm">
-        Prefer we come look? <a href={`tel:${config.phoneRaw}`} className="text-yellow-400 underline">Call us</a> for a $50 on-site estimate.
-      </p>
-    </div>
-  )
-
-  // Sealcoat address step
-  const renderSealcoatAddressStep = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Property Address</h2>
-        <p className="text-gray-400">Where do you need sealcoating?</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Address *</label>
-        <input
-          type="text"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          placeholder="123 Main St, Mount Vernon, IL"
-          className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
-        />
-      </div>
-
-      <button
-        onClick={() => {
-          if (!address) return
-          setCurrentStep(SEALCOAT_STEPS.MAP)
-          setTimeout(() => loadMap(address), 100)
-        }}
-        disabled={!address}
-        className="w-full py-4 rounded-xl font-semibold text-lg disabled:opacity-50"
-        style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-      >
-        Find Location
-      </button>
-    </div>
-  )
-
-  // Sealcoat striping add-on step
-  const renderStripingAddOnStep = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <div className="p-4 rounded-xl mb-6" style={{ backgroundColor: COLORS.card }}>
-          <p className="text-gray-400 text-sm">Sealcoating Estimate</p>
-          <p className="text-3xl font-bold text-white">${sealcoatingPrice?.toLocaleString()}</p>
-          <p className="text-gray-500 text-sm">{squareFootage?.toLocaleString()} sq ft</p>
-        </div>
-
-        <h2 className="text-xl font-bold text-white mb-2">Add Line Striping?</h2>
-        <p className="text-gray-400 text-sm">Bundle and save 10% on striping</p>
-      </div>
-
-      <div className="grid gap-4">
-        <button
-          onClick={() => {
-            setAddStriping(true)
-            setCurrentStep(SEALCOAT_STEPS.STRIPING_SPACES)
-          }}
-          className="w-full p-5 rounded-xl text-left transition-all hover:scale-[1.02]"
-          style={{ backgroundColor: COLORS.card, border: `2px solid ${COLORS.yellow}` }}
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-2xl">🅿️</span>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-yellow-400">Yes, add striping</h3>
-              <p className="text-gray-400 text-sm">Save 10% on striping when bundled</p>
+        {/* Map for sealcoating/paving */}
+        {formData.service !== 'linestriping' && formData.address && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">
+                Outline Your Area
+              </label>
+              {drawnArea && (
+                <button
+                  onClick={redrawPolygon}
+                  className="text-sm text-yellow-500 hover:text-yellow-400 transition-colors"
+                >
+                  Redraw
+                </button>
+              )}
             </div>
-          </div>
-        </button>
 
-        <button
-          onClick={() => {
-            setAddStriping(false)
-            setCurrentStep(SEALCOAT_STEPS.CONTACT)
-          }}
-          className="w-full p-5 rounded-xl text-left transition-all hover:scale-[1.02]"
-          style={{ backgroundColor: COLORS.card, border: `2px solid ${COLORS.border}` }}
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-2xl">✓</span>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-white">No, just sealcoating</h3>
-              <p className="text-gray-400 text-sm">Continue with sealcoating only</p>
+            <div className="relative rounded-xl overflow-hidden border-2 border-gray-800">
+              <div ref={mapRef} className="w-full h-[300px] sm:h-[350px] bg-gray-900">
+                {isLoadingMap && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                    <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {/* Instructions overlay */}
+              {!drawnArea && mapLoaded && (
+                <div className="absolute bottom-4 left-4 right-4 bg-gray-900/90 backdrop-blur-sm rounded-lg p-3 text-center">
+                  <p className="text-yellow-500 font-medium text-sm">
+                    Click to draw your {formData.service === 'sealcoating' ? 'sealcoating' : 'paving'} area
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    Tap points to outline, connect back to start
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        </button>
-      </div>
-    </div>
-  )
 
-  // Striping spaces step
-  const renderSpacesStep = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Parking Spaces</h2>
-        <p className="text-gray-400">How many spaces need striping?</p>
-      </div>
+            {/* Area result */}
+            {drawnArea && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Area Measured</p>
+                  <p className="text-2xl font-bold text-white">{drawnArea.toLocaleString()} sq ft</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-400 text-sm">Estimated Price</p>
+                  <p className="text-2xl font-bold text-yellow-500">${calculatePrice().toLocaleString()}</p>
+                </div>
+              </div>
+            )}
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Regular Spaces</label>
-          <input
-            type="number"
-            value={regularSpaces}
-            onChange={e => setRegularSpaces(e.target.value)}
-            placeholder="0"
-            min="0"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
-          />
-          <p className="text-gray-500 text-sm mt-1">$4 per space</p>
-        </div>
+            {/* Add striping bundle for sealcoating */}
+            {formData.service === 'sealcoating' && drawnArea && (
+              <div className="p-4 bg-gray-900 rounded-xl border border-gray-800">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.addStriping}
+                    onChange={(e) => setFormData(prev => ({ ...prev, addStriping: e.target.checked }))}
+                    className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500 focus:ring-yellow-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-white font-medium">Add Line Striping</span>
+                    <span className="text-green-500 text-sm ml-2">Save 10%</span>
+                  </div>
+                </label>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Handicap Spaces</label>
-          <input
-            type="number"
-            value={handicapSpaces}
-            onChange={e => setHandicapSpaces(e.target.value)}
-            placeholder="0"
-            min="0"
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
-          />
-          <p className="text-gray-500 text-sm mt-1">$43 per space (includes symbol)</p>
-        </div>
+                {formData.addStriping && (
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.regularSpaces || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, regularSpaces: parseInt(e.target.value) || 0 }))}
+                      placeholder="Regular spaces"
+                      className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-yellow-500 outline-none"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.handicapSpaces || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, handicapSpaces: parseInt(e.target.value) || 0 }))}
+                      placeholder="Handicap spaces"
+                      className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-yellow-500 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
-        {(parseInt(regularSpaces) > 0 || parseInt(handicapSpaces) > 0) && (
-          <div className="p-4 rounded-xl" style={{ backgroundColor: COLORS.card }}>
-            <p className="text-gray-400 text-sm">Striping Estimate</p>
-            <p className="text-2xl font-bold text-white">
-              ${calculateStripingPrice(parseInt(regularSpaces) || 0, parseInt(handicapSpaces) || 0).toLocaleString()}
+            <p className="text-center text-gray-500 text-sm">
+              Prefer an on-site estimate? <a href={`tel:${config.phoneRaw}`} className="text-yellow-500 hover:underline">Call us</a> — $50 visit fee
             </p>
-            {addStriping && <p className="text-green-400 text-sm">10% bundle discount will apply</p>}
           </div>
         )}
       </div>
-
-      <button
-        onClick={() => {
-          const price = calculateStripingPrice(parseInt(regularSpaces) || 0, parseInt(handicapSpaces) || 0)
-          setStripingPrice(price)
-          if (selectedService === 'sealcoating') {
-            setCurrentStep(SEALCOAT_STEPS.CONTACT)
-          } else {
-            setCurrentStep(STRIPING_STEPS.CONTACT)
-          }
-        }}
-        disabled={!regularSpaces && !handicapSpaces}
-        className="w-full py-4 rounded-xl font-semibold text-lg disabled:opacity-50"
-        style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-      >
-        Continue
-      </button>
     </div>
   )
 
-  // Line striping address step
-  const renderStripingAddressStep = () => (
-    <div className="space-y-6">
+  const renderContactStep = () => (
+    <div className="animate-fadeIn">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Property Address</h2>
-        <p className="text-gray-400">Where do you need line striping?</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+          How can we reach you?
+        </h1>
+        <p className="text-gray-400 text-lg">
+          We&apos;ll send your quote and schedule confirmation
+        </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Address *</label>
-        <input
-          type="text"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          placeholder="123 Main St, Mount Vernon, IL"
-          className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
-        />
-      </div>
+      <div className="max-w-md mx-auto space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">👤</span>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="John Smith"
+              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+            />
+          </div>
+        </div>
 
-      <button
-        onClick={() => {
-          if (!address) return
-          setCurrentStep(STRIPING_STEPS.SPACES)
-        }}
-        disabled={!address}
-        className="w-full py-4 rounded-xl font-semibold text-lg disabled:opacity-50"
-        style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-      >
-        Continue
-      </button>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📱</span>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }))}
+              placeholder="(618) 555-1234"
+              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+            />
+          </div>
+          <p className="text-gray-500 text-xs mt-1">We&apos;ll text you updates about your project</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Email <span className="text-gray-500">(optional)</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">✉️</span>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="john@example.com"
+              className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Security note */}
+        <div className="flex items-center justify-center gap-2 text-gray-500 text-sm pt-4">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+          Your information is secure and never shared
+        </div>
+      </div>
     </div>
   )
 
-  // Schedule step
   const renderScheduleStep = () => {
     const dates = getAvailableDates()
 
     return (
-      <div className="space-y-6">
+      <div className="animate-fadeIn">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Preferred Date</h2>
-          <p className="text-gray-400">When would you like us to come?</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            When works best?
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Select your preferred service date
+          </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Select Date *</label>
-          <select
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white focus:outline-none focus:border-yellow-500"
-          >
-            <option value="">Choose a date...</option>
-            {dates.slice(0, 30).map(date => (
-              <option key={date} value={date}>
-                {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="max-w-md mx-auto space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Date</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">📅</span>
+              <select
+                value={formData.date}
+                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                className="w-full pl-12 pr-4 py-4 bg-gray-900 border-2 border-gray-800 rounded-xl text-white focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="">Select a date...</option>
+                {dates.map(date => (
+                  <option key={date} value={date}>
+                    {new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">▼</span>
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Notes (optional)</label>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Gate codes, special instructions, etc."
-            rows={3}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 resize-none"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Notes <span className="text-gray-500">(optional)</span>
+            </label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Gate codes, special instructions, etc."
+              rows={3}
+              className="w-full px-4 py-3 bg-gray-900 border-2 border-gray-800 rounded-xl text-white placeholder-gray-600 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 outline-none transition-all resize-none"
+            />
+          </div>
 
-        <button
-          onClick={() => {
-            if (!selectedDate) return
-            if (selectedService === 'paving') {
-              setCurrentStep(STEPS.CONFIRM)
-            } else if (selectedService === 'sealcoating') {
-              setCurrentStep(SEALCOAT_STEPS.CONFIRM)
-            } else {
-              setCurrentStep(STRIPING_STEPS.CONFIRM)
-            }
-          }}
-          disabled={!selectedDate}
-          className="w-full py-4 rounded-xl font-semibold text-lg disabled:opacity-50"
-          style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-        >
-          Review Quote
-        </button>
+          {/* Quick info */}
+          <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-800">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">💡</span>
+              <div>
+                <p className="text-white font-medium">Weather Dependent</p>
+                <p className="text-gray-400 text-sm">
+                  Asphalt work requires dry conditions. We&apos;ll contact you if we need to reschedule.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
-  // Confirmation step
-  const renderConfirmStep = () => {
-    const totalPrice = getTotalPrice()
-    const deposit = totalPrice ? Math.round(totalPrice * 0.5) : 0
+  const renderReviewStep = () => {
+    const price = calculatePrice()
+    const deposit = Math.round(price * 0.5)
+    const serviceName = config.services.find(s => s.id === formData.service)?.name || formData.service
 
     return (
-      <div className="space-y-6">
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold text-white mb-2">Review Your Quote</h2>
+      <div className="animate-fadeIn">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            Review Your Quote
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Confirm your details and submit
+          </p>
         </div>
 
-        <div className="rounded-xl overflow-hidden" style={{ backgroundColor: COLORS.card }}>
-          {/* Service */}
-          <div className="p-4 border-b" style={{ borderColor: COLORS.border }}>
-            <p className="text-gray-400 text-sm">Service</p>
-            <p className="text-white font-semibold">
-              {config.services.find(s => s.id === selectedService)?.name}
-              {addStriping && ' + Line Striping'}
-            </p>
+        <div className="max-w-md mx-auto">
+          {/* Summary card */}
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-6">
+            {/* Service */}
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Service</p>
+              <p className="text-white font-semibold text-lg">
+                {serviceName}
+                {formData.addStriping && ' + Line Striping'}
+              </p>
+            </div>
+
+            {/* Location */}
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Location</p>
+              <p className="text-white">{formData.address}</p>
+              {formData.squareFootage && (
+                <p className="text-gray-400 text-sm">{formData.squareFootage.toLocaleString()} sq ft</p>
+              )}
+              {formData.isChurch && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                  House of Worship - 10% Off
+                </span>
+              )}
+            </div>
+
+            {/* Contact */}
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Contact</p>
+              <p className="text-white font-medium">{formData.name}</p>
+              <p className="text-gray-400 text-sm">{formData.phone}</p>
+              {formData.email && <p className="text-gray-400 text-sm">{formData.email}</p>}
+            </div>
+
+            {/* Date */}
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Preferred Date</p>
+              <p className="text-white">
+                {new Date(formData.date + 'T12:00:00').toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
+            </div>
+
+            {/* Pricing */}
+            <div className="p-4 bg-gray-800/50">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-400">Estimated Total</span>
+                <span className="text-3xl font-bold text-white">${price.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Deposit (50%)</span>
+                <span className="text-yellow-500 font-semibold">${deposit.toLocaleString()}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Contact */}
-          <div className="p-4 border-b" style={{ borderColor: COLORS.border }}>
-            <p className="text-gray-400 text-sm">Contact</p>
-            <p className="text-white">{name}</p>
-            <p className="text-gray-400 text-sm">{phone}</p>
-            {email && <p className="text-gray-400 text-sm">{email}</p>}
+          {/* Trust signals */}
+          <div className="space-y-3 mb-6">
+            {[
+              { icon: '✓', text: 'Free on-site inspection included' },
+              { icon: '✓', text: 'Licensed, bonded & insured' },
+              { icon: '✓', text: 'Satisfaction guaranteed' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 text-gray-400">
+                <span className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 text-xs">
+                  {item.icon}
+                </span>
+                {item.text}
+              </div>
+            ))}
           </div>
 
-          {/* Address */}
-          <div className="p-4 border-b" style={{ borderColor: COLORS.border }}>
-            <p className="text-gray-400 text-sm">Address</p>
-            <p className="text-white">{address}</p>
-            {isChurch && <span className="text-yellow-400 text-sm">House of Worship (10% off)</span>}
-          </div>
-
-          {/* Date */}
-          <div className="p-4 border-b" style={{ borderColor: COLORS.border }}>
-            <p className="text-gray-400 text-sm">Preferred Date</p>
-            <p className="text-white">
-              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-
-          {/* Pricing */}
-          <div className="p-4">
-            {selectedService === 'paving' ? (
-              <>
-                <p className="text-gray-400 text-sm">Estimated Price</p>
-                <p className="text-3xl font-bold text-white">${estimate?.toLocaleString()}</p>
-                <p className="text-gray-500 text-sm">{squareFootage?.toLocaleString()} sq ft</p>
-              </>
-            ) : (
-              <>
-                {sealcoatingPrice && (
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-400">Sealcoating</span>
-                    <span className="text-white">${sealcoatingPrice.toLocaleString()}</span>
-                  </div>
-                )}
-                {stripingPrice && addStriping && (
-                  <>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Line Striping</span>
-                      <span className="text-white">${stripingPrice.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between mb-2 text-green-400">
-                      <span>Bundle Discount (10%)</span>
-                      <span>-${Math.round((sealcoatingPrice! + stripingPrice) * 0.1).toLocaleString()}</span>
-                    </div>
-                  </>
-                )}
-                {stripingPrice && !sealcoatingPrice && (
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-400">Line Striping</span>
-                    <span className="text-white">${stripingPrice.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="border-t pt-2 mt-2" style={{ borderColor: COLORS.border }}>
-                  <div className="flex justify-between">
-                    <span className="text-white font-semibold">Total</span>
-                    <span className="text-2xl font-bold text-white">${totalPrice?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-gray-400">Deposit (50%)</span>
-                    <span className="text-yellow-400">${deposit.toLocaleString()}</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {submitError && (
-          <div className="p-4 rounded-xl bg-red-900/30 border border-red-500">
-            <p className="text-red-400 text-center">{submitError}</p>
-          </div>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="w-full py-4 rounded-xl font-semibold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-800 border-t-transparent"></div>
-              Submitting...
-            </>
-          ) : (
-            'Submit Quote Request'
+          {submitError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-6">
+              <p className="text-red-400 text-center">{submitError}</p>
+            </div>
           )}
-        </button>
-
-        <p className="text-center text-gray-500 text-sm">
-          By submitting, you agree to be contacted about your quote
-        </p>
+        </div>
       </div>
     )
   }
 
-  // Success screen
   const renderSuccess = () => (
-    <div className="text-center py-12">
-      <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-900/30 flex items-center justify-center">
-        <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <div className="animate-fadeIn text-center py-12">
+      <div className="w-24 h-24 mx-auto mb-6 bg-green-500/20 rounded-full flex items-center justify-center">
+        <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold text-white mb-4">Quote Request Sent!</h2>
-      <p className="text-gray-400 mb-8">
-        We&apos;ll review your request and get back to you within 24 hours.
+
+      <h1 className="text-3xl font-bold text-white mb-3">Quote Request Sent!</h1>
+      <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
+        Thank you! We&apos;ll review your request and get back to you within 24 hours.
       </p>
-      <div className="space-y-4">
+
+      <div className="space-y-4 max-w-sm mx-auto">
         <Link
           href="/"
-          className="block w-full py-4 rounded-xl font-semibold text-lg"
-          style={{ backgroundColor: COLORS.yellow, color: COLORS.bg }}
+          className="block w-full py-4 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-xl transition-colors"
         >
           Back to Home
         </Link>
         <a
           href={`tel:${config.phoneRaw}`}
-          className="block w-full py-4 rounded-xl font-semibold text-lg"
-          style={{ backgroundColor: COLORS.card, color: COLORS.white, border: `1px solid ${COLORS.border}` }}
+          className="block w-full py-4 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-colors"
         >
-          Call {config.phone}
+          Call Us: {config.phone}
         </a>
       </div>
     </div>
   )
 
-  // Render current step based on service
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+
   const renderCurrentStep = () => {
     if (submitSuccess) return renderSuccess()
 
-    // If no service selected, show service selection
-    if (!selectedService) return renderServiceStep()
-
-    // Paving flow
-    if (selectedService === 'paving') {
-      switch (currentStep) {
-        case STEPS.PROJECT_TYPE: return renderProjectTypeStep()
-        case STEPS.CONTACT: return renderContactStep()
-        case STEPS.MAP: return renderMapStep()
-        case STEPS.SCHEDULE: return renderScheduleStep()
-        case STEPS.CONFIRM: return renderConfirmStep()
-        default: return renderServiceStep()
-      }
+    switch (currentStep) {
+      case 'service': return renderServiceStep()
+      case 'project': return renderServiceStep() // fallback
+      case 'location': return renderLocationStep()
+      case 'contact': return renderContactStep()
+      case 'schedule': return renderScheduleStep()
+      case 'review': return renderReviewStep()
+      default: return renderServiceStep()
     }
-
-    // Sealcoating flow
-    if (selectedService === 'sealcoating') {
-      switch (currentStep) {
-        case SEALCOAT_STEPS.ADDRESS: return renderSealcoatAddressStep()
-        case SEALCOAT_STEPS.MAP: return renderMapStep()
-        case SEALCOAT_STEPS.STRIPING: return renderStripingAddOnStep()
-        case SEALCOAT_STEPS.STRIPING_SPACES: return renderSpacesStep()
-        case SEALCOAT_STEPS.CONTACT: return renderContactStep()
-        case SEALCOAT_STEPS.SCHEDULE: return renderScheduleStep()
-        case SEALCOAT_STEPS.CONFIRM: return renderConfirmStep()
-        default: return renderSealcoatAddressStep()
-      }
-    }
-
-    // Line striping flow
-    if (selectedService === 'linestriping') {
-      switch (currentStep) {
-        case STRIPING_STEPS.ADDRESS: return renderStripingAddressStep()
-        case STRIPING_STEPS.SPACES: return renderSpacesStep()
-        case STRIPING_STEPS.CONTACT: return renderContactStep()
-        case STRIPING_STEPS.SCHEDULE: return renderScheduleStep()
-        case STRIPING_STEPS.CONFIRM: return renderConfirmStep()
-        default: return renderStripingAddressStep()
-      }
-    }
-
-    return renderServiceStep()
   }
-
-  // Get step count for progress bar
-  const getStepInfo = () => {
-    if (!selectedService) return { current: 1, total: 1 }
-    if (selectedService === 'paving') return { current: currentStep, total: 6 }
-    if (selectedService === 'sealcoating') return { current: currentStep, total: 7 }
-    if (selectedService === 'linestriping') return { current: currentStep, total: 5 }
-    return { current: 1, total: 1 }
-  }
-
-  const stepInfo = getStepInfo()
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: COLORS.bg }}>
+    <div className="min-h-screen bg-[#0a0908] flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50" style={{ backgroundColor: COLORS.card, borderBottom: `1px solid ${COLORS.border}` }}>
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-yellow-400 font-bold text-xl">
+      <header className="sticky top-0 z-50 bg-[#0a0908]/95 backdrop-blur-md border-b border-gray-800">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="text-yellow-500 font-bold text-xl hover:text-yellow-400 transition-colors">
             {config.businessName}
           </Link>
-          <a href={`tel:${config.phoneRaw}`} className="text-gray-400 hover:text-white transition-colors">
-            {config.phone}
+          <a
+            href={`tel:${config.phoneRaw}`}
+            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+          >
+            <span className="hidden sm:inline">{config.phone}</span>
+            <span className="sm:hidden">📞</span>
           </a>
         </div>
-
-        {/* Progress bar */}
-        {selectedService && !submitSuccess && (
-          <div className="max-w-2xl mx-auto px-4 pb-4">
-            <div className="h-1 rounded-full bg-gray-700 overflow-hidden">
-              <div
-                className="h-full transition-all duration-500 ease-out rounded-full"
-                style={{
-                  width: `${(stepInfo.current / stepInfo.total) * 100}%`,
-                  backgroundColor: COLORS.yellow
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span>Step {stepInfo.current} of {stepInfo.total}</span>
-              <span>{config.services.find(s => s.id === selectedService)?.name}</span>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main content */}
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        {/* Back button */}
-        {selectedService && currentStep > 1 && !submitSuccess && (
-          <button
-            onClick={() => {
-              if (selectedService === 'paving') {
-                if (currentStep === STEPS.PROJECT_TYPE) {
-                  setSelectedService(null)
-                } else {
-                  setCurrentStep(currentStep - 1)
-                }
-              } else if (selectedService === 'sealcoating') {
-                if (currentStep === SEALCOAT_STEPS.ADDRESS) {
-                  setSelectedService(null)
-                } else if (currentStep === SEALCOAT_STEPS.STRIPING_SPACES) {
-                  setCurrentStep(SEALCOAT_STEPS.STRIPING)
-                } else {
-                  setCurrentStep(currentStep - 1)
-                }
-              } else if (selectedService === 'linestriping') {
-                if (currentStep === STRIPING_STEPS.ADDRESS) {
-                  setSelectedService(null)
-                } else {
-                  setCurrentStep(currentStep - 1)
-                }
-              }
-            }}
-            className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
-        )}
-
-        {renderCurrentStep()}
+      <main className="flex-1 px-4 py-8 pb-32">
+        <div className="max-w-3xl mx-auto">
+          {!submitSuccess && renderProgressBar()}
+          {renderCurrentStep()}
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-auto py-8 text-center text-gray-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} {config.businessName}. All rights reserved.</p>
-      </footer>
+      {/* Fixed bottom navigation */}
+      {!submitSuccess && (
+        <div className="fixed bottom-0 left-0 right-0 bg-[#0a0908] border-t border-gray-800 p-4 z-50">
+          <div className="max-w-3xl mx-auto flex gap-4">
+            {currentStep !== 'service' && (
+              <button
+                onClick={prevStep}
+                className="flex-1 sm:flex-initial py-4 px-6 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Back</span>
+              </button>
+            )}
+
+            {currentStep !== 'review' ? (
+              <button
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className={`flex-1 py-4 px-6 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  canProceed()
+                    ? 'bg-yellow-500 hover:bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-500/25'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Continue
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1 py-4 px-6 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/25 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Submit Quote Request
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Animation styles */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
