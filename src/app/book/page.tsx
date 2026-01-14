@@ -121,28 +121,37 @@ export default function BookingPage() {
   // PRICING
   // ============================================
 
+  // Calculate striping price separately (with minimum)
+  const calculateStripingPrice = (): number => {
+    const stripingService = config.services.find(s => s.id === 'linestriping')!
+    const pricePerStall = stripingService.pricePerStall || 4
+    const pricePerSymbol = stripingService.pricePerSymbol || 35
+    const regularPrice = formData.regularSpaces * pricePerStall
+    const handicapPrice = formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol)
+    const basePrice = Math.round(regularPrice + handicapPrice)
+    return Math.max(basePrice, stripingService.minPrice)
+  }
+
+  // Calculate sealcoating price separately (without striping)
+  const calculateSealcoatingPrice = (): number => {
+    const service = config.services.find(s => s.id === 'sealcoating')!
+    const sqft = drawnArea || formData.squareFootage || 0
+    let price = Math.max(Math.round(sqft * service.pricePerSqFt), service.minPrice)
+    if (formData.isChurch) price = Math.round(price * 0.9)
+    return price
+  }
+
   const calculatePrice = (): number => {
     if (formData.service === 'linestriping') {
-      const service = config.services.find(s => s.id === 'linestriping')!
-      const pricePerStall = service.pricePerStall || 4
-      const pricePerSymbol = service.pricePerSymbol || 35
-      const regularPrice = formData.regularSpaces * pricePerStall
-      const handicapPrice = formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol)
-      return Math.max(Math.round(regularPrice + handicapPrice), service.minPrice)
+      return calculateStripingPrice()
     }
 
     if (formData.service === 'sealcoating') {
-      const service = config.services.find(s => s.id === 'sealcoating')!
-      const sqft = drawnArea || formData.squareFootage || 0
-      let price = Math.max(Math.round(sqft * service.pricePerSqFt), service.minPrice)
-      if (formData.isChurch) price = Math.round(price * 0.9)
+      let price = calculateSealcoatingPrice()
+      // Add striping with 10% bundle discount, but still enforce striping minimum
       if (formData.addStriping && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)) {
-        const stripingService = config.services.find(s => s.id === 'linestriping')!
-        const pricePerStall = stripingService.pricePerStall || 4
-        const pricePerSymbol = stripingService.pricePerSymbol || 35
-        const stripingPrice = (formData.regularSpaces * pricePerStall) +
-          (formData.handicapSpaces * (pricePerStall * 2 + pricePerSymbol))
-        price += Math.round(stripingPrice * 0.9)
+        const stripingPrice = calculateStripingPrice()
+        price += Math.round(stripingPrice * 0.9) // 10% discount on striping when bundled
       }
       return price
     }
@@ -819,9 +828,18 @@ export default function BookingPage() {
   // ============================================
 
   const ReviewStep = () => {
-    const price = calculatePrice()
-    const deposit = Math.round(price * 0.5)
+    const totalPrice = calculatePrice()
+    const deposit = Math.round(totalPrice * 0.5)
     const serviceName = config.services.find(s => s.id === formData.service)?.name || ''
+
+    // Calculate individual prices for breakdown
+    const sealcoatingPrice = formData.service === 'sealcoating' ? calculateSealcoatingPrice() : 0
+    const stripingPrice = (formData.service === 'linestriping' || (formData.addStriping && (formData.regularSpaces > 0 || formData.handicapSpaces > 0)))
+      ? calculateStripingPrice()
+      : 0
+    const stripingDiscount = formData.service === 'sealcoating' && formData.addStriping && stripingPrice > 0
+      ? Math.round(stripingPrice * 0.1) // 10% discount
+      : 0
 
     return (
       <div className="w-full max-w-2xl mx-auto px-4">
@@ -857,6 +875,19 @@ export default function BookingPage() {
             )}
           </div>
 
+          {/* Line striping details */}
+          {(formData.service === 'linestriping' || formData.addStriping) && (formData.regularSpaces > 0 || formData.handicapSpaces > 0) && (
+            <div className="p-6 border-b border-zinc-800">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Striping Details</p>
+              {formData.regularSpaces > 0 && (
+                <p className="text-zinc-400">{formData.regularSpaces} regular spaces</p>
+              )}
+              {formData.handicapSpaces > 0 && (
+                <p className="text-zinc-400">{formData.handicapSpaces} handicap spaces (w/ symbols)</p>
+              )}
+            </div>
+          )}
+
           <div className="p-6 border-b border-zinc-800">
             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Contact</p>
             <p className="text-lg font-medium text-white">{formData.name}</p>
@@ -875,10 +906,51 @@ export default function BookingPage() {
             </p>
           </div>
 
+          {/* Pricing breakdown */}
           <div className="p-6 bg-zinc-800/50">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Pricing</p>
+
+            {/* Show sealcoating price if sealcoating service */}
+            {formData.service === 'sealcoating' && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-zinc-400">Sealcoating ({formData.squareFootage?.toLocaleString()} sq ft)</span>
+                <span className="text-lg text-white">${sealcoatingPrice.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Show striping price */}
+            {stripingPrice > 0 && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-zinc-400">
+                  Line Striping ({formData.regularSpaces + formData.handicapSpaces} spaces)
+                </span>
+                <span className="text-lg text-white">${stripingPrice.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Show bundle discount if applicable */}
+            {stripingDiscount > 0 && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-green-400">Bundle Discount (10% off striping)</span>
+                <span className="text-lg text-green-400">-${stripingDiscount.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Paving price */}
+            {formData.service === 'paving' && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-zinc-400">Paving ({formData.squareFootage?.toLocaleString()} sq ft)</span>
+                <span className="text-lg text-white">${totalPrice.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="border-t border-zinc-700 my-4" />
+
+            {/* Total */}
             <div className="flex justify-between items-center mb-3">
-              <span className="text-zinc-400 text-lg">Estimated Total</span>
-              <span className="text-4xl font-bold text-white">${price.toLocaleString()}</span>
+              <span className="text-zinc-300 text-lg font-semibold">Estimated Total</span>
+              <span className="text-4xl font-bold text-white">${totalPrice.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-zinc-500">Deposit (50%)</span>
