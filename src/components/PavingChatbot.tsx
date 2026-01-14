@@ -554,15 +554,22 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   }
 
   const calculateStripingEstimate = () => {
-    let total = (stripingRegularSpaces * STRIPING_PRICING.regularSpace) +
-                (stripingHandicapSpaces * STRIPING_PRICING.handicapSpace) +
-                (stripingArrows * STRIPING_PRICING.arrow)
+    // Calculate base cost for regular spaces (subject to minimum)
+    let regularSpacesCost = stripingRegularSpaces * STRIPING_PRICING.regularSpace
 
-    // Apply new layout multiplier if applicable
-    total = Math.round(total * stripingMultiplier)
+    // Apply $500 minimum to the regular spaces base
+    regularSpacesCost = Math.max(regularSpacesCost, STRIPING_PRICING.minimum)
 
-    // Enforce minimum
-    total = Math.max(total, STRIPING_PRICING.minimum)
+    // Add handicap spaces and arrows on top (not subject to minimum)
+    const handicapCost = stripingHandicapSpaces * STRIPING_PRICING.handicapSpace
+    const arrowsCost = stripingArrows * STRIPING_PRICING.arrow
+
+    let total = regularSpacesCost + handicapCost + arrowsCost
+
+    // Apply new layout multiplier if applicable (+50%)
+    if (stripingMultiplier > 1) {
+      total = Math.round(total * stripingMultiplier)
+    }
 
     return total
   }
@@ -574,6 +581,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }
 
     const estimate = calculateStripingEstimate()
+    const deposit = Math.round(estimate * 0.5)
     const breakdown: string[] = []
 
     if (stripingRegularSpaces > 0) breakdown.push(`${stripingRegularSpaces} regular spaces`)
@@ -589,7 +597,7 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     }))
 
     addUserMessage(breakdown.join(', '))
-    await addBotMessage("Great! Enter your contact info and address below:")
+    await addBotMessage(`Total: $${estimate.toLocaleString()} (Deposit: $${deposit.toLocaleString()})\n\nEnter your contact info and address below:`)
     setStep(STEPS.ADDRESS)
   }
 
@@ -1271,10 +1279,13 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                   <p style={{ color: COLORS.yellow, fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
                     ${calculateStripingEstimate().toLocaleString()}
                   </p>
+                  <p style={{ color: 'white', fontSize: '14px', margin: '8px 0 0 0' }}>
+                    Deposit: ${Math.round(calculateStripingEstimate() * 0.5).toLocaleString()}
+                  </p>
                   {stripingMultiplier > 1 && (
-                    <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>Includes +50% for new layout</p>
+                    <p style={{ color: COLORS.gray, fontSize: '11px', margin: '8px 0 0 0' }}>Includes +50% for new layout</p>
                   )}
-                  <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>$500 minimum</p>
+                  <p style={{ color: COLORS.gray, fontSize: '11px', margin: '4px 0 0 0' }}>$500 minimum job charge</p>
                 </div>
 
                 {/* Continue Button */}
