@@ -446,20 +446,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     // Calculate estimate with condition/striping type adjustment
     const estimate = calculateEstimate(drawnArea, bookingData.service, bookingData.discount)
 
-    // Apply adjustment based on service type
-    if (bookingData.service === 'linestriping') {
-      // For line striping, apply striping type adjustment
-      const stripingType = STRIPING_OPTIONS.find(s => s.id === bookingData.condition)
-      if (stripingType && stripingType.adjustment > 0) {
-        estimate.low = Math.round(estimate.low * (1 + stripingType.adjustment))
-        estimate.high = Math.round(estimate.high * (1 + stripingType.adjustment))
-      }
-    } else {
-      // For other services, apply condition adjustment
-      const condition = config.conditions.find(c => c.id === bookingData.condition)
-      if (condition && condition.adjustment > 0) {
-        estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
-      }
+    // Apply condition adjustment (for paving/sealcoating only - line striping uses space-based pricing)
+    const condition = config.conditions.find(c => c.id === bookingData.condition)
+    if (condition && condition.adjustment > 0) {
+      estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
     }
 
     setBookingData(prev => ({ ...prev, squareFootage: drawnArea, estimateLow: estimate.low, estimateHigh: estimate.high }))
@@ -877,21 +867,13 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                         const sqft = parseInt(manualSqFt)
                         if (sqft && sqft > 0) {
                           setDrawnArea(sqft)
-                          // Calculate estimate with condition/striping type adjustment
+                          // Calculate estimate with condition adjustment
                           const estimate = calculateEstimate(sqft, bookingData.service, bookingData.discount)
 
-                          // Apply adjustment based on service type
-                          if (bookingData.service === 'linestriping') {
-                            const stripingType = STRIPING_OPTIONS.find(s => s.id === bookingData.condition)
-                            if (stripingType && stripingType.adjustment > 0) {
-                              estimate.low = Math.round(estimate.low * (1 + stripingType.adjustment))
-                              estimate.high = Math.round(estimate.high * (1 + stripingType.adjustment))
-                            }
-                          } else {
-                            const condition = config.conditions.find(c => c.id === bookingData.condition)
-                            if (condition && condition.adjustment > 0) {
-                              estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
-                            }
+                          // Apply condition adjustment (for paving/sealcoating only)
+                          const condition = config.conditions.find(c => c.id === bookingData.condition)
+                          if (condition && condition.adjustment > 0) {
+                            estimate.high = Math.round(estimate.high * (1 + condition.adjustment))
                           }
 
                           setBookingData(prev => ({ ...prev, squareFootage: sqft, estimateLow: estimate.low, estimateHigh: estimate.high }))
