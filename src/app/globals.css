@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Reset any Tailwind backgrounds on hero */
+@layer utilities {
+    .hero, .hero * {
+        background-image: none !important;
+    }
+}
+
 /* ============================================
    PINPOINT PARKING - Main Stylesheet
    Professional Black & Yellow Theme
@@ -429,7 +436,8 @@ p {
     min-height: 90vh;
     display: flex;
     align-items: center;
-    background-color: var(--black);
+    background-color: var(--black) !important;
+    background-image: none !important;
     overflow: hidden;
 }
 
@@ -447,6 +455,7 @@ p {
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg, rgba(26, 23, 20, 0.75) 0%, rgba(26, 23, 20, 0.65) 50%, rgba(26, 23, 20, 0.7) 100%);
+    background-image: none !important;
     z-index: 1;
 }
 
