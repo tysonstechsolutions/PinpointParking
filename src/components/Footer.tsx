@@ -93,6 +93,9 @@ export default function Footer() {
 
         <div className="footer-bottom">
           <p>&copy; {new Date().getFullYear()} Pinpoint Parking. All rights reserved. | Serving Mount Vernon, IL and Southern Illinois</p>
+          <p className="footer-credit">
+            Website by <a href="https://tysonstechsolutions.com" target="_blank" rel="noopener noreferrer">Tyson's Tech Solutions</a>
+          </p>
         </div>
       </div>
     </footer>
