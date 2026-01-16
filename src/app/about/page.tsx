@@ -117,6 +117,28 @@ export default function AboutPage() {
                 </a>
               </div>
 
+              {/* Credentials Box */}
+              <div className="sidebar-services" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '12px', padding: '20px' }}>
+                <h4 style={{ color: '#166534', marginBottom: '16px' }}>✓ Licensed & Insured</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <li style={{ marginBottom: '12px', fontSize: '14px' }}>
+                    <strong>General Liability Insurance</strong>
+                    <p style={{ color: '#666', margin: '4px 0 0 0', fontSize: '13px' }}>$1M per occurrence / $2M aggregate</p>
+                  </li>
+                  <li style={{ marginBottom: '12px', fontSize: '14px' }}>
+                    <strong>Workers&apos; Compensation</strong>
+                    <p style={{ color: '#666', margin: '4px 0 0 0', fontSize: '13px' }}>Full coverage for our crew</p>
+                  </li>
+                  <li style={{ marginBottom: '12px', fontSize: '14px' }}>
+                    <strong>Veteran-Owned Business</strong>
+                    <p style={{ color: '#666', margin: '4px 0 0 0', fontSize: '13px' }}>Disabled Army Veteran Owned</p>
+                  </li>
+                </ul>
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '12px', fontStyle: 'italic' }}>
+                  Need proof of insurance? We&apos;ll provide a certificate upon request.
+                </p>
+              </div>
+
               <div className="sidebar-services">
                 <h4>Our Services</h4>
                 <ul>

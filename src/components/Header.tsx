@@ -106,6 +106,11 @@ export default function Header() {
                 </ul>
               </li>
               <li>
+                <Link href="/gallery" className={pathname === '/gallery' ? 'active' : ''}>
+                  Our Work
+                </Link>
+              </li>
+              <li>
                 <Link href="/about" className={pathname === '/about' ? 'active' : ''}>
                   About
                 </Link>
