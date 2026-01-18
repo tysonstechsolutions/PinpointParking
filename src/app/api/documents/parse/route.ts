@@ -6,33 +6,74 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
 export const dynamic = 'force-dynamic'
 
-const INVOICE_PROMPT = `Analyze this invoice/receipt and extract all information.
+const INVOICE_PROMPT = `CAREFULLY analyze this invoice/receipt data and extract ALL information with high accuracy. Read every number, word, and detail precisely.
 
-Return JSON:
+Return a JSON object with this exact structure:
+
 {
   "invoice_type": "vendor_expense" or "customer_record",
-  "from": { "name": "", "address": "", "phone": "", "email": "" },
-  "to": { "name": "", "address": "", "phone": "", "email": "" },
-  "invoice_number": "",
-  "invoice_date": "YYYY-MM-DD",
-  "due_date": "",
-  "payment_terms": "",
-  "line_items": [{ "description": "", "quantity": 1, "unit_price_cents": 0, "total_cents": 0 }],
-  "subtotal_cents": 0,
+  "from": {
+    "name": "Company/person sending the invoice",
+    "address": "Full address if visible",
+    "phone": "Phone number if visible",
+    "email": "Email if visible"
+  },
+  "to": {
+    "name": "Company/person receiving the invoice (being billed)",
+    "address": "Full address if visible",
+    "phone": "Phone number if visible",
+    "email": "Email if visible"
+  },
+  "invoice_number": "Invoice number/ID",
+  "invoice_date": "YYYY-MM-DD format",
+  "due_date": "Due date as shown on invoice",
+  "payment_terms": "Payment terms (Net 30, Due on Receipt, etc.)",
+  "line_items": [
+    {
+      "description": "Full item/service description including quantities and units",
+      "quantity": 1,
+      "unit": "tons/gallons/each/sqft",
+      "unit_price_cents": 10000,
+      "total_cents": 10000
+    }
+  ],
+  "subtotal_cents": 10000,
   "tax_cents": 0,
-  "total_cents": 0,
-  "expense_category": "materials|fuel|equipment|labor|insurance|permits|other",
-  "notes": "",
+  "fees_cents": 0,
+  "discount_cents": 0,
+  "total_cents": 10000,
+  "expense_category": "materials" or "fuel" or "equipment" or "labor" or "insurance" or "permits" or "other",
+  "notes": "Any additional notes, weight info, reference numbers, or important details",
   "confidence": 0.95
 }
 
-RULES:
-- All amounts in CENTS ($52.50 = 5250)
-- Dates as YYYY-MM-DD
-- invoice_type: "vendor_expense" if this is a bill TO your business (expense), "customer_record" if FROM your business (income)
-- confidence: 0-1 based on how clearly you can read the document
-- expense_category: guess based on vendor name and items (Home Depot = materials, Shell/gas station = fuel, etc.)
-- Return ONLY valid JSON, no other text`
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+- ACCURACY IS PARAMOUNT: Double-check ALL numbers including phone numbers, quantities, and dollar amounts
+- READ EVERY DIGIT EXACTLY: Do not confuse similar digits (1/7, 4/8, 5/6, 3/8). Read each digit carefully!
+- PHONE NUMBERS: Read each digit precisely. Verify every digit!
+- READ DOLLAR AMOUNTS EXACTLY: $525.00 = 52500 cents, $83.36 = 8336 cents. NEVER drop digits!
+- VERIFY TOTALS: The total should match what's shown on the invoice.
+- All monetary amounts must be in cents (multiply dollars by 100). Example: $525.00 = 52500 cents
+- DATE FORMAT: Convert dates to YYYY-MM-DD. Example: 1/4/2026 becomes 2026-01-04
+
+INVOICE TYPE DETECTION:
+- If "Pinpoint Parking" appears in the FROM/sender section, this is a "customer_record" (invoice TO a customer)
+- If "Pinpoint Parking" appears in the TO/recipient/billing section, this is a "vendor_expense" (bill FROM a vendor)
+- Default to "vendor_expense" if unclear
+
+EXPENSE CATEGORY DETECTION (for vendor_expense):
+- "materials": Asphalt, sealcoat material, aggregate, crack filler, paint, supplies from hardware stores
+- "fuel": Gas stations, diesel, fleet fueling
+- "equipment": Equipment purchases, rentals, parts, repairs, maintenance
+- "labor": Subcontractor invoices, temp workers
+- "insurance": Insurance premiums, bonds
+- "permits": City/county permits, licenses
+- "other": Anything else
+
+Set confidence between 0 and 1 based on data clarity and your certainty.
+If a field is not visible or unclear, use null.
+
+Return ONLY the JSON object, no other text.`
 
 async function updateStatus(id: number, status: string) {
   await fetch(`${SUPABASE_URL}/rest/v1/documents?id=eq.${id}`, {
@@ -230,7 +271,15 @@ export async function POST(request: Request) {
 
     const savedParsed = await saveRes.json()
 
-    // 7. Update document with parsed data
+    // 7. Update document with parsed data and smart title
+    const smartTitle = data.invoice_number
+      ? `${data.from?.name || 'Invoice'} #${data.invoice_number}`
+      : data.from?.name && data.invoice_date
+        ? `${data.from.name} - ${data.invoice_date}`
+        : data.from?.name
+          ? `${data.from.name}`
+          : doc.title
+
     await fetch(`${SUPABASE_URL}/rest/v1/documents?id=eq.${document_id}`, {
       method: 'PATCH',
       headers: {
@@ -243,6 +292,10 @@ export async function POST(request: Request) {
         parsed_invoice_id: savedParsed[0]?.id,
         customer_id: customer?.id,
         amount_cents: data.total_cents,
+        title: smartTitle,
+        vendor: data.from?.name || null,
+        document_date: data.invoice_date || null,
+        description: data.notes || data.line_items?.[0]?.description || null,
       }),
     })
 
