@@ -69,17 +69,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   const deleteJob = useCallback(async (jobId: number): Promise<boolean> => {
     try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/jobs?id=eq.${jobId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-            'Prefer': 'return=minimal',
-          },
-        }
-      )
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: 'DELETE',
+      })
       if (response.ok) {
         // Remove from local state immediately
         setJobs(prev => prev.filter(job => job.id !== jobId))
