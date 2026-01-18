@@ -6,7 +6,9 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
 export const dynamic = 'force-dynamic'
 
-const INVOICE_PROMPT = `CAREFULLY analyze this invoice/receipt data and extract ALL information with high accuracy. Read every number, word, and detail precisely.
+const INVOICE_PROMPT = `CAREFULLY analyze this document image and extract ALL information with high accuracy.
+
+IMPORTANT: This image may contain small text. ZOOM IN mentally and read EVERY word and number on the document precisely. Take your time to read all text, including headers, line items, totals, dates, and account information.
 
 Return a JSON object with this exact structure:
 
@@ -176,7 +178,7 @@ export async function POST(request: Request) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-opus-4-20250514',
         max_tokens: 4000,
         messages: [{
           role: 'user',
