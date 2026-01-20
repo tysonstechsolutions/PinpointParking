@@ -16,9 +16,87 @@ const services = [
   { name: 'Pothole Repair', href: '/services/pothole-repair' },
 ];
 
+function generateBreadcrumbSchema(cityName: string) {
+  const citySlug = cityName.toLowerCase().replace(/\s+/g, '-');
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://pinpointparking.net"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Service Areas",
+        "item": "https://pinpointparking.net/locations"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": cityName,
+        "item": `https://pinpointparking.net/locations/${citySlug}`
+      }
+    ]
+  };
+}
+
+function generateLocalBusinessSchema(cityName: string, county: string, description: string) {
+  const citySlug = cityName.toLowerCase().replace(/\s+/g, '-');
+  return {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": `Pinpoint Parking - ${cityName}`,
+    "description": description,
+    "url": `https://pinpointparking.net/locations/${citySlug}`,
+    "telephone": "+1-618-214-7656",
+    "email": "pinpointparkingco@gmail.com",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": cityName,
+      "addressRegion": "IL",
+      "addressCountry": "US"
+    },
+    "areaServed": {
+      "@type": "City",
+      "name": cityName,
+      "containedInPlace": {
+        "@type": "AdministrativeArea",
+        "name": county
+      }
+    },
+    "parentOrganization": {
+      "@type": "LocalBusiness",
+      "@id": "https://pinpointparking.net/#organization",
+      "name": "Pinpoint Parking"
+    },
+    "priceRange": "$$",
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      "opens": "07:00",
+      "closes": "18:00"
+    }
+  };
+}
+
 export default function LocationPageLayout({ cityName, county, distance, description, children }: LocationPageLayoutProps) {
+  const breadcrumbSchema = generateBreadcrumbSchema(cityName);
+  const localBusinessSchema = generateLocalBusinessSchema(cityName, county, description);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+      />
       {/* Page Hero */}
       <section className="page-hero">
         <div className="container page-hero-content">

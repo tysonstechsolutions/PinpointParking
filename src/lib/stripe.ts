@@ -17,7 +17,7 @@ export function getStripe(): Stripe | null {
   }
 
   _stripe = new Stripe(stripeSecretKey, {
-    apiVersion: '2025-11-15.basil',
+    apiVersion: '2025-12-15.clover',
   })
   return _stripe
 }

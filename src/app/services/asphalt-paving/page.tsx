@@ -18,6 +18,7 @@ const serviceSchema = {
   "provider": {
     "@type": "LocalBusiness",
     "name": "Pinpoint Parking",
+    "@id": "https://pinpointparking.net/#organization",
     "telephone": "+1-618-214-7656",
     "address": {
       "@type": "PostalAddress",
@@ -36,13 +37,28 @@ const serviceSchema = {
   },
   "serviceType": "Asphalt Paving",
   "offers": {
-    "@type": "Offer",
+    "@type": "AggregateOffer",
     "availability": "https://schema.org/InStock",
+    "priceCurrency": "USD",
+    "lowPrice": "3",
+    "highPrice": "7",
     "priceSpecification": {
-      "@type": "PriceSpecification",
-      "priceCurrency": "USD"
+      "@type": "UnitPriceSpecification",
+      "price": "3-7",
+      "priceCurrency": "USD",
+      "unitText": "per square foot"
     }
   }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pinpointparking.net" },
+    { "@type": "ListItem", "position": 2, "name": "Services", "item": "https://pinpointparking.net/services" },
+    { "@type": "ListItem", "position": 3, "name": "Asphalt Paving", "item": "https://pinpointparking.net/services/asphalt-paving" }
+  ]
 };
 
 const faqSchema = {
@@ -90,6 +106,10 @@ export default function AsphaltPavingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
       <script
         type="application/ld+json"

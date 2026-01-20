@@ -15,10 +15,35 @@ const articleSchema = {
   "@type": "Article",
   "headline": "Asphalt vs Concrete Driveway: Which is Better for Illinois?",
   "description": "Complete comparison of asphalt and concrete driveways for Southern Illinois homeowners.",
-  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
-  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
-  "datePublished": "2026-01-01",
-  "dateModified": "2026-01-01"
+  "image": "https://pinpointparking.net/media/parking-lot-aerial.jpg",
+  "author": {
+    "@type": "Person",
+    "name": "Tyson",
+    "jobTitle": "Founder & Asphalt Specialist",
+    "description": "Disabled Army Veteran and founder of Pinpoint Parking with hands-on experience in asphalt paving throughout Southern Illinois.",
+    "worksFor": { "@type": "Organization", "name": "Pinpoint Parking" }
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pinpoint Parking",
+    "logo": { "@type": "ImageObject", "url": "https://pinpointparking.net/favicon.svg" }
+  },
+  "datePublished": "2024-09-20",
+  "dateModified": "2026-01-14",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pinpointparking.net/blog/asphalt-vs-concrete-driveway"
+  }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pinpointparking.net" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pinpointparking.net/blog" },
+    { "@type": "ListItem", "position": 3, "name": "Asphalt vs Concrete", "item": "https://pinpointparking.net/blog/asphalt-vs-concrete-driveway" }
+  ]
 };
 
 export default function AsphaltVsConcretePage() {
@@ -27,6 +52,10 @@ export default function AsphaltVsConcretePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
       <section className="page-hero">
@@ -44,6 +73,14 @@ export default function AsphaltVsConcretePage() {
       </section>
 
       <article className="service-content">
+        {/* Author Byline */}
+        <div className="container" style={{ marginTop: '24px', marginBottom: '-24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', color: '#666' }}>
+            <span>Written by <strong>Tyson</strong>, Disabled Army Veteran &amp; Founder of Pinpoint Parking</span>
+            <span>•</span>
+            <span>Updated January 2026</span>
+          </div>
+        </div>
         <div className="container">
           <div className="service-layout">
             <div className="service-main">

@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving Marion IL ★ Williamson County\'s Best | FREE Quote',
   description: '⭐ 5-Star Rated in Marion! Driveways from $3/sqft. Serving Williamson County businesses & homeowners. Same-week scheduling. Call (618) 214-7656!',
   keywords: ['asphalt paving Marion IL', 'driveway paving Marion', 'sealcoating Marion IL', 'parking lot paving Williamson County'],
+  alternates: {
+    canonical: 'https://pinpointparking.net/locations/marion',
+  },
 };
 
 export default function MarionPage() {

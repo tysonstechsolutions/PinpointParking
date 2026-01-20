@@ -15,10 +15,35 @@ const articleSchema = {
   "@type": "Article",
   "headline": "When to Sealcoat Your Driveway: Complete Timing Guide",
   "description": "Learn the best time to sealcoat your asphalt driveway. Ideal temperatures, seasons, and how often to sealcoat.",
-  "author": { "@type": "Organization", "name": "Pinpoint Parking" },
-  "publisher": { "@type": "Organization", "name": "Pinpoint Parking" },
-  "datePublished": "2026-01-01",
-  "dateModified": "2026-01-01"
+  "image": "https://pinpointparking.net/media/parking-lot-aerial.jpg",
+  "author": {
+    "@type": "Person",
+    "name": "Tyson",
+    "jobTitle": "Founder & Asphalt Specialist",
+    "description": "Disabled Army Veteran and founder of Pinpoint Parking with hands-on experience in asphalt paving throughout Southern Illinois.",
+    "worksFor": { "@type": "Organization", "name": "Pinpoint Parking" }
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pinpoint Parking",
+    "logo": { "@type": "ImageObject", "url": "https://pinpointparking.net/favicon.svg" }
+  },
+  "datePublished": "2024-08-15",
+  "dateModified": "2026-01-14",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pinpointparking.net/blog/when-to-sealcoat-driveway"
+  }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pinpointparking.net" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pinpointparking.net/blog" },
+    { "@type": "ListItem", "position": 3, "name": "When to Sealcoat", "item": "https://pinpointparking.net/blog/when-to-sealcoat-driveway" }
+  ]
 };
 
 const faqSchema = {
@@ -61,6 +86,10 @@ export default function WhenToSealcoatPage() {
       />
       <script
         type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
@@ -79,6 +108,14 @@ export default function WhenToSealcoatPage() {
       </section>
 
       <article className="service-content">
+        {/* Author Byline */}
+        <div className="container" style={{ marginTop: '24px', marginBottom: '-24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', color: '#666' }}>
+            <span>Written by <strong>Tyson</strong>, Disabled Army Veteran &amp; Founder of Pinpoint Parking</span>
+            <span>•</span>
+            <span>Updated January 2026</span>
+          </div>
+        </div>
         <div className="container">
           <div className="service-layout">
             <div className="service-main">

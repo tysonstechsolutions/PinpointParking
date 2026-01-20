@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving Mount Vernon IL ★★★★★ #1 Local Contractor | FREE Quote',
   description: '⭐ Mount Vernon\'s TOP-RATED paving company! Driveways from $3/sqft. ✓ Local HQ ✓ Same-week service ✓ 100% satisfaction guarantee. Call (618) 214-7656!',
   keywords: ['asphalt paving Mount Vernon IL', 'driveway paving Mount Vernon', 'sealcoating Mount Vernon IL', 'parking lot paving Jefferson County'],
+  alternates: {
+    canonical: 'https://pinpointparking.net/locations/mount-vernon',
+  },
 };
 
 export default function MountVernonPage() {

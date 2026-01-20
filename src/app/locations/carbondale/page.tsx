@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Asphalt Paving Carbondale IL ★ SIU Area\'s #1 Contractor | FREE Quote',
   description: '⭐ 5-Star Rated in Carbondale! Driveways from $3/sqft. Serving SIU, businesses & residents. ✓ Licensed ✓ Insured. Call (618) 214-7656 for FREE quote!',
   keywords: ['asphalt paving Carbondale IL', 'driveway paving Carbondale', 'sealcoating Carbondale IL', 'parking lot paving Jackson County'],
+  alternates: {
+    canonical: 'https://pinpointparking.net/locations/carbondale',
+  },
 };
 
 export default function CarbondalePage() {

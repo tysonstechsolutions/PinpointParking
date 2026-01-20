@@ -18,6 +18,7 @@ const serviceSchema = {
   "provider": {
     "@type": "LocalBusiness",
     "name": "Pinpoint Parking",
+    "@id": "https://pinpointparking.net/#organization",
     "telephone": "+1-618-214-7656"
   },
   "areaServed": {
@@ -25,7 +26,19 @@ const serviceSchema = {
     "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
     "geoRadius": "72000"
   },
-  "serviceType": "Asphalt Sealcoating"
+  "serviceType": "Asphalt Sealcoating",
+  "offers": {
+    "@type": "AggregateOffer",
+    "priceCurrency": "USD",
+    "lowPrice": "0.15",
+    "highPrice": "0.30",
+    "priceSpecification": {
+      "@type": "UnitPriceSpecification",
+      "price": "0.15-0.30",
+      "priceCurrency": "USD",
+      "unitText": "per square foot"
+    }
+  }
 };
 
 const faqSchema = {

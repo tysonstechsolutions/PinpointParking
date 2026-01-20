@@ -112,7 +112,7 @@ export const viewport: Viewport = {
 const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  "@id": "https://pinpointparking.net",
+  "@id": "https://pinpointparking.net/#organization",
   "name": "Pinpoint Parking",
   "description": "Disabled Army Veteran owned asphalt paving company in Mount Vernon, IL. We're a local crew that does the work ourselves—no middlemen, no subcontractors. Meet the person paving your driveway.",
   "url": "https://pinpointparking.net",
@@ -122,8 +122,9 @@ const localBusinessSchema = {
   "logo": "https://pinpointparking.net/favicon.svg",
   "founder": {
     "@type": "Person",
-    "name": "Owner",
-    "jobTitle": "Disabled Army Veteran & Owner"
+    "name": "Tyson",
+    "jobTitle": "Disabled Army Veteran & Owner",
+    "description": "Founder of Pinpoint Parking with hands-on experience in asphalt paving, sealcoating, and pavement maintenance throughout Southern Illinois."
   },
   "knowsAbout": ["Asphalt Paving", "Sealcoating", "Line Striping", "Crack Filling", "Pothole Repair"],
   "slogan": "Your Local Crew. Not a Middleman.",
@@ -154,7 +155,7 @@ const localBusinessSchema = {
         "@type": "Person",
         "name": "Mike T."
       },
-      "datePublished": "2025-11-15",
+      "datePublished": "2024-11-15",
       "reviewBody": "Excellent work on our parking lot. Professional crew, fair pricing, and they finished ahead of schedule. Highly recommend!",
       "reviewRating": {
         "@type": "Rating",
@@ -168,7 +169,7 @@ const localBusinessSchema = {
         "@type": "Person",
         "name": "Sarah K."
       },
-      "datePublished": "2025-10-22",
+      "datePublished": "2024-10-22",
       "reviewBody": "Best driveway contractor in Southern Illinois. Got a quote within hours and they started the next week. Driveway looks amazing!",
       "reviewRating": {
         "@type": "Rating",
@@ -182,7 +183,7 @@ const localBusinessSchema = {
         "@type": "Person",
         "name": "Jim R."
       },
-      "datePublished": "2025-09-18",
+      "datePublished": "2024-09-18",
       "reviewBody": "Used them for sealcoating and line striping at my business. Very professional, great communication, and competitive prices.",
       "reviewRating": {
         "@type": "Rating",
@@ -247,8 +248,7 @@ const localBusinessSchema = {
     "closes": "18:00"
   },
   "sameAs": [
-    "https://www.facebook.com/pinpointparking",
-    "https://www.google.com/maps?cid=YOUR_GOOGLE_CID"
+    "https://www.facebook.com/pinpointparking"
   ]
 };
 
@@ -307,7 +307,8 @@ const serviceSchema = {
   "serviceType": "Asphalt Paving",
   "provider": {
     "@type": "LocalBusiness",
-    "name": "Pinpoint Parking"
+    "name": "Pinpoint Parking",
+    "@id": "https://pinpointparking.net/#organization"
   },
   "areaServed": {
     "@type": "GeoCircle",
@@ -320,11 +321,62 @@ const serviceSchema = {
   },
   "description": "Professional asphalt paving, sealcoating, line striping, and pavement repairs for residential and commercial properties.",
   "offers": {
-    "@type": "Offer",
-    "price": "0",
+    "@type": "AggregateOffer",
     "priceCurrency": "USD",
-    "description": "Free estimates within 24 hours"
+    "lowPrice": "3",
+    "highPrice": "7",
+    "priceSpecification": {
+      "@type": "UnitPriceSpecification",
+      "price": "3-7",
+      "priceCurrency": "USD",
+      "unitText": "per square foot"
+    },
+    "description": "Asphalt paving from $3-$7 per square foot. Free estimates within 24 hours."
   }
+};
+
+// HowTo Schema - For the process section
+const howToSchema = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to Get Your Driveway or Parking Lot Paved",
+  "description": "Simple 4-step process to get professional asphalt paving from Pinpoint Parking in Southern Illinois.",
+  "totalTime": "P7D",
+  "estimatedCost": {
+    "@type": "MonetaryAmount",
+    "currency": "USD",
+    "value": "2500-6000"
+  },
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Free Consultation",
+      "text": "Call us or fill out our form. We'll discuss your project and schedule a free on-site assessment.",
+      "url": "https://pinpointparking.net/book"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Detailed Quote",
+      "text": "We'll provide a comprehensive, transparent quote with all costs clearly explained.",
+      "url": "https://pinpointparking.net/book"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Professional Installation",
+      "text": "No subcontractors—our own trained team completes your project on schedule using quality materials.",
+      "url": "https://pinpointparking.net/services/asphalt-paving"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Final Walkthrough",
+      "text": "We review the completed work with you to ensure your complete satisfaction.",
+      "url": "https://pinpointparking.net/contact"
+    }
+  ]
 };
 
 export default function RootLayout({
@@ -346,6 +398,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }}
         />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />

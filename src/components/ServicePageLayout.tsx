@@ -15,9 +15,43 @@ const services = [
   { name: 'Pothole Repair', href: '/services/pothole-repair', slug: 'pothole-repair' },
 ];
 
+function generateBreadcrumbSchema(title: string, currentService?: string) {
+  const serviceSlug = currentService || title.toLowerCase().replace(/\s+/g, '-');
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://pinpointparking.net"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Services",
+        "item": "https://pinpointparking.net/services"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": title,
+        "item": `https://pinpointparking.net/services/${serviceSlug}`
+      }
+    ]
+  };
+}
+
 export default function ServicePageLayout({ title, description, children, currentService }: ServicePageLayoutProps) {
+  const breadcrumbSchema = generateBreadcrumbSchema(title, currentService);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       {/* Page Hero */}
       <section className="page-hero">
         <div className="container page-hero-content">

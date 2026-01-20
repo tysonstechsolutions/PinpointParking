@@ -10,9 +10,54 @@ export const metadata: Metadata = {
   },
 };
 
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "7 Signs You Need a New Driveway",
+  "description": "Know when it's time to repair vs replace your driveway. 7 warning signs that indicate you need full driveway replacement.",
+  "image": "https://pinpointparking.net/media/parking-lot-aerial.jpg",
+  "author": {
+    "@type": "Person",
+    "name": "Tyson",
+    "jobTitle": "Founder & Asphalt Specialist",
+    "description": "Disabled Army Veteran and founder of Pinpoint Parking with hands-on experience in asphalt paving throughout Southern Illinois.",
+    "worksFor": { "@type": "Organization", "name": "Pinpoint Parking" }
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pinpoint Parking",
+    "logo": { "@type": "ImageObject", "url": "https://pinpointparking.net/favicon.svg" }
+  },
+  "datePublished": "2024-07-10",
+  "dateModified": "2026-01-14",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pinpointparking.net/blog/signs-you-need-new-driveway"
+  }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://pinpointparking.net" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pinpointparking.net/blog" },
+    { "@type": "ListItem", "position": 3, "name": "Signs You Need a New Driveway", "item": "https://pinpointparking.net/blog/signs-you-need-new-driveway" }
+  ]
+};
+
 export default function SignsNewDrivewayPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+
       <section className="page-hero">
         <div className="container page-hero-content">
           <nav className="breadcrumb">
@@ -28,6 +73,14 @@ export default function SignsNewDrivewayPage() {
       </section>
 
       <article className="service-content">
+        {/* Author Byline */}
+        <div className="container" style={{ marginTop: '24px', marginBottom: '-24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', color: '#666' }}>
+            <span>Written by <strong>Tyson</strong>, Disabled Army Veteran &amp; Founder of Pinpoint Parking</span>
+            <span>•</span>
+            <span>Updated January 2026</span>
+          </div>
+        </div>
         <div className="container">
           <div className="service-layout">
             <div className="service-main">

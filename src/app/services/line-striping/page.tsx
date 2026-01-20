@@ -18,6 +18,7 @@ const serviceSchema = {
   "provider": {
     "@type": "LocalBusiness",
     "name": "Pinpoint Parking",
+    "@id": "https://pinpointparking.net/#organization",
     "telephone": "+1-618-214-7656"
   },
   "areaServed": {
@@ -25,7 +26,12 @@ const serviceSchema = {
     "geoMidpoint": { "@type": "GeoCoordinates", "latitude": "38.3173", "longitude": "-88.9031" },
     "geoRadius": "72000"
   },
-  "serviceType": "Parking Lot Line Striping"
+  "serviceType": "Parking Lot Line Striping",
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "USD",
+    "description": "Line striping from $4 per stall, symbols from $35 each. Free estimates available."
+  }
 };
 
 const faqSchema = {
