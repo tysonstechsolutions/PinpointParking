@@ -28,6 +28,8 @@ async function findOrCreateCustomer({
 }) {
   const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig()
 
+  console.log('findOrCreateCustomer called with:', { name, phone: phone ? '[REDACTED]' : null, email: email ? '[REDACTED]' : null })
+
   if (!name || !phone || !supabaseUrl || !supabaseKey) {
     console.log('Customer creation skipped - missing data or config:', {
       hasName: !!name,
@@ -39,6 +41,7 @@ async function findOrCreateCustomer({
   }
 
   const cleanPhone = phone.replace(/\D/g, '')
+  console.log('Clean phone (last 4):', cleanPhone.slice(-4))
 
   // Try to find existing customer by phone
   // Properly encode values to prevent injection
@@ -96,6 +99,7 @@ async function findOrCreateCustomer({
 
   // Create new customer
   try {
+    console.log('Creating new customer:', { name, hasPhone: !!phone, hasEmail: !!email })
     const createResponse = await fetch(
       `${supabaseUrl}/rest/v1/customers`,
       {
@@ -120,7 +124,11 @@ async function findOrCreateCustomer({
 
     if (createResponse.ok) {
       const [created] = await createResponse.json()
+      console.log('Customer created successfully:', { id: created?.id, name: created?.name })
       return created
+    } else {
+      const errorText = await createResponse.text()
+      console.error('Customer creation failed:', createResponse.status, errorText)
     }
   } catch (e) {
     console.error('Customer create error:', e)

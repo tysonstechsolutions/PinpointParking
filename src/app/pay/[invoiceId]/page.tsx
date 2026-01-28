@@ -16,6 +16,7 @@ interface Invoice {
   id: number
   invoice_number: string
   customer_name: string
+  customer_phone?: string
   customer_email: string
   customer_address: string
   service_address: string
@@ -29,6 +30,7 @@ interface Invoice {
   status: string
   due_date: string
   created_at: string
+  job_id?: number
 }
 
 export default function PaymentPage({ params }: { params: Promise<{ invoiceId: string }> }) {
@@ -37,6 +39,13 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
+
+  // Counter-offer state
+  const [showCounterOffer, setShowCounterOffer] = useState(false)
+  const [counterOfferAmount, setCounterOfferAmount] = useState(500)
+  const [counterOfferSubmitting, setCounterOfferSubmitting] = useState(false)
+  const [counterOfferSuccess, setCounterOfferSuccess] = useState(false)
+  const [counterOfferMessage, setCounterOfferMessage] = useState('')
 
   const fetchInvoice = useCallback(async () => {
     try {
@@ -128,6 +137,43 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
       day: 'numeric',
       year: 'numeric',
     })
+  }
+
+  const handleCounterOffer = async () => {
+    if (!invoice) return
+
+    setCounterOfferSubmitting(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/counter-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
+          jobId: invoice.job_id,
+          customerName: invoice.customer_name,
+          customerPhone: invoice.customer_phone,
+          customerEmail: invoice.customer_email,
+          originalAmountCents: invoice.total_cents,
+          counterOfferCents: counterOfferAmount * 100,
+          message: counterOfferMessage,
+        }),
+      })
+
+      if (response.ok) {
+        setCounterOfferSuccess(true)
+        setShowCounterOffer(false)
+      } else {
+        const data = await response.json()
+        setError(data.error || 'Failed to submit counter-offer')
+      }
+    } catch {
+      setError('Failed to submit counter-offer. Please try again.')
+    }
+
+    setCounterOfferSubmitting(false)
   }
 
   if (loading) {
@@ -352,6 +398,135 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
                 This invoice has been paid in full.
               </p>
             </div>
+          ) : counterOfferSuccess ? (
+            <div>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>Offer Sent!</div>
+              <p style={{ color: '#F5C518', fontWeight: '600', fontSize: '18px' }}>
+                Your counter-offer has been submitted
+              </p>
+              <p style={{ color: '#9C9690', marginTop: '8px' }}>
+                We&apos;ll review your offer of {formatCurrency(counterOfferAmount * 100)} and get back to you soon.
+              </p>
+              <button
+                onClick={() => setCounterOfferSuccess(false)}
+                style={{
+                  marginTop: '16px',
+                  padding: '12px 24px',
+                  backgroundColor: '#302d2a',
+                  color: 'white',
+                  border: '1px solid #3A3733',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Back to Invoice
+              </button>
+            </div>
+          ) : showCounterOffer ? (
+            <div>
+              <p style={{ color: '#F5C518', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>
+                Make a Counter-Offer
+              </p>
+              <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '24px' }}>
+                Original price: {formatCurrency(invoice.total_cents)}
+              </p>
+
+              {/* Slider */}
+              <div style={{ marginBottom: '24px' }}>
+                <p style={{ color: 'white', fontSize: '32px', fontWeight: 'bold', marginBottom: '16px' }}>
+                  {formatCurrency(counterOfferAmount * 100)}
+                </p>
+                <input
+                  type="range"
+                  min={500}
+                  max={Math.floor(invoice.total_cents / 100)}
+                  value={counterOfferAmount}
+                  onChange={(e) => setCounterOfferAmount(parseInt(e.target.value))}
+                  style={{
+                    width: '100%',
+                    height: '8px',
+                    borderRadius: '4px',
+                    backgroundColor: '#302d2a',
+                    cursor: 'pointer',
+                    accentColor: '#F5C518',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                  <span style={{ color: '#9C9690', fontSize: '12px' }}>$500</span>
+                  <span style={{ color: '#9C9690', fontSize: '12px' }}>{formatCurrency(invoice.total_cents)}</span>
+                </div>
+              </div>
+
+              {/* Optional message */}
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                <label style={{ color: '#9C9690', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
+                  Message (optional)
+                </label>
+                <textarea
+                  value={counterOfferMessage}
+                  onChange={(e) => setCounterOfferMessage(e.target.value)}
+                  placeholder="Tell us why you think this price is fair..."
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#302d2a',
+                    border: '1px solid #3A3733',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    minHeight: '80px',
+                  }}
+                />
+              </div>
+
+              {error && (
+                <p style={{
+                  color: '#ef4444',
+                  marginBottom: '16px',
+                  padding: '12px',
+                  backgroundColor: '#ef444420',
+                  borderRadius: '8px',
+                }}>
+                  {error}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowCounterOffer(false)}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: '#302d2a',
+                    color: 'white',
+                    border: '1px solid #3A3733',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCounterOffer}
+                  disabled={counterOfferSubmitting}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: counterOfferSubmitting ? '#b8860b' : '#F5C518',
+                    color: '#1a1714',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: counterOfferSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {counterOfferSubmitting ? 'Submitting...' : 'Submit Offer'}
+                </button>
+              </div>
+            </div>
           ) : (
             <div>
               <p style={{ color: '#9C9690', marginBottom: '8px' }}>Amount Due</p>
@@ -396,6 +571,33 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
               }}>
                 Secure payment powered by Stripe
               </p>
+
+              {/* Counter-offer option */}
+              <div style={{
+                marginTop: '24px',
+                paddingTop: '24px',
+                borderTop: '1px solid #302d2a',
+              }}>
+                <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '12px' }}>
+                  Not happy with this price?
+                </p>
+                <button
+                  onClick={() => setShowCounterOffer(true)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: 'transparent',
+                    color: '#F5C518',
+                    border: '2px solid #F5C518',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Make a Counter-Offer
+                </button>
+              </div>
             </div>
           )}
         </div>

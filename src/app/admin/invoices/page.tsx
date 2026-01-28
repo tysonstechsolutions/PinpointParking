@@ -193,7 +193,8 @@ export default function InvoicesPage() {
             <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>📄 Invoices</h1>
             <p style={{ color: '#9C9690' }}>{invoices.length} total</p>
           </div>
-          <button
+          <a
+            href="/admin/invoices/create"
             style={{
               padding: '10px 20px',
               backgroundColor: '#16a34a',
@@ -202,10 +203,12 @@ export default function InvoicesPage() {
               fontWeight: '600',
               border: 'none',
               cursor: 'pointer',
+              textDecoration: 'none',
+              display: 'inline-block',
             }}
           >
             + Create Invoice
-          </button>
+          </a>
         </div>
 
         {/* Stats */}
