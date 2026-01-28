@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { config } from '@/config/config'
@@ -29,7 +29,52 @@ interface Job {
 
 interface LineItem {
   description: string
+  quantity?: number
+  unit_price_cents?: number
   amount_cents: number
+}
+
+// Speech recognition types
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList
+  resultIndex: number
+}
+
+interface SpeechRecognitionResultList {
+  length: number
+  item(index: number): SpeechRecognitionResult
+  [index: number]: SpeechRecognitionResult
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean
+  length: number
+  item(index: number): SpeechRecognitionAlternative
+  [index: number]: SpeechRecognitionAlternative
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string
+  confidence: number
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition
+    webkitSpeechRecognition: new () => SpeechRecognition
+  }
 }
 
 function CreateInvoiceContent() {
@@ -43,6 +88,12 @@ function CreateInvoiceContent() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [customerSearch, setCustomerSearch] = useState('')
+
+  // Voice input state
+  const [isRecording, setIsRecording] = useState(false)
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [interimTranscript, setInterimTranscript] = useState('')
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   const [invoice, setInvoice] = useState({
     customer_id: null as number | null,
@@ -73,6 +124,133 @@ function CreateInvoiceContent() {
       fetchJob(jobId)
     }
   }, [jobId])
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognitionAPI) {
+        const recognition = new SpeechRecognitionAPI()
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = 'en-US'
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let interim = ''
+          let final = ''
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript
+            if (event.results[i].isFinal) {
+              final += transcript + ' '
+            } else {
+              interim += transcript
+            }
+          }
+
+          if (final) {
+            setVoiceTranscript(prev => prev + final)
+          }
+          setInterimTranscript(interim)
+        }
+
+        recognition.onerror = (event: { error: string }) => {
+          console.error('Speech recognition error:', event.error)
+          if (event.error !== 'no-speech') {
+            setIsRecording(false)
+          }
+        }
+
+        recognition.onend = () => {
+          // Restart if still recording (for continuous mode)
+          if (isRecording && recognitionRef.current) {
+            try {
+              recognitionRef.current.start()
+            } catch {
+              // Ignore if already started
+            }
+          }
+        }
+
+        recognitionRef.current = recognition
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort()
+      }
+    }
+  }, [isRecording])
+
+  const startRecording = () => {
+    if (recognitionRef.current) {
+      setVoiceTranscript('')
+      setInterimTranscript('')
+      setIsRecording(true)
+      try {
+        recognitionRef.current.start()
+      } catch {
+        // Ignore if already started
+      }
+    } else {
+      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+    }
+  }
+
+  const stopRecording = () => {
+    setIsRecording(false)
+    setInterimTranscript('')
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+    }
+  }
+
+  const parseVoiceInput = async () => {
+    const transcript = voiceTranscript.trim()
+    if (!transcript) {
+      alert('No voice input to parse')
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      const response = await fetch('/api/invoices/parse-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript,
+          services: Object.entries(invoice.services)
+            .filter(([, selected]) => selected)
+            .map(([service]) => service),
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // Update invoice with parsed data
+        setInvoice(prev => ({
+          ...prev,
+          line_items: data.lineItems,
+          total_amount: (data.totalCents / 100).toFixed(2),
+          services: data.services || prev.services,
+        }))
+
+        // Clear the transcript after successful parse
+        setVoiceTranscript('')
+      } else {
+        const err = await response.json()
+        alert(err.error || 'Failed to parse voice input')
+      }
+    } catch (err) {
+      console.error('Error parsing voice input:', err)
+      alert('Failed to parse voice input')
+    }
+
+    setGenerating(false)
+  }
 
   const fetchCustomers = async () => {
     try {
@@ -596,7 +774,129 @@ function CreateInvoiceContent() {
           </div>
         </div>
 
-        {/* Total & AI Line Items */}
+        {/* Voice Input - Walk the Job */}
+        <div style={{
+          backgroundColor: '#252220',
+          borderRadius: '12px',
+          border: isRecording ? '2px solid #dc2626' : '1px solid #302d2a',
+          padding: '20px',
+          marginBottom: '20px',
+        }}>
+          <h2 style={{ color: '#F5C518', fontSize: '16px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Walk the Job
+            {isRecording && <span style={{ width: '10px', height: '10px', backgroundColor: '#dc2626', borderRadius: '50%', animation: 'pulse 1s infinite' }} />}
+          </h2>
+
+          <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '16px' }}>
+            Tap the microphone and describe what you see as you walk the job site. Include quantities, types of items, and the total price at the end.
+          </p>
+
+          {/* Recording Controls */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            {!isRecording ? (
+              <button
+                onClick={startRecording}
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>🎙</span>
+                Start Recording
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  backgroundColor: '#302d2a',
+                  color: 'white',
+                  border: '2px solid #dc2626',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>⏹</span>
+                Stop Recording
+              </button>
+            )}
+          </div>
+
+          {/* Transcript Display */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', color: '#9C9690', fontSize: '13px', marginBottom: '6px' }}>
+              Transcript (you can also type or edit here)
+            </label>
+            <textarea
+              value={voiceTranscript + interimTranscript}
+              onChange={(e) => {
+                setVoiceTranscript(e.target.value)
+                setInterimTranscript('')
+              }}
+              placeholder="Example: &quot;19 spots, a hash zone the size of a parking spot, 1 handicap, 4 more parking spots, 13 more parking spots, 22 more parking spots, 3 more hash zones the size of parking spots, 3 more handicap spots, 3 more regular parking spots. Total is $1150&quot;"
+              rows={5}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #3A3733',
+                borderRadius: '8px',
+                backgroundColor: '#302d2a',
+                color: 'white',
+                fontSize: '14px',
+                resize: 'vertical',
+                lineHeight: '1.5',
+              }}
+            />
+            {interimTranscript && (
+              <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '4px', fontStyle: 'italic' }}>
+                Listening...
+              </p>
+            )}
+          </div>
+
+          {/* Parse Button */}
+          <button
+            onClick={parseVoiceInput}
+            disabled={generating || !voiceTranscript.trim()}
+            style={{
+              width: '100%',
+              padding: '14px',
+              backgroundColor: generating || !voiceTranscript.trim() ? '#4a4538' : '#F5C518',
+              color: generating || !voiceTranscript.trim() ? '#9C9690' : '#1a1714',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: generating || !voiceTranscript.trim() ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {generating ? 'Parsing...' : 'Create Line Items from Description'}
+          </button>
+
+          <p style={{ color: '#666', fontSize: '12px', marginTop: '12px', textAlign: 'center' }}>
+            AI will parse your description into individual line items with proper pricing
+          </p>
+        </div>
+
+        {/* Manual Total Entry (Alternative) */}
         <div style={{
           backgroundColor: '#252220',
           borderRadius: '12px',
@@ -605,13 +905,13 @@ function CreateInvoiceContent() {
           marginBottom: '20px',
         }}>
           <h2 style={{ color: '#F5C518', fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
-            Total Amount
+            Or Enter Total Manually
           </h2>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', color: '#9C9690', fontSize: '13px', marginBottom: '6px' }}>
-                Enter the total invoice amount
+                Total invoice amount
               </label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9C9690' }}>$</span>
