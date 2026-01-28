@@ -88,23 +88,35 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
     fetchInvoice()
   }, [fetchInvoice])
 
-  const handlePayment = async () => {
+  const handlePayment = async (paymentType: 'deposit' | 'full' | 'balance' = 'full') => {
     if (!invoice) return
 
     setProcessing(true)
     setError('')
 
     try {
-      const amountDue = invoice.total_cents - (invoice.amount_paid_cents || 0)
+      const totalDue = invoice.total_cents - (invoice.amount_paid_cents || 0)
+
+      // Calculate amount based on payment type
+      let amountCents = totalDue
+      let description = `Invoice #${invoice.invoice_number || invoice.id} - ${config.businessName}`
+
+      if (paymentType === 'deposit') {
+        amountCents = Math.round(totalDue * 0.5)
+        description = `Deposit (50%) - Invoice #${invoice.invoice_number || invoice.id} - ${config.businessName}`
+      } else if (paymentType === 'balance') {
+        description = `Balance Due - Invoice #${invoice.invoice_number || invoice.id} - ${config.businessName}`
+      }
 
       const response = await fetch('/api/payments/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoiceId: invoice.id,
-          amountCents: amountDue,
-          description: `Invoice #${invoice.invoice_number || invoice.id} - ${config.businessName}`,
+          amountCents,
+          description,
           customerEmail: invoice.customer_email,
+          paymentType,
         }),
       })
 
@@ -529,40 +541,115 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
             </div>
           ) : (
             <div>
-              <p style={{ color: '#9C9690', marginBottom: '8px' }}>Amount Due</p>
-              <p style={{ color: '#F5C518', fontSize: '32px', fontWeight: 'bold', marginBottom: '24px' }}>
-                {formatCurrency(amountDue)}
-              </p>
+              {/* Show different UI based on whether deposit has been paid */}
+              {invoice.amount_paid_cents > 0 ? (
+                // Balance due after deposit
+                <>
+                  <p style={{ color: '#9C9690', marginBottom: '8px' }}>Balance Due</p>
+                  <p style={{ color: '#F5C518', fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    {formatCurrency(amountDue)}
+                  </p>
+                  <p style={{ color: '#16a34a', fontSize: '14px', marginBottom: '24px' }}>
+                    Deposit paid: {formatCurrency(invoice.amount_paid_cents)}
+                  </p>
 
-              {error && (
-                <p style={{
-                  color: '#ef4444',
-                  marginBottom: '16px',
-                  padding: '12px',
-                  backgroundColor: '#ef444420',
-                  borderRadius: '8px',
-                }}>
-                  {error}
-                </p>
+                  {error && (
+                    <p style={{
+                      color: '#ef4444',
+                      marginBottom: '16px',
+                      padding: '12px',
+                      backgroundColor: '#ef444420',
+                      borderRadius: '8px',
+                    }}>
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => handlePayment('balance')}
+                    disabled={processing}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      backgroundColor: processing ? '#166534' : '#16a34a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      cursor: processing ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {processing ? 'Redirecting to payment...' : 'Pay Remaining Balance'}
+                  </button>
+                </>
+              ) : (
+                // Initial payment - show deposit or full payment options
+                <>
+                  <p style={{ color: '#9C9690', marginBottom: '8px' }}>Total Due</p>
+                  <p style={{ color: '#F5C518', fontSize: '32px', fontWeight: 'bold', marginBottom: '24px' }}>
+                    {formatCurrency(amountDue)}
+                  </p>
+
+                  {error && (
+                    <p style={{
+                      color: '#ef4444',
+                      marginBottom: '16px',
+                      padding: '12px',
+                      backgroundColor: '#ef444420',
+                      borderRadius: '8px',
+                    }}>
+                      {error}
+                    </p>
+                  )}
+
+                  {/* Payment Options */}
+                  <div style={{ marginBottom: '16px' }}>
+                    {/* 50% Deposit Option */}
+                    <button
+                      onClick={() => handlePayment('deposit')}
+                      disabled={processing}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        backgroundColor: processing ? '#b8860b' : '#F5C518',
+                        color: '#1a1714',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        cursor: processing ? 'not-allowed' : 'pointer',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      {processing ? 'Redirecting...' : `Pay 50% Deposit - ${formatCurrency(Math.round(amountDue * 0.5))}`}
+                    </button>
+
+                    <p style={{ color: '#9C9690', fontSize: '13px', marginBottom: '16px' }}>
+                      Pay deposit now, balance due upon completion
+                    </p>
+
+                    {/* Full Payment Option */}
+                    <button
+                      onClick={() => handlePayment('full')}
+                      disabled={processing}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        backgroundColor: processing ? '#166534' : '#16a34a',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        cursor: processing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {processing ? 'Redirecting...' : `Pay in Full - ${formatCurrency(amountDue)}`}
+                    </button>
+                  </div>
+                </>
               )}
-
-              <button
-                onClick={handlePayment}
-                disabled={processing}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  backgroundColor: processing ? '#166534' : '#16a34a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  cursor: processing ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {processing ? 'Redirecting to payment...' : 'Pay Now with Card'}
-              </button>
 
               <p style={{
                 color: '#9C9690',
@@ -572,32 +659,34 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
                 Secure payment powered by Stripe
               </p>
 
-              {/* Counter-offer option */}
-              <div style={{
-                marginTop: '24px',
-                paddingTop: '24px',
-                borderTop: '1px solid #302d2a',
-              }}>
-                <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '12px' }}>
-                  Not happy with this price?
-                </p>
-                <button
-                  onClick={() => setShowCounterOffer(true)}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    backgroundColor: 'transparent',
-                    color: '#F5C518',
-                    border: '2px solid #F5C518',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Make a Counter-Offer
-                </button>
-              </div>
+              {/* Counter-offer option - only show if no payments made yet */}
+              {invoice.amount_paid_cents === 0 && (
+                <div style={{
+                  marginTop: '24px',
+                  paddingTop: '24px',
+                  borderTop: '1px solid #302d2a',
+                }}>
+                  <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '12px' }}>
+                    Not happy with this price?
+                  </p>
+                  <button
+                    onClick={() => setShowCounterOffer(true)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      backgroundColor: 'transparent',
+                      color: '#F5C518',
+                      border: '2px solid #F5C518',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Make a Counter-Offer
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -84,6 +84,7 @@ export async function createCheckoutSession(
   amountCents: number,
   description: string,
   customerEmail?: string,
+  paymentType: 'deposit' | 'full' | 'balance' = 'full',
   successUrl?: string,
   cancelUrl?: string
 ): Promise<string | null> {
@@ -116,6 +117,7 @@ export async function createCheckoutSession(
       customer_email: customerEmail || undefined,
       metadata: {
         invoiceId: invoiceId.toString(),
+        paymentType: paymentType,
       },
     })
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { invoiceId, amountCents, description, customerEmail } = body
+    const { invoiceId, amountCents, description, customerEmail, paymentType = 'full' } = body
 
     if (!invoiceId || !amountCents) {
       return NextResponse.json(
@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
       invoiceId,
       amountCents,
       description || `Invoice #${invoice.invoice_number || invoiceId}`,
-      customerEmail || invoice.customer_email
+      customerEmail || invoice.customer_email,
+      paymentType
     )
 
     if (!checkoutUrl) {

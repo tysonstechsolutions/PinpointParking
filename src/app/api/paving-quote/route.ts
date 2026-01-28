@@ -99,7 +99,19 @@ async function findOrCreateCustomer({
 
   // Create new customer
   try {
-    console.log('Creating new customer:', { name, hasPhone: !!phone, hasEmail: !!email })
+    const customerData = {
+      name,
+      phone,
+      email: email || null,
+      address: address || null,
+      total_jobs: 1,
+      last_job_date: new Date().toISOString().split('T')[0],
+      source: 'chatbot',
+    }
+    console.log('Creating new customer with data:', JSON.stringify(customerData, null, 2))
+    console.log('Using Supabase URL:', supabaseUrl ? '[CONFIGURED]' : '[MISSING]')
+    console.log('Using Supabase Key:', supabaseKey ? `[KEY PRESENT, length: ${supabaseKey.length}]` : '[MISSING]')
+
     const createResponse = await fetch(
       `${supabaseUrl}/rest/v1/customers`,
       {
@@ -110,28 +122,25 @@ async function findOrCreateCustomer({
           'Authorization': `Bearer ${supabaseKey}`,
           'Prefer': 'return=representation',
         },
-        body: JSON.stringify({
-          name,
-          phone,
-          email: email || null,
-          address: address || null,
-          total_jobs: 1,
-          last_job_date: new Date().toISOString().split('T')[0],
-          source: 'chatbot',
-        }),
+        body: JSON.stringify(customerData),
       }
     )
 
+    console.log('Customer creation response status:', createResponse.status)
+
     if (createResponse.ok) {
-      const [created] = await createResponse.json()
+      const result = await createResponse.json()
+      const created = Array.isArray(result) ? result[0] : result
       console.log('Customer created successfully:', { id: created?.id, name: created?.name })
       return created
     } else {
       const errorText = await createResponse.text()
       console.error('Customer creation failed:', createResponse.status, errorText)
+      console.error('Response headers:', Object.fromEntries(createResponse.headers.entries()))
     }
   } catch (e) {
     console.error('Customer create error:', e)
+    console.error('Error stack:', e instanceof Error ? e.stack : 'No stack trace')
   }
 
   return null
@@ -482,6 +491,13 @@ export async function POST(request: Request) {
     }
 
     // 5. Return success
+    console.log('Quote API returning success:', {
+      jobId: savedJob?.id,
+      customerId: customer?.id,
+      invoiceId: savedInvoice?.id,
+      customerWasCreated: !!customer,
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Quote submitted successfully',
@@ -489,6 +505,7 @@ export async function POST(request: Request) {
       invoiceId: savedInvoice?.id || null,
       invoiceNumber: savedInvoice?.invoice_number || null,
       customerId: customer?.id || null,
+      customerCreated: !!customer,
     })
 
   } catch (error) {

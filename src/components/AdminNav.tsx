@@ -9,7 +9,7 @@ const navItems = [
   { href: '/admin', label: 'Jobs', icon: '📋' },
   { href: '/admin/calendar', label: 'Calendar', icon: '📅' },
   { href: '/admin/customers', label: 'Customers', icon: '👥' },
-  { href: '/admin/invoices', label: 'Invoices', icon: '📄' },
+  { href: '/admin/invoices', label: 'Estimates', icon: '📄' },
   { href: '/admin/expenses', label: 'Expenses', icon: '🧾' },
   { href: '/admin/inventory', label: 'Inventory', icon: '📦' },
   { href: '/admin/reports', label: 'Reports', icon: '📈' },

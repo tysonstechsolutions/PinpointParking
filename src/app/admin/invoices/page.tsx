@@ -116,6 +116,55 @@ export default function InvoicesPage() {
     }
   }
 
+  const convertToInvoice = async (invoiceId: number) => {
+    if (!selectedInvoice) return
+
+    const confirmSend = confirm(
+      `Convert this estimate to an invoice and send payment link to ${selectedInvoice.customer_name}?\n\n` +
+      `Phone: ${selectedInvoice.customer_phone || 'Not available'}\n` +
+      `Amount: ${formatCurrency(selectedInvoice.total_cents)}`
+    )
+
+    if (!confirmSend) return
+
+    try {
+      // Update status to 'sent'
+      await fetch(
+        `${config.supabase.url}/rest/v1/invoices?id=eq.${invoiceId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+          body: JSON.stringify({
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+          }),
+        }
+      )
+
+      // Send SMS with payment link
+      if (selectedInvoice.customer_phone) {
+        await fetch('/api/invoices/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: invoiceId }),
+        })
+        alert('Invoice sent! Payment link has been texted to the customer.')
+      } else {
+        alert('Invoice converted. No phone number available to send SMS.')
+      }
+
+      fetchInvoices()
+      setSelectedInvoice({ ...selectedInvoice, status: 'sent' })
+    } catch (error) {
+      console.error('Error converting to invoice:', error)
+      alert('Failed to convert to invoice. Please try again.')
+    }
+  }
+
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -190,7 +239,7 @@ export default function InvoicesPage() {
           marginBottom: '24px',
         }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>📄 Invoices</h1>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>Estimates</h1>
             <p style={{ color: '#9C9690' }}>{invoices.length} total</p>
           </div>
           <a
@@ -207,7 +256,7 @@ export default function InvoicesPage() {
               display: 'inline-block',
             }}
           >
-            + Create Invoice
+            + Create Estimate
           </a>
         </div>
 
@@ -247,7 +296,7 @@ export default function InvoicesPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="🔍 Search invoices..."
+            placeholder="Search estimates..."
             style={{
               flex: 1,
               minWidth: '200px',
@@ -288,7 +337,7 @@ export default function InvoicesPage() {
           {loading ? (
             <div style={{ textAlign: 'center', padding: '48px', color: '#9C9690' }}>Loading...</div>
           ) : filteredInvoices.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', color: '#9C9690' }}>No invoices found</div>
+            <div style={{ textAlign: 'center', padding: '48px', color: '#9C9690' }}>No estimates found</div>
           ) : (
             filteredInvoices.map((invoice, i) => (
               <div
@@ -376,7 +425,7 @@ export default function InvoicesPage() {
             }}>
               <div>
                 <h2 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-                  Invoice {selectedInvoice.invoice_number}
+                  Estimate {selectedInvoice.invoice_number}
                 </h2>
                 <p style={{ color: '#9C9690', fontSize: '14px', margin: '4px 0 0 0' }}>
                   Created {formatDate(selectedInvoice.created_at)}
@@ -522,23 +571,57 @@ export default function InvoicesPage() {
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {/* View Estimate Button */}
+                <button
+                  onClick={() => window.open(`/estimate/${selectedInvoice.id}`, '_blank')}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: '#F5C518',
+                    color: '#1a1714',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  View Estimate / PDF
+                </button>
                 {selectedInvoice.status === 'draft' && (
-                  <button
-                    onClick={() => updateInvoiceStatus(selectedInvoice.id, 'sent')}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      backgroundColor: '#1d4ed8',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    📤 Mark as Sent
-                  </button>
+                  <>
+                    <button
+                      onClick={() => convertToInvoice(selectedInvoice.id)}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#16a34a',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Convert to Invoice & Send
+                    </button>
+                    <button
+                      onClick={() => updateInvoiceStatus(selectedInvoice.id, 'sent')}
+                      style={{
+                        padding: '12px',
+                        backgroundColor: '#1d4ed8',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Mark Sent (No SMS)
+                    </button>
+                  </>
                 )}
                 {['sent', 'viewed'].includes(selectedInvoice.status) && (
                   <button
@@ -555,7 +638,7 @@ export default function InvoicesPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    ✓ Mark as Paid
+                    Mark as Paid
                   </button>
                 )}
                 <button
@@ -585,7 +668,7 @@ export default function InvoicesPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  🗑 Delete
+                  Delete
                 </button>
               </div>
             </div>

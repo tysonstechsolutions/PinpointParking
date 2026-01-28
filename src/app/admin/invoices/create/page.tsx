@@ -524,7 +524,7 @@ function CreateInvoiceContent() {
             &larr;
           </Link>
           <h1 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-            Create Invoice
+            Create Estimate
           </h1>
         </div>
       </div>
@@ -911,7 +911,7 @@ function CreateInvoiceContent() {
           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', color: '#9C9690', fontSize: '13px', marginBottom: '6px' }}>
-                Total invoice amount
+                Total estimate amount
               </label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9C9690' }}>$</span>
@@ -1068,7 +1068,7 @@ function CreateInvoiceContent() {
           <textarea
             value={invoice.notes}
             onChange={(e) => setInvoice({ ...invoice, notes: e.target.value })}
-            placeholder="Notes to appear on invoice..."
+            placeholder="Notes to appear on estimate..."
             rows={3}
             style={{
               width: '100%',
