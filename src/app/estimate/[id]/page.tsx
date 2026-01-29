@@ -32,6 +32,7 @@ interface Estimate {
   scheduled_date?: string
   job_type?: string
   square_feet?: number
+  notes?: string
 }
 
 export default function EstimatePage({ params }: { params: Promise<{ id: string }> }) {
