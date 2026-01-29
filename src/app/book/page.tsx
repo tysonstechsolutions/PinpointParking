@@ -66,15 +66,27 @@ export default function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [payNow, setPayNow] = useState(false)
+  const [createdInvoiceId, setCreatedInvoiceId] = useState<number | null>(null)
+
+  // Counter-offer/barter state
+  const [showCounterOffer, setShowCounterOffer] = useState(false)
+  const [counterOfferAmount, setCounterOfferAmount] = useState<number>(0)
+  const [counterOfferAccepted, setCounterOfferAccepted] = useState(false)
+  const [counterOfferMessage, setCounterOfferMessage] = useState('')
+  const [counterOfferSubmitting, setCounterOfferSubmitting] = useState(false)
+  const [counterOfferSubmitted, setCounterOfferSubmitted] = useState(false)
 
   // Map state
   const [mapLoaded, setMapLoaded] = useState(false)
   const [isLoadingMap, setIsLoadingMap] = useState(false)
   const [drawnArea, setDrawnArea] = useState<number | null>(null)
+  const [isLocating, setIsLocating] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const polygonRef = useRef<google.maps.Polygon | null>(null)
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null)
+  const addressInputRef = useRef<HTMLInputElement>(null)
 
   // ============================================
   // NAVIGATION
@@ -188,6 +200,41 @@ export default function BookingPage() {
     return 0
   }
 
+  // Get the final price (original or counter-offer if accepted)
+  const getFinalPrice = (): number => {
+    if (counterOfferAccepted && counterOfferAmount > 0) {
+      return counterOfferAmount
+    }
+    return calculatePrice()
+  }
+
+  // Submit counter-offer
+  const submitCounterOffer = async () => {
+    if (counterOfferAmount < 500) {
+      alert('Counter-offer must be at least $500')
+      return
+    }
+
+    const originalPrice = calculatePrice()
+    if (counterOfferAmount >= originalPrice) {
+      alert('Counter-offer must be less than the original price')
+      return
+    }
+
+    setCounterOfferSubmitting(true)
+
+    try {
+      // For booking page, we'll save this locally and submit with the job
+      // The counter-offer will be reviewed by the owner
+      setCounterOfferSubmitted(true)
+      setShowCounterOffer(false)
+    } catch {
+      alert('Failed to submit counter-offer. Please try again.')
+    } finally {
+      setCounterOfferSubmitting(false)
+    }
+  }
+
   // ============================================
   // MAP
   // ============================================
@@ -280,6 +327,62 @@ export default function BookingPage() {
   }
 
   // ============================================
+  // GEOLOCATION
+  // ============================================
+
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser')
+      return
+    }
+
+    setIsLocating(true)
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords
+          // Reverse geocode to get address
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+          )
+          const data = await response.json()
+
+          if (data.results?.[0]?.formatted_address) {
+            setFormData(prev => ({ ...prev, address: data.results[0].formatted_address }))
+            // Load map for sealcoating/paving
+            if (formData.service !== 'linestriping') {
+              loadMap(data.results[0].formatted_address)
+            }
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error)
+          alert('Could not determine your address. Please enter it manually.')
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      (error) => {
+        setIsLocating(false)
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            alert('Location access was denied. Please enter your address manually.')
+            break
+          case error.POSITION_UNAVAILABLE:
+            alert('Location information is unavailable. Please enter your address manually.')
+            break
+          case error.TIMEOUT:
+            alert('Location request timed out. Please enter your address manually.')
+            break
+          default:
+            alert('An error occurred getting your location. Please enter your address manually.')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  }
+
+  // ============================================
   // HELPERS
   // ============================================
 
@@ -302,26 +405,123 @@ export default function BookingPage() {
     return dates
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (shouldPayNow: boolean = false) => {
     setIsSubmitting(true)
     setSubmitError(null)
 
     try {
+      const originalPriceCents = calculatePrice() * 100
+      const finalPriceCents = getFinalPrice() * 100
+      const depositCents = Math.round(finalPriceCents * 0.5)
+      const serviceName = config.services.find(s => s.id === formData.service)?.name || formData.service
+      const phoneDigits = formData.phone.replace(/\D/g, '')
+
+      // First, create or find customer
+      let customerId: number | null = null
+      try {
+        // Check if customer exists by phone
+        const existingCustomerRes = await fetch(
+          `${config.supabase.url}/rest/v1/customers?phone=eq.${phoneDigits}`,
+          {
+            headers: {
+              'apikey': config.supabase.anonKey,
+              'Authorization': `Bearer ${config.supabase.anonKey}`,
+            },
+          }
+        )
+
+        if (existingCustomerRes.ok) {
+          const existingCustomers = await existingCustomerRes.json()
+          if (existingCustomers.length > 0) {
+            customerId = existingCustomers[0].id
+            // Update customer info
+            await fetch(
+              `${config.supabase.url}/rest/v1/customers?id=eq.${customerId}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'apikey': config.supabase.anonKey,
+                  'Authorization': `Bearer ${config.supabase.anonKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  name: formData.name,
+                  email: formData.email || null,
+                  address: formData.address,
+                }),
+              }
+            )
+          }
+        }
+
+        // If no existing customer, create one
+        if (!customerId) {
+          const customerData = {
+            name: formData.name,
+            phone: phoneDigits,
+            email: formData.email || null,
+            address: formData.address,
+            city: '',
+            state: 'IL',
+            zip: '',
+            is_business: !formData.isChurch,
+            total_jobs: 0,
+            total_spent_cents: 0,
+            outstanding_balance_cents: 0,
+            source: 'website',
+          }
+
+          const customerRes = await fetch(`${config.supabase.url}/rest/v1/customers`, {
+            method: 'POST',
+            headers: {
+              'apikey': config.supabase.anonKey,
+              'Authorization': `Bearer ${config.supabase.anonKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify(customerData),
+          })
+
+          if (customerRes.ok) {
+            const [newCustomer] = await customerRes.json()
+            customerId = newCustomer.id
+          }
+        }
+      } catch (e) {
+        console.error('Customer creation error:', e)
+        // Continue without customer - not critical
+      }
+
+      // Build notes with counter-offer info if applicable
+      let jobNotes = formData.notes || ''
+      if (counterOfferSubmitted && counterOfferAmount > 0) {
+        const originalPrice = calculatePrice()
+        const discount = originalPrice - counterOfferAmount
+        const discountPercent = Math.round((discount / originalPrice) * 100)
+        jobNotes += `\n\n--- COUNTER-OFFER ---\nOriginal: $${originalPrice.toLocaleString()}\nOffered: $${counterOfferAmount.toLocaleString()}\nDiscount: $${discount.toLocaleString()} (${discountPercent}%)`
+        if (counterOfferMessage) {
+          jobNotes += `\nMessage: ${counterOfferMessage}`
+        }
+      }
+
+      // Create job
       const jobData = {
+        customer_id: customerId,
         customer_name: formData.name,
-        customer_phone: formData.phone.replace(/\D/g, ''),
+        customer_phone: phoneDigits,
         customer_email: formData.email || null,
         service_address: formData.address,
         job_type: formData.service,
         project_type: formData.isChurch ? 'house-of-worship' : 'commercial',
         square_feet: formData.squareFootage,
-        quote_cents: calculatePrice() * 100,
+        quote_cents: finalPriceCents,
+        original_quote_cents: counterOfferSubmitted ? originalPriceCents : null,
         scheduled_date: formData.date,
-        status: 'quote',
-        notes: formData.notes || null,
+        status: shouldPayNow ? 'scheduled' : 'quote',
+        notes: jobNotes.trim() || null,
       }
 
-      const response = await fetch(`${config.supabase.url}/rest/v1/jobs`, {
+      const jobResponse = await fetch(`${config.supabase.url}/rest/v1/jobs`, {
         method: 'POST',
         headers: {
           'apikey': config.supabase.anonKey,
@@ -332,13 +532,96 @@ export default function BookingPage() {
         body: JSON.stringify(jobData),
       })
 
-      if (!response.ok) throw new Error('Failed to submit')
+      if (!jobResponse.ok) throw new Error('Failed to submit job')
+      const [createdJob] = await jobResponse.json()
 
+      // Create invoice for payment
+      const invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}`
+      const lineItems = [{
+        description: `${serviceName}${formData.addStriping ? ' + Line Striping' : ''} - ${formData.address}`,
+        quantity: 1,
+        unit_price_cents: finalPriceCents,
+        amount_cents: finalPriceCents,
+      }]
+
+      const invoiceData = {
+        job_id: createdJob.id,
+        customer_id: customerId,
+        invoice_number: invoiceNumber,
+        customer_name: formData.name,
+        customer_phone: phoneDigits,
+        customer_email: formData.email || null,
+        customer_address: formData.address,
+        service_address: formData.address,
+        service_description: `${serviceName} service`,
+        line_items: lineItems,
+        subtotal_cents: finalPriceCents,
+        tax_cents: 0,
+        discount_cents: counterOfferSubmitted ? (originalPriceCents - finalPriceCents) : 0,
+        total_cents: finalPriceCents,
+        amount_paid_cents: 0,
+        status: 'sent',
+        due_date: formData.date,
+        scheduled_date: formData.date,
+        job_type: formData.service,
+        square_feet: formData.squareFootage,
+        counter_offer_cents: counterOfferSubmitted ? finalPriceCents : null,
+      }
+
+      const invoiceResponse = await fetch(`${config.supabase.url}/rest/v1/invoices`, {
+        method: 'POST',
+        headers: {
+          'apikey': config.supabase.anonKey,
+          'Authorization': `Bearer ${config.supabase.anonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(invoiceData),
+      })
+
+      if (!invoiceResponse.ok) throw new Error('Failed to create invoice')
+      const [createdInvoice] = await invoiceResponse.json()
+      setCreatedInvoiceId(createdInvoice.id)
+
+      // Send notification with counter-offer info
       await fetch('/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'new_booking', data: jobData }),
+        body: JSON.stringify({
+          type: 'new_booking',
+          data: jobData,
+          counterOffer: counterOfferSubmitted ? {
+            original: originalPriceCents,
+            offered: finalPriceCents,
+            message: counterOfferMessage,
+          } : null,
+        }),
       }).catch(() => {})
+
+      // If paying now, create Stripe checkout session
+      if (shouldPayNow) {
+        const paymentResponse = await fetch('/api/payments/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoiceId: createdInvoice.id,
+            amountCents: depositCents,
+            description: `Deposit - ${serviceName} - ${invoiceNumber}`,
+            customerEmail: formData.email || undefined,
+            paymentType: 'deposit',
+          }),
+        })
+
+        if (paymentResponse.ok) {
+          const { checkoutUrl } = await paymentResponse.json()
+          if (checkoutUrl) {
+            window.location.href = checkoutUrl
+            return // Don't show success yet, redirecting to payment
+          }
+        }
+        // If payment session creation failed, still show success
+        setSubmitError('Booking confirmed! Payment link unavailable - we\'ll contact you for payment.')
+      }
 
       setSubmitSuccess(true)
     } catch {
@@ -420,7 +703,14 @@ export default function BookingPage() {
           return (
             <button
               key={service.id}
-              onClick={() => setFormData(prev => ({ ...prev, service: service.id, serviceName: service.name }))}
+              onClick={() => {
+                setFormData(prev => ({ ...prev, service: service.id, serviceName: service.name }))
+                // Auto-advance to next step after selection
+                setTimeout(() => {
+                  setCurrentStep('location')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }, 300)
+              }}
               className={`
                 relative p-8 rounded-2xl text-left transition-all duration-300
                 ${isSelected
@@ -509,20 +799,40 @@ export default function BookingPage() {
           <label className="block text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wide">
             Property Address
           </label>
-          <div className="relative">
-            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">📍</div>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              onBlur={() => {
-                if (formData.address && formData.service !== 'linestriping' && !mapLoaded) {
-                  loadMap(formData.address)
-                }
-              }}
-              placeholder="123 Main Street, Mount Vernon, IL 62864"
-              className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
-            />
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">📍</div>
+              <input
+                ref={addressInputRef}
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                onBlur={() => {
+                  if (formData.address && formData.service !== 'linestriping' && !mapLoaded) {
+                    loadMap(formData.address)
+                  }
+                }}
+                placeholder="123 Main Street, Mount Vernon, IL 62864"
+                className="w-full pl-16 pr-6 py-5 text-lg bg-zinc-900 border-2 border-zinc-700 rounded-xl text-white placeholder-zinc-600 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 outline-none transition-all"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={getCurrentLocation}
+              disabled={isLocating}
+              className="px-5 py-5 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 rounded-xl text-white transition-all flex items-center gap-2 disabled:opacity-50"
+              title="Use my current location"
+            >
+              {isLocating ? (
+                <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+              <span className="hidden sm:inline">{isLocating ? 'Locating...' : 'Use GPS'}</span>
+            </button>
           </div>
         </div>
 
@@ -601,15 +911,90 @@ export default function BookingPage() {
                     </a>
                   </div>
                 ) : (
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-zinc-400 text-lg">Estimated Price</span>
-                      <p className="text-sm text-zinc-500">
-                        {formData.regularSpaces + formData.handicapSpaces} spaces (min ${getStripingMinimum(formData.regularSpaces + formData.handicapSpaces).toLocaleString()})
-                      </p>
+                  <>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-zinc-400 text-lg">Estimated Price</span>
+                        <p className="text-sm text-zinc-500">
+                          {formData.regularSpaces + formData.handicapSpaces} spaces (min ${getStripingMinimum(formData.regularSpaces + formData.handicapSpaces).toLocaleString()})
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {counterOfferSubmitted && counterOfferAmount > 0 ? (
+                          <>
+                            <p className="text-sm text-zinc-500 line-through">${calculatePrice().toLocaleString()}</p>
+                            <span className="text-4xl font-bold text-green-500">${counterOfferAmount.toLocaleString()}</span>
+                            <p className="text-xs text-green-400 mt-1">Your offer (pending review)</p>
+                          </>
+                        ) : (
+                          <span className="text-4xl font-bold text-white">${calculatePrice().toLocaleString()}</span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-4xl font-bold text-white">${calculatePrice().toLocaleString()}</span>
-                  </div>
+
+                    {/* Barter/Counter-offer section */}
+                    {!counterOfferSubmitted && (
+                      <div className="mt-4 pt-4 border-t border-yellow-500/20">
+                        {!showCounterOffer ? (
+                          <button
+                            onClick={() => {
+                              setCounterOfferAmount(Math.round(calculatePrice() * 0.85))
+                              setShowCounterOffer(true)
+                            }}
+                            className="w-full py-3 text-yellow-500 hover:text-yellow-400 font-medium flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            Have a budget? Make an offer
+                          </button>
+                        ) : (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm text-zinc-400 mb-2">Your Offer</label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-zinc-400">$</span>
+                                <input
+                                  type="number"
+                                  min="500"
+                                  max={calculatePrice() - 1}
+                                  value={counterOfferAmount || ''}
+                                  onChange={(e) => setCounterOfferAmount(parseInt(e.target.value) || 0)}
+                                  className="w-full pl-10 pr-4 py-3 text-xl bg-zinc-900 border-2 border-zinc-700 rounded-lg text-white focus:border-yellow-500 outline-none"
+                                />
+                              </div>
+                              <p className="text-xs text-zinc-500 mt-1">Minimum $500 • Max ${(calculatePrice() - 1).toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm text-zinc-400 mb-2">Why this price? (optional)</label>
+                              <input
+                                type="text"
+                                value={counterOfferMessage}
+                                onChange={(e) => setCounterOfferMessage(e.target.value)}
+                                placeholder="e.g., This is my budget, nonprofit, repeat customer..."
+                                className="w-full px-4 py-3 bg-zinc-900 border-2 border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:border-yellow-500 outline-none"
+                              />
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => setShowCounterOffer(false)}
+                                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-lg transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={submitCounterOffer}
+                                disabled={counterOfferSubmitting || counterOfferAmount < 500 || counterOfferAmount >= calculatePrice()}
+                                className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {counterOfferSubmitting ? 'Submitting...' : 'Submit Offer'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -660,9 +1045,80 @@ export default function BookingPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-zinc-400 mb-1">Estimated Price</p>
-                    <p className="text-3xl font-bold text-yellow-500">${calculatePrice().toLocaleString()}</p>
+                    {counterOfferSubmitted && counterOfferAmount > 0 ? (
+                      <>
+                        <p className="text-sm text-zinc-500 line-through">${calculatePrice().toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-green-500">${counterOfferAmount.toLocaleString()}</p>
+                        <p className="text-xs text-green-400 mt-1">Your offer (pending review)</p>
+                      </>
+                    ) : (
+                      <p className="text-3xl font-bold text-yellow-500">${calculatePrice().toLocaleString()}</p>
+                    )}
                   </div>
                 </div>
+
+                {/* Barter/Counter-offer section */}
+                {!counterOfferSubmitted && (
+                  <div className="mt-4 pt-4 border-t border-yellow-500/20">
+                    {!showCounterOffer ? (
+                      <button
+                        onClick={() => {
+                          setCounterOfferAmount(Math.round(calculatePrice() * 0.85))
+                          setShowCounterOffer(true)
+                        }}
+                        className="w-full py-3 text-yellow-500 hover:text-yellow-400 font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Have a budget? Make an offer
+                      </button>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm text-zinc-400 mb-2">Your Offer</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-zinc-400">$</span>
+                            <input
+                              type="number"
+                              min="500"
+                              max={calculatePrice() - 1}
+                              value={counterOfferAmount || ''}
+                              onChange={(e) => setCounterOfferAmount(parseInt(e.target.value) || 0)}
+                              className="w-full pl-10 pr-4 py-3 text-xl bg-zinc-900 border-2 border-zinc-700 rounded-lg text-white focus:border-yellow-500 outline-none"
+                            />
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-1">Minimum $500 • Max ${(calculatePrice() - 1).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm text-zinc-400 mb-2">Why this price? (optional)</label>
+                          <input
+                            type="text"
+                            value={counterOfferMessage}
+                            onChange={(e) => setCounterOfferMessage(e.target.value)}
+                            placeholder="e.g., This is my budget, nonprofit, repeat customer..."
+                            className="w-full px-4 py-3 bg-zinc-900 border-2 border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:border-yellow-500 outline-none"
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setShowCounterOffer(false)}
+                            className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={submitCounterOffer}
+                            disabled={counterOfferSubmitting || counterOfferAmount < 500 || counterOfferAmount >= calculatePrice()}
+                            className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {counterOfferSubmitting ? 'Submitting...' : 'Submit Offer'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -876,9 +1332,11 @@ export default function BookingPage() {
   // ============================================
 
   const ReviewStep = () => {
-    const totalPrice = calculatePrice()
-    const deposit = Math.round(totalPrice * 0.5)
+    const originalPrice = calculatePrice()
+    const finalPrice = getFinalPrice()
+    const deposit = Math.round(finalPrice * 0.5)
     const serviceName = config.services.find(s => s.id === formData.service)?.name || ''
+    const hasCounterOffer = counterOfferSubmitted && counterOfferAmount > 0 && counterOfferAmount < originalPrice
 
     // Calculate individual prices for breakdown
     const sealcoatingPrice = formData.service === 'sealcoating' ? calculateSealcoatingPrice() : 0
@@ -988,7 +1446,15 @@ export default function BookingPage() {
             {formData.service === 'paving' && (
               <div className="flex justify-between items-center mb-2">
                 <span className="text-zinc-400">Paving ({formData.squareFootage?.toLocaleString()} sq ft)</span>
-                <span className="text-lg text-white">${totalPrice.toLocaleString()}</span>
+                <span className="text-lg text-white">${originalPrice.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Counter-offer discount if applicable */}
+            {hasCounterOffer && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-green-400">Your Offer (pending review)</span>
+                <span className="text-lg text-green-400">-${(originalPrice - counterOfferAmount).toLocaleString()}</span>
               </div>
             )}
 
@@ -997,13 +1463,28 @@ export default function BookingPage() {
 
             {/* Total */}
             <div className="flex justify-between items-center mb-3">
-              <span className="text-zinc-300 text-lg font-semibold">Estimated Total</span>
-              <span className="text-4xl font-bold text-white">${totalPrice.toLocaleString()}</span>
+              <span className="text-zinc-300 text-lg font-semibold">
+                {hasCounterOffer ? 'Your Offer Total' : 'Estimated Total'}
+              </span>
+              <div className="text-right">
+                {hasCounterOffer && (
+                  <span className="text-lg text-zinc-500 line-through mr-2">${originalPrice.toLocaleString()}</span>
+                )}
+                <span className={`text-4xl font-bold ${hasCounterOffer ? 'text-green-500' : 'text-white'}`}>
+                  ${finalPrice.toLocaleString()}
+                </span>
+              </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-zinc-500">Deposit (50%)</span>
               <span className="text-xl font-semibold text-yellow-500">${deposit.toLocaleString()}</span>
             </div>
+
+            {hasCounterOffer && (
+              <p className="text-xs text-zinc-500 mt-3 text-center">
+                Your offer will be reviewed. We&apos;ll contact you to confirm or negotiate.
+              </p>
+            )}
           </div>
         </div>
 
@@ -1088,10 +1569,10 @@ export default function BookingPage() {
       </header>
 
       {/* Main */}
-      <main className="flex-1 py-12 pb-36">
+      <main className="flex-1 flex flex-col py-12 pb-36">
         {!submitSuccess && <ProgressBar />}
 
-        <div className="animate-fadeIn">
+        <div className="flex-1 flex items-center justify-center animate-fadeIn">
           {submitSuccess ? <SuccessStep /> :
            currentStep === 'service' ? <ServiceStep /> :
            currentStep === 'location' ? <LocationStep /> :
@@ -1133,25 +1614,52 @@ export default function BookingPage() {
                 </svg>
               </button>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="flex-1 py-5 px-8 bg-yellow-500 hover:bg-yellow-400 text-black text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-yellow-500/30 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-6 h-6 border-3 border-black border-t-transparent rounded-full animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Submit Quote Request
-                  </>
-                )}
-              </button>
+              <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                {/* Submit Quote Only */}
+                <button
+                  onClick={() => handleSubmit(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 py-4 px-6 bg-zinc-800 hover:bg-zinc-700 text-white text-lg font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmitting && !payNow ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Submit Quote
+                    </>
+                  )}
+                </button>
+
+                {/* Pay Deposit Now */}
+                <button
+                  onClick={() => {
+                    setPayNow(true)
+                    handleSubmit(true)
+                  }}
+                  disabled={isSubmitting}
+                  className="flex-1 py-4 px-6 bg-green-600 hover:bg-green-500 text-white text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-600/30 disabled:opacity-50"
+                >
+                  {isSubmitting && payNow ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      Pay Deposit (${Math.round(getFinalPrice() * 0.5).toLocaleString()})
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
         </div>

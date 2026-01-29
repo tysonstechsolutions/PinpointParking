@@ -30,6 +30,9 @@ export const quoteSchema = z.object({
   notes: z.string().max(2000).optional(),
   addOns: z.record(z.string(), z.number()).optional(),
   sessionId: z.string().optional(),
+  // Counter-offer fields
+  counterOfferCents: z.number().min(50000).max(10000000).optional(), // Min $500
+  counterOfferMessage: z.string().max(500).optional(),
 })
 
 export type QuoteInput = z.infer<typeof quoteSchema>

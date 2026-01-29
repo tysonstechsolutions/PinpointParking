@@ -51,6 +51,7 @@ const STEPS = {
   SEALCOAT_CONTACT: 'sealcoat_contact',
   DATE: 'date',
   CONTACT: 'contact',
+  COUNTER_OFFER: 'counter_offer',
   SUMMARY: 'summary',
   PAYMENT: 'payment',
   COMPLETE: 'complete'
@@ -117,6 +118,11 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
   const [bundleStripingPrice, setBundleStripingPrice] = useState(0)
   const [includeStriping, setIncludeStriping] = useState(false)
 
+  // Counter-offer state
+  const [counterOfferAmount, setCounterOfferAmount] = useState(0)
+  const [counterOfferMessage, setCounterOfferMessage] = useState('')
+  const [counterOfferSubmitted, setCounterOfferSubmitted] = useState(false)
+
   const [bookingData, setBookingData] = useState({
     service: '',
     serviceName: '',
@@ -135,6 +141,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     phone: '',
     jobId: 0,
     invoiceId: 0,
+    counterOfferCents: 0,
+    counterOfferMessage: '',
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -766,7 +774,41 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     const label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     setBookingData(prev => ({ ...prev, deliveryDate: date.toISOString().split('T')[0], deliveryDateLabel: label }))
     addUserMessage(label)
+
+    // Show price and offer counter-offer option
+    const price = bookingData.estimateLow
+    await addBotMessage(`Your estimated price is $${price.toLocaleString()}.\n\nHave a budget in mind? You can make an offer, or accept this price and continue.`)
+    setCounterOfferAmount(Math.round(price * 0.85)) // Default to 15% off
+    setStep(STEPS.COUNTER_OFFER)
+  }
+
+  const handleAcceptPrice = async () => {
+    addUserMessage("Accept Price")
     await addBotMessage("Here's your quote summary:")
+    setStep(STEPS.SUMMARY)
+  }
+
+  const handleSubmitCounterOffer = async () => {
+    if (counterOfferAmount < 500) {
+      await addBotMessage("Counter-offer must be at least $500. Please enter a higher amount.")
+      return
+    }
+    if (counterOfferAmount >= bookingData.estimateLow) {
+      await addBotMessage("Your offer should be less than the original price. Please enter a lower amount.")
+      return
+    }
+
+    addUserMessage(`Offer: $${counterOfferAmount.toLocaleString()}`)
+    setCounterOfferSubmitted(true)
+    setBookingData(prev => ({
+      ...prev,
+      counterOfferCents: counterOfferAmount * 100,
+      counterOfferMessage: counterOfferMessage,
+      estimateLow: counterOfferAmount, // Update the price to the counter-offer
+      estimateHigh: counterOfferAmount,
+    }))
+
+    await addBotMessage(`Your offer of $${counterOfferAmount.toLocaleString()} has been noted. We'll review it and get back to you.\n\nHere's your quote summary:`)
     setStep(STEPS.SUMMARY)
   }
 
@@ -830,6 +872,15 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
         }
       }
 
+      // Add counter-offer info to notes if applicable
+      if (counterOfferSubmitted && bookingData.counterOfferCents > 0) {
+        const originalPrice = Math.round(bookingData.counterOfferCents / 0.85 / 100) // Approximate original
+        notes = (notes || '') + `\n\n--- COUNTER-OFFER ---\nOffered: $${(bookingData.counterOfferCents / 100).toLocaleString()}`
+        if (bookingData.counterOfferMessage) {
+          notes += `\nMessage: ${bookingData.counterOfferMessage}`
+        }
+      }
+
       const response = await fetch('/api/paving-quote', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -845,6 +896,8 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
           estimateHigh: bookingData.estimateHigh,
           preferredDate: bookingData.deliveryDate,
           notes: notes,
+          counterOfferCents: bookingData.counterOfferCents || undefined,
+          counterOfferMessage: bookingData.counterOfferMessage || undefined,
         }),
       })
       const result = await response.json()
@@ -1658,6 +1711,78 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
                       {day.date?.getDate() || ''}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* COUNTER OFFER */}
+            {!isTyping && step === STEPS.COUNTER_OFFER && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+                {/* Current price display */}
+                <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
+                  <div className="text-center">
+                    <p style={{ color: COLORS.gray, fontSize: '14px', marginBottom: '4px' }}>Estimated Price</p>
+                    <p className="font-black text-3xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Accept price button */}
+                <button
+                  onClick={handleAcceptPrice}
+                  className="w-full rounded-xl py-4 font-bold text-lg transition-all border-2"
+                  style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellow }}
+                >
+                  Accept This Price
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px" style={{ backgroundColor: COLORS.blackMedium }} />
+                  <span style={{ color: COLORS.gray, fontSize: '12px' }}>OR</span>
+                  <div className="flex-1 h-px" style={{ backgroundColor: COLORS.blackMedium }} />
+                </div>
+
+                {/* Counter offer form */}
+                <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
+                  <p className="font-bold text-white mb-3">Make an Offer</p>
+
+                  <div className="mb-3">
+                    <label style={{ color: COLORS.gray, fontSize: '12px', display: 'block', marginBottom: '4px' }}>Your Offer</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white font-bold">$</span>
+                      <input
+                        type="number"
+                        min="500"
+                        max={bookingData.estimateLow - 1}
+                        value={counterOfferAmount || ''}
+                        onChange={(e) => setCounterOfferAmount(parseInt(e.target.value) || 0)}
+                        className="w-full pl-8 pr-4 py-3 rounded-lg text-white font-bold text-lg"
+                        style={{ backgroundColor: COLORS.blackMedium, border: `1px solid ${COLORS.gray}` }}
+                      />
+                    </div>
+                    <p style={{ color: COLORS.gray, fontSize: '11px', marginTop: '4px' }}>Min $500 • Max ${(bookingData.estimateLow - 1).toLocaleString()}</p>
+                  </div>
+
+                  <div className="mb-3">
+                    <label style={{ color: COLORS.gray, fontSize: '12px', display: 'block', marginBottom: '4px' }}>Why this price? (optional)</label>
+                    <input
+                      type="text"
+                      value={counterOfferMessage}
+                      onChange={(e) => setCounterOfferMessage(e.target.value)}
+                      placeholder="e.g., This is my budget, nonprofit..."
+                      className="w-full px-4 py-3 rounded-lg text-white"
+                      style={{ backgroundColor: COLORS.blackMedium, border: `1px solid ${COLORS.gray}` }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSubmitCounterOffer}
+                    disabled={counterOfferAmount < 500 || counterOfferAmount >= bookingData.estimateLow}
+                    className="w-full rounded-xl py-3 font-bold transition-all disabled:opacity-50"
+                    style={{ backgroundColor: '#22c55e', color: 'white' }}
+                  >
+                    Submit Offer
+                  </button>
                 </div>
               </div>
             )}

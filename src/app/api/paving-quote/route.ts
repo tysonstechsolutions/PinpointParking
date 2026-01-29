@@ -271,8 +271,9 @@ async function createDraftInvoice(job: Record<string, unknown>, customer: Record
       total_cents: estimateLow,
       amount_paid_cents: 0,
       due_date: dueDate.toISOString().split('T')[0],
-      status: 'draft',
+      status: 'sent',
       notes: `Estimate range: $${(estimateLow / 100).toLocaleString()} - $${(estimateHigh / 100).toLocaleString()}`,
+      counter_offer_cents: job.original_quote_cents ? (job.quote_cents as number) : null,
     }
 
     const response = await fetch(`${supabaseUrl}/rest/v1/invoices`, {
@@ -404,6 +405,8 @@ export async function POST(request: Request) {
     const preferredDate = validatedData.preferredDate
     const addOns = validatedData.addOns
     const notes = validatedData.notes
+    const counterOfferCents = validatedData.counterOfferCents
+    const counterOfferMessage = validatedData.counterOfferMessage
 
     // 1. Find or create customer
     const customer = await findOrCreateCustomer({
@@ -412,6 +415,15 @@ export async function POST(request: Request) {
       email: customerEmail || undefined,
       address: address || undefined,
     })
+
+    // Build internal notes with counter-offer info
+    let internalNotes = `Chatbot estimate: $${estimateLow?.toLocaleString() || '?'} - $${estimateHigh?.toLocaleString() || '?'}`
+    if (counterOfferCents) {
+      internalNotes += `\n\n--- COUNTER-OFFER ---\nOffered: $${(counterOfferCents / 100).toLocaleString()}`
+      if (counterOfferMessage) {
+        internalNotes += `\nMessage: ${counterOfferMessage}`
+      }
+    }
 
     // 2. Save job to database
     const jobRecord = {
@@ -424,10 +436,11 @@ export async function POST(request: Request) {
       project_type: projectType || null,
       square_feet: squareFootage || null,
       condition: condition || null,
-      quote_cents: estimateLow ? Math.round(estimateLow * 100) : null,
+      quote_cents: counterOfferCents || (estimateLow ? Math.round(estimateLow * 100) : null),
+      original_quote_cents: counterOfferCents ? (estimateLow ? Math.round(estimateLow * 100) : null) : null,
       scheduled_date: preferredDate ? new Date(preferredDate).toISOString().split('T')[0] : null,
       notes: notes || null,
-      internal_notes: `Chatbot estimate: $${estimateLow?.toLocaleString() || '?'} - $${estimateHigh?.toLocaleString() || '?'}`,
+      internal_notes: internalNotes,
       status: 'quote',
       payment_status: 'pending',
     }
