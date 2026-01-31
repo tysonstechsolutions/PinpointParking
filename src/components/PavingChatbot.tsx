@@ -302,10 +302,10 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
     if (!coordsOverride && !mapCoordinates && addressToGeocode) {
       const geocoder = new window.google.maps.Geocoder()
       try {
-        const result: any = await new Promise((resolve, reject) => {
-          geocoder.geocode({ address: addressToGeocode }, (results: any, status: string) => {
+        const result = await new Promise<google.maps.LatLng>((resolve, reject) => {
+          geocoder.geocode({ address: addressToGeocode }, (results, status) => {
             console.log('Geocode status:', status, 'Address:', addressToGeocode)
-            if (status === 'OK' && results[0]) {
+            if (status === google.maps.GeocoderStatus.OK && results?.[0]) {
               console.log('Geocode results:', results[0])
               resolve(results[0].geometry.location)
             } else {

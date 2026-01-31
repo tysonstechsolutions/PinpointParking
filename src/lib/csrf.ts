@@ -5,7 +5,7 @@
 // ============================================
 
 import { cookies } from 'next/headers'
-import { createHmac, randomBytes } from 'crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 
 const CSRF_COOKIE_NAME = 'csrf_token'
 const CSRF_HEADER_NAME = 'x-csrf-token'
@@ -47,12 +47,17 @@ export function validateCsrfToken(token: string, maxAgeMs = 3600000): boolean {
     const [timestamp, random, signature] = parts
     const data = `${timestamp}.${random}`
 
-    // Verify signature
+    // Verify signature using timing-safe comparison to prevent timing attacks
     const expectedSignature = createHmac('sha256', CSRF_SECRET)
       .update(data)
       .digest('hex')
 
-    if (signature !== expectedSignature) return false
+    // Convert to buffers for timing-safe comparison
+    const sigBuffer = Buffer.from(signature, 'utf8')
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+
+    if (sigBuffer.length !== expectedBuffer.length) return false
+    if (!timingSafeEqual(sigBuffer, expectedBuffer)) return false
 
     // Check expiration
     const tokenTime = parseInt(timestamp, 10)

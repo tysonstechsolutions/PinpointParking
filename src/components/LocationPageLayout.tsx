@@ -16,6 +16,24 @@ const services = [
   { name: 'Pothole Repair', href: '/services/pothole-repair' },
 ];
 
+const allLocations = [
+  { name: 'Mount Vernon', slug: 'mount-vernon' },
+  { name: 'Carbondale', slug: 'carbondale' },
+  { name: 'Marion', slug: 'marion' },
+  { name: 'Centralia', slug: 'centralia' },
+  { name: 'Herrin', slug: 'herrin' },
+  { name: 'Salem', slug: 'salem' },
+  { name: 'Benton', slug: 'benton' },
+  { name: 'West Frankfort', slug: 'west-frankfort' },
+  { name: 'Du Quoin', slug: 'du-quoin' },
+  { name: 'Nashville', slug: 'nashville' },
+  { name: 'Fairfield', slug: 'fairfield' },
+  { name: 'Effingham', slug: 'effingham' },
+  { name: 'Murphysboro', slug: 'murphysboro' },
+  { name: 'Carterville', slug: 'carterville' },
+  { name: 'Harrisburg', slug: 'harrisburg' },
+];
+
 function generateBreadcrumbSchema(cityName: string) {
   const citySlug = cityName.toLowerCase().replace(/\s+/g, '-');
   return {
@@ -86,6 +104,12 @@ function generateLocalBusinessSchema(cityName: string, county: string, descripti
 export default function LocationPageLayout({ cityName, county, distance, description, children }: LocationPageLayoutProps) {
   const breadcrumbSchema = generateBreadcrumbSchema(cityName);
   const localBusinessSchema = generateLocalBusinessSchema(cityName, county, description);
+
+  // Get nearby locations (exclude current city, show up to 5)
+  const currentSlug = cityName.toLowerCase().replace(/\s+/g, '-');
+  const nearbyLocations = allLocations
+    .filter(loc => loc.slug !== currentSlug)
+    .slice(0, 5);
 
   return (
     <>
@@ -187,6 +211,29 @@ export default function LocationPageLayout({ cityName, county, distance, descrip
                     </li>
                   ))}
                 </ul>
+              </div>
+
+              <div className="sidebar-services" style={{ marginTop: '24px' }}>
+                <h4>Nearby Locations</h4>
+                <ul>
+                  {nearbyLocations.map((location) => (
+                    <li key={location.slug}>
+                      <Link href={`/locations/${location.slug}`}>{location.name}, IL</Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/locations"
+                  style={{
+                    display: 'block',
+                    marginTop: '12px',
+                    fontSize: '14px',
+                    color: 'var(--yellow-dark)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  View all locations →
+                </Link>
               </div>
             </aside>
           </div>

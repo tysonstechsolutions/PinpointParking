@@ -13,8 +13,9 @@ export const viewport: Viewport = {
   themeColor: "#1a1714",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow users to zoom for accessibility (WCAG 1.4.4)
+  maximumScale: 5,
+  userScalable: true,
 }
 
 export default function AdminLayout({

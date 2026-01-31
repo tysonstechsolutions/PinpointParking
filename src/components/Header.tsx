@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 const services = [
   { name: 'Asphalt Paving', href: '/services/asphalt-paving' },
@@ -21,12 +21,17 @@ const locations = [
   { name: 'View All Areas', href: '/locations' },
 ];
 
-export default function Header() {
+function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <>
+      {/* Skip Link for Accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Top Bar */}
       <div className="top-bar">
         <div className="container top-bar-content">
@@ -154,3 +159,6 @@ export default function Header() {
     </>
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export default memo(Header);

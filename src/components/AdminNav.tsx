@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { memo, useCallback } from 'react'
 import { config } from '@/config/config'
 
 const navItems = [
@@ -17,10 +18,10 @@ const navItems = [
   { href: '/admin/field', label: 'Field', icon: '📍' },
 ]
 
-export default function AdminNav() {
+function AdminNav() {
   const pathname = usePathname()
 
-  const isActive = (href: string) => {
+  const isActive = useCallback((href: string) => {
     if (href === '/admin') {
       return pathname === '/admin' || pathname?.startsWith('/admin/job/')
     }
@@ -28,16 +29,16 @@ export default function AdminNav() {
       return pathname === href
     }
     return pathname?.startsWith(href)
-  }
+  }, [pathname])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
       window.location.href = '/admin'
     } catch (error) {
       console.error('Logout error:', error)
     }
-  }
+  }, [])
 
   return (
     <nav style={{
@@ -101,3 +102,6 @@ export default function AdminNav() {
     </nav>
   )
 }
+
+// Memoize to prevent unnecessary re-renders when parent updates
+export default memo(AdminNav)

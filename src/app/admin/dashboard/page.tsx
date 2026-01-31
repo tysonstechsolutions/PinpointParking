@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
 
@@ -49,8 +49,8 @@ const formatCurrency = (cents: number) => {
   }).format(cents / 100)
 }
 
-// Simple bar chart component - moved outside to avoid recreation on each render
-function BarChart({ data, maxValue }: { data: Array<{ label: string; value: number; color?: string }>; maxValue: number }) {
+// Simple bar chart component - memoized to prevent unnecessary re-renders
+const BarChart = memo(function BarChart({ data, maxValue }: { data: Array<{ label: string; value: number; color?: string }>; maxValue: number }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {data.map((item, i) => (
@@ -76,7 +76,7 @@ function BarChart({ data, maxValue }: { data: Array<{ label: string; value: numb
       ))}
     </div>
   )
-}
+})
 
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([])
@@ -114,8 +114,8 @@ export default function DashboardPage() {
     fetchData()
   }, [fetchData])
 
-  // Filter data by time range
-  const getDateRange = () => {
+  // Memoize date range calculation
+  const startDate = useMemo(() => {
     const now = new Date()
     const ranges = {
       '7d': 7,
@@ -126,61 +126,97 @@ export default function DashboardPage() {
     const daysAgo = new Date(now)
     daysAgo.setDate(daysAgo.getDate() - ranges[timeRange])
     return daysAgo
-  }
+  }, [timeRange])
 
-  const filterByDate = <T extends { created_at?: string; expense_date?: string }>(items: T[]): T[] => {
-    const startDate = getDateRange()
-    return items.filter(item => {
-      const date = new Date(item.created_at || item.expense_date || '')
-      return date >= startDate
-    })
-  }
+  // Memoize filtered data to avoid recalculating on every render
+  const filteredJobs = useMemo(() =>
+    jobs.filter(item => new Date(item.created_at) >= startDate),
+    [jobs, startDate]
+  )
 
-  // Calculate metrics
-  const filteredJobs = filterByDate(jobs)
-  const filteredInvoices = filterByDate(invoices)
-  const filteredExpenses = filterByDate(expenses)
-  const filteredCustomers = filterByDate(customers)
+  const filteredInvoices = useMemo(() =>
+    invoices.filter(item => new Date(item.created_at) >= startDate),
+    [invoices, startDate]
+  )
 
-  const totalRevenue = filteredInvoices
-    .filter(i => i.status === 'paid')
-    .reduce((sum, i) => sum + (i.amount_paid_cents || 0), 0)
+  const filteredExpenses = useMemo(() =>
+    expenses.filter(item => new Date(item.expense_date) >= startDate),
+    [expenses, startDate]
+  )
 
-  const outstandingBalance = filteredInvoices
-    .filter(i => ['sent', 'viewed', 'partial'].includes(i.status))
-    .reduce((sum, i) => sum + (i.total_cents - (i.amount_paid_cents || 0)), 0)
+  const filteredCustomers = useMemo(() =>
+    customers.filter(item => new Date(item.created_at) >= startDate),
+    [customers, startDate]
+  )
 
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount_cents, 0)
+  // Memoize expensive metrics calculations
+  const metrics = useMemo(() => {
+    const totalRevenue = filteredInvoices
+      .filter(i => i.status === 'paid')
+      .reduce((sum, i) => sum + (i.amount_paid_cents || 0), 0)
 
-  const completedJobs = filteredJobs.filter(j => j.status === 'completed').length
-  const totalJobs = filteredJobs.length
-  const completionRate = totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0
+    const outstandingBalance = filteredInvoices
+      .filter(i => ['sent', 'viewed', 'partial'].includes(i.status))
+      .reduce((sum, i) => sum + (i.total_cents - (i.amount_paid_cents || 0)), 0)
 
-  const avgJobValue = filteredJobs.length > 0
-    ? filteredJobs.reduce((sum, j) => sum + (j.quote_cents || 0), 0) / filteredJobs.length
-    : 0
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount_cents, 0)
 
-  // Expense breakdown by category
-  const expensesByCategory = config.expenseCategories.map(cat => ({
-    ...cat,
-    amount: filteredExpenses
-      .filter(e => e.category === cat.id)
-      .reduce((sum, e) => sum + e.amount_cents, 0)
-  })).sort((a, b) => b.amount - a.amount)
+    const completedJobs = filteredJobs.filter(j => j.status === 'completed').length
+    const totalJobs = filteredJobs.length
+    const completionRate = totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0
 
-  // Jobs by service type
-  const jobsByService = config.services.map(service => ({
-    ...service,
-    count: filteredJobs.filter(j => j.job_type === service.id).length,
-    revenue: filteredJobs
-      .filter(j => j.job_type === service.id)
-      .reduce((sum, j) => sum + (j.quote_cents || 0), 0)
-  }))
+    const avgJobValue = filteredJobs.length > 0
+      ? filteredJobs.reduce((sum, j) => sum + (j.quote_cents || 0), 0) / filteredJobs.length
+      : 0
 
-  // Top customers
-  const topCustomers = customers
-    .filter(c => c.total_spent_cents > 0)
-    .slice(0, 5)
+    const paidInvoicesCount = filteredInvoices.filter(i => i.status === 'paid').length
+    const pendingInvoicesCount = filteredInvoices.filter(i => ['sent', 'viewed', 'partial'].includes(i.status)).length
+
+    return {
+      totalRevenue,
+      outstandingBalance,
+      totalExpenses,
+      completedJobs,
+      totalJobs,
+      completionRate,
+      avgJobValue,
+      paidInvoicesCount,
+      pendingInvoicesCount,
+      netProfit: totalRevenue - totalExpenses,
+      profitMargin: totalRevenue > 0 ? Math.round(((totalRevenue - totalExpenses) / totalRevenue) * 100) : 0,
+    }
+  }, [filteredJobs, filteredInvoices, filteredExpenses])
+
+  // Memoize expense breakdown by category
+  const expensesByCategory = useMemo(() =>
+    config.expenseCategories.map(cat => ({
+      ...cat,
+      amount: filteredExpenses
+        .filter(e => e.category === cat.id)
+        .reduce((sum, e) => sum + e.amount_cents, 0)
+    })).sort((a, b) => b.amount - a.amount),
+    [filteredExpenses]
+  )
+
+  // Memoize jobs by service type
+  const jobsByService = useMemo(() =>
+    config.services.map(service => ({
+      ...service,
+      count: filteredJobs.filter(j => j.job_type === service.id).length,
+      revenue: filteredJobs
+        .filter(j => j.job_type === service.id)
+        .reduce((sum, j) => sum + (j.quote_cents || 0), 0)
+    })),
+    [filteredJobs]
+  )
+
+  // Memoize top customers
+  const topCustomers = useMemo(() =>
+    customers
+      .filter(c => c.total_spent_cents > 0)
+      .slice(0, 5),
+    [customers]
+  )
 
   if (loading) {
     return (
@@ -247,10 +283,10 @@ export default function DashboardPage() {
           }}>
             <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>Total Revenue</p>
             <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#16a34a' }}>
-              {formatCurrency(totalRevenue)}
+              {formatCurrency(metrics.totalRevenue)}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
-              {filteredInvoices.filter(i => i.status === 'paid').length} paid invoices
+              {metrics.paidInvoicesCount} paid invoices
             </p>
           </div>
 
@@ -263,10 +299,10 @@ export default function DashboardPage() {
           }}>
             <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>Outstanding</p>
             <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#F5C518' }}>
-              {formatCurrency(outstandingBalance)}
+              {formatCurrency(metrics.outstandingBalance)}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
-              {filteredInvoices.filter(i => ['sent', 'viewed', 'partial'].includes(i.status)).length} pending invoices
+              {metrics.pendingInvoicesCount} pending invoices
             </p>
           </div>
 
@@ -279,7 +315,7 @@ export default function DashboardPage() {
           }}>
             <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>Expenses</p>
             <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#dc2626' }}>
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(metrics.totalExpenses)}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
               {filteredExpenses.length} transactions
@@ -297,12 +333,12 @@ export default function DashboardPage() {
             <p style={{
               fontSize: '28px',
               fontWeight: 'bold',
-              color: totalRevenue - totalExpenses >= 0 ? '#16a34a' : '#dc2626'
+              color: metrics.netProfit >= 0 ? '#16a34a' : '#dc2626'
             }}>
-              {formatCurrency(totalRevenue - totalExpenses)}
+              {formatCurrency(metrics.netProfit)}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
-              {totalRevenue > 0 ? Math.round(((totalRevenue - totalExpenses) / totalRevenue) * 100) : 0}% margin
+              {metrics.profitMargin}% margin
             </p>
           </div>
 
@@ -315,10 +351,10 @@ export default function DashboardPage() {
           }}>
             <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>Jobs Completed</p>
             <p style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>
-              {completedJobs}/{totalJobs}
+              {metrics.completedJobs}/{metrics.totalJobs}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
-              {completionRate}% completion rate
+              {metrics.completionRate}% completion rate
             </p>
           </div>
 
@@ -331,7 +367,7 @@ export default function DashboardPage() {
           }}>
             <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '8px' }}>Avg Job Value</p>
             <p style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>
-              {formatCurrency(avgJobValue)}
+              {formatCurrency(metrics.avgJobValue)}
             </p>
             <p style={{ color: '#9C9690', fontSize: '12px', marginTop: '8px' }}>
               {filteredCustomers.length} new customers

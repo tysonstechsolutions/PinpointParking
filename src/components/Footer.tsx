@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { memo } from 'react';
 
 const services = [
   { name: 'Asphalt Paving', href: '/services/asphalt-paving' },
@@ -24,7 +25,7 @@ const company = [
   { name: 'Free Estimate', href: '/contact' },
 ];
 
-export default function Footer() {
+function Footer() {
   return (
     <footer className="footer">
       <div className="container">
@@ -101,3 +102,6 @@ export default function Footer() {
     </footer>
   );
 }
+
+// Memoize to prevent unnecessary re-renders (footer content is static)
+export default memo(Footer);

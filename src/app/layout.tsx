@@ -3,9 +3,7 @@ import { Oswald, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import ChatWidget from "@/components/ChatWidget";
-import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ClientSideComponents from "@/components/ClientSideComponents";
 
 const oswald = Oswald({
   variable: "--font-oswald",
@@ -105,8 +103,9 @@ export const viewport: Viewport = {
   themeColor: "#F5C518",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow users to zoom for accessibility (WCAG 1.4.4)
+  maximumScale: 5,
+  userScalable: true,
 };
 
 const localBusinessSchema = {
@@ -379,6 +378,27 @@ const howToSchema = {
   ]
 };
 
+// Video Schema - For hero video (helps with video search results)
+const videoSchema = {
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "name": "Pinpoint Parking - Professional Asphalt Paving in Southern Illinois",
+  "description": "See our veteran-owned local crew in action. Pinpoint Parking provides professional asphalt paving, sealcoating, and line striping services throughout Southern Illinois.",
+  "thumbnailUrl": "https://pinpointparking.net/media/parking-lot-aerial-2.jpg",
+  "uploadDate": "2024-01-01",
+  "contentUrl": "https://pinpointparking.net/media/hero-video.mp4",
+  "embedUrl": "https://pinpointparking.net",
+  "duration": "PT30S",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pinpoint Parking",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pinpointparking.net/favicon.svg"
+    }
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -403,6 +423,10 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }}
+        />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
@@ -411,11 +435,9 @@ export default function RootLayout({
       </head>
       <body className={`${oswald.variable} ${sourceSans.variable}`} style={{ fontFamily: 'var(--font-source-sans), sans-serif' }}>
         <Header />
-        <main style={{ position: 'relative', overflow: 'hidden' }}>{children}</main>
+        <main id="main-content" role="main" style={{ position: 'relative', overflow: 'hidden' }}>{children}</main>
         <Footer />
-        <ChatWidget />
-        <ServiceWorkerRegistration />
-        <PWAInstallPrompt />
+        <ClientSideComponents />
       </body>
     </html>
   );
