@@ -1190,6 +1190,29 @@ p {
     color: var(--yellow);
 }
 
+.footer-social {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.footer-social a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--gray-800);
+    color: var(--gray-400);
+    transition: all 0.2s ease;
+}
+
+.footer-social a:hover {
+    background: var(--yellow);
+    color: var(--black);
+}
+
 .footer-links h4 {
     color: var(--white);
     font-size: 1rem;

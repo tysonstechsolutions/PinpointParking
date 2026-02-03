@@ -247,7 +247,9 @@ const localBusinessSchema = {
     "closes": "18:00"
   },
   "sameAs": [
-    "https://www.facebook.com/pinpointparking"
+    "https://www.facebook.com/p/Pinpoint-Parking-61558373593907/",
+    "https://www.yelp.com/biz/pinpoint-parking-mount-vernon",
+    "https://www.google.com/maps/place/Pinpoint+Parking/@38.3172,-88.9031,15z/data=!4m6!3m5!1s0x673cadb41b643589:0xf8ca7b021db5324f"
   ]
 };
 
@@ -385,7 +387,7 @@ const videoSchema = {
   "name": "Pinpoint Parking - Professional Asphalt Paving in Southern Illinois",
   "description": "See our veteran-owned local crew in action. Pinpoint Parking provides professional asphalt paving, sealcoating, and line striping services throughout Southern Illinois.",
   "thumbnailUrl": "https://pinpointparking.net/media/parking-lot-aerial-2.jpg",
-  "uploadDate": "2024-01-01",
+  "uploadDate": "2024-01-01T00:00:00-06:00",
   "contentUrl": "https://pinpointparking.net/media/hero-video.mp4",
   "embedUrl": "https://pinpointparking.net",
   "duration": "PT30S",
