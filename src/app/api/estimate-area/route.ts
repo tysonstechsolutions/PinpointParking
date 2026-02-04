@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
 
 // ============================================
 // AI AREA ESTIMATION API
@@ -251,6 +252,21 @@ If you can see a paved area, trace it even if confidence is low. The customer wi
 // ============================================
 export async function POST(request: Request) {
   try {
+    // Rate limiting - this API uses AI and Google Maps, so limit abuse
+    const clientIp = getClientIp(request.headers)
+    const rateLimit = checkRateLimit(`estimate-area:${clientIp}`, RATE_LIMITS.sensitive)
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Too many requests. Please wait a moment and try again.',
+          retryAfterMs: rateLimit.retryAfterMs
+        },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const { address: rawAddress, projectType: rawProjectType } = body
 

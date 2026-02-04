@@ -1,9 +1,12 @@
 @import "tailwindcss";
 
+/* Import Premium Fonts - Industrial/Professional Typography */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
 /* ============================================
    PINPOINT PARKING - Main Stylesheet
    Professional Black & Yellow Theme
+   Refined Industrial Aesthetic
    ============================================ */
 
 /* CSS Variables */
@@ -27,6 +30,11 @@
     --gray-600: #c7c2bc;
     --gray-700: #ddd9d4;
     --gray-800: #2A2724;
+
+    /* Typography */
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'Space Mono', monospace;
 
     /* Spacing */
     --container-max: 1280px;
@@ -132,6 +140,7 @@ html {
 }
 
 body {
+    font-family: var(--font-body);
     font-size: 16px;
     line-height: 1.6;
     color: var(--gray-500);
@@ -163,15 +172,24 @@ ul {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    line-height: 1.2;
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.15;
     color: var(--white);
+    letter-spacing: -0.02em;
 }
 
-h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
-h2 { font-size: clamp(2rem, 4vw, 3rem); }
-h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
-h4 { font-size: 1.125rem; }
+h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; }
+h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; }
+h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); font-weight: 600; }
+h4 { font-size: 1.125rem; font-weight: 600; }
+
+/* Monospace numbers for stats and pricing */
+.stat-number,
+.trust-number,
+.price-display {
+    font-family: var(--font-mono);
+}
 
 p {
     margin-bottom: 1rem;
@@ -1866,4 +1884,217 @@ p {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+}
+
+/* ============================================
+   ENHANCED VISUAL ELEMENTS
+   Road-Line Inspired Industrial Design
+   ============================================ */
+
+/* Road line divider */
+.road-line-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 32px 0;
+}
+
+.road-line-divider::before,
+.road-line-divider::after {
+    content: '';
+    flex: 1;
+    height: 4px;
+    background: repeating-linear-gradient(
+        90deg,
+        var(--yellow) 0,
+        var(--yellow) 30px,
+        transparent 30px,
+        transparent 50px
+    );
+}
+
+/* Asphalt texture background */
+.asphalt-texture {
+    background-image:
+        radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 20px 20px, 25px 25px, 15px 15px;
+}
+
+/* Yellow stripe accent (road marking) */
+.stripe-accent {
+    position: relative;
+}
+
+.stripe-accent::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    background: var(--yellow);
+    border-radius: 3px;
+}
+
+/* Glow effect for CTAs */
+.glow-yellow {
+    box-shadow: 0 0 30px rgba(245, 197, 24, 0.4);
+}
+
+.glow-yellow-hover:hover {
+    box-shadow: 0 0 40px rgba(245, 197, 24, 0.5);
+}
+
+/* Card hover with road-line border animation */
+.card-road-border {
+    position: relative;
+    overflow: hidden;
+}
+
+.card-road-border::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 4px;
+    background: var(--yellow);
+    transition: width 0.3s ease;
+}
+
+.card-road-border:hover::after {
+    width: 100%;
+}
+
+/* Industrial badge style */
+.industrial-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(245, 197, 24, 0.15);
+    border: 2px solid var(--yellow);
+    color: var(--yellow);
+}
+
+/* Staggered reveal animation */
+@keyframes reveal-up {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reveal-up {
+    animation: reveal-up 0.6s ease forwards;
+    opacity: 0;
+}
+
+.reveal-delay-1 { animation-delay: 0.1s; }
+.reveal-delay-2 { animation-delay: 0.2s; }
+.reveal-delay-3 { animation-delay: 0.3s; }
+.reveal-delay-4 { animation-delay: 0.4s; }
+.reveal-delay-5 { animation-delay: 0.5s; }
+.reveal-delay-6 { animation-delay: 0.6s; }
+
+/* Parking lot grid background */
+.parking-grid-bg {
+    background-image:
+        linear-gradient(rgba(245, 197, 24, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 197, 24, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+}
+
+/* Section with diagonal stripe */
+.section-stripe {
+    position: relative;
+}
+
+.section-stripe::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--yellow),
+        var(--yellow) 10px,
+        var(--black) 10px,
+        var(--black) 20px
+    );
+}
+
+/* Mobile sticky CTA */
+@media (max-width: 768px) {
+    .mobile-sticky-cta {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        z-index: 40;
+        display: flex;
+        gap: 12px;
+    }
+
+    .mobile-sticky-cta .btn {
+        flex: 1;
+        text-align: center;
+        padding: 16px 12px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Gradient text for emphasis */
+.gradient-text-yellow {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Before/After slider placeholder styles */
+.before-after-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 2px solid var(--gray-200);
+}
+
+.before-after-container:hover {
+    border-color: var(--yellow);
+}
+
+/* Trust indicator enhancement */
+.trust-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(245, 197, 24, 0.1) 0%, rgba(245, 197, 24, 0.05) 100%);
+    border: 1px solid rgba(245, 197, 24, 0.3);
+    border-radius: 8px;
+}
+
+.trust-indicator svg {
+    color: var(--yellow);
+}
+
+.trust-indicator span {
+    font-weight: 600;
+    color: var(--white);
 }
