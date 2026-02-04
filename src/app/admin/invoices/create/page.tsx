@@ -1,10 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { config } from '@/config/config'
 import AdminNav from '@/components/AdminNav'
+
+// Favicon SVG component for the preview
+const PinpointLogo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32">
+    <circle cx="16" cy="16" r="15" fill="#1a1714" stroke="#1a1714" strokeWidth="2"/>
+    <circle cx="16" cy="16" r="12" fill="none" stroke="#F5C518" strokeWidth="2.5"/>
+    <circle cx="16" cy="16" r="4" fill="#F5C518"/>
+    <line x1="16" y1="2" x2="16" y2="8" stroke="#F5C518" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="16" y1="24" x2="16" y2="30" stroke="#F5C518" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="2" y1="16" x2="8" y2="16" stroke="#F5C518" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="24" y1="16" x2="30" y2="16" stroke="#F5C518" strokeWidth="2.5" strokeLinecap="round"/>
+  </svg>
+)
 
 interface Customer {
   id: number
@@ -88,6 +101,8 @@ function CreateInvoiceContent() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [customerSearch, setCustomerSearch] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   // Voice input state
   const [isRecording, setIsRecording] = useState(false)
@@ -409,6 +424,246 @@ function CreateInvoiceContent() {
   }
 
   const subtotal = invoice.line_items.reduce((sum, item) => sum + (item.amount_cents || 0), 0)
+
+  const formatCurrency = useCallback((cents: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format((cents || 0) / 100)
+  }, [])
+
+  const formatDate = useCallback((date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }, [])
+
+  const canPreview = invoice.customer_name && invoice.line_items.some(item => item.description && item.amount_cents > 0)
+
+  const handlePrint = useCallback(() => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow || !previewRef.current) return
+
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + invoice.payment_terms)
+    const depositAmount = Math.round(subtotal * 0.5)
+    const balanceAfterDeposit = subtotal - depositAmount
+
+    const selectedServices = Object.entries(invoice.services)
+      .filter(([, selected]) => selected)
+      .map(([service]) => {
+        const labels: Record<string, string> = {
+          striping: 'Line Striping',
+          sealing: 'Sealcoating',
+          paving: 'Asphalt Paving',
+        }
+        return labels[service] || service
+      })
+      .join(', ')
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Estimate - ${invoice.customer_name}</title>
+        <style>
+          @page { margin: 0.5in; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .container { max-width: 800px; margin: 0 auto; }
+          .header {
+            background: #1a1714;
+            color: white;
+            padding: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+          .logo-section { display: flex; align-items: center; gap: 16px; }
+          .logo svg { width: 48px; height: 48px; }
+          .business-name { font-size: 28px; font-weight: bold; color: #F5C518; }
+          .business-contact { color: #9C9690; font-size: 14px; margin-top: 4px; }
+          .estimate-title { font-size: 28px; font-weight: bold; color: #F5C518; text-align: right; }
+          .estimate-number { font-size: 18px; color: white; margin-top: 8px; }
+          .estimate-date { color: #9C9690; margin-top: 8px; }
+          .info-section { padding: 30px 40px; border-bottom: 1px solid #eee; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+          .info-label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+          .info-value { font-size: 18px; font-weight: 600; }
+          .info-secondary { color: #666; margin-top: 4px; }
+          .service-section { padding: 20px 40px; background: #f9f9f9; border-bottom: 1px solid #eee; }
+          .line-items { padding: 30px 40px; }
+          table { width: 100%; border-collapse: collapse; }
+          th { text-align: left; padding: 12px 0; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; border-bottom: 2px solid #1a1714; }
+          th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: right; }
+          td { padding: 16px 0; border-bottom: 1px solid #eee; }
+          td:nth-child(2), td:nth-child(3), td:nth-child(4) { text-align: right; }
+          .totals { margin-top: 24px; display: flex; justify-content: flex-end; }
+          .totals-box { width: 280px; }
+          .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+          .total-row.final { border-top: 2px solid #1a1714; margin-top: 8px; padding-top: 16px; }
+          .total-label { color: #666; }
+          .total-value { font-weight: 600; }
+          .total-value.large { font-size: 24px; font-weight: bold; }
+          .payment-terms { padding: 30px 40px; background: #f9f9f9; border-top: 1px solid #eee; }
+          .payment-terms h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+          .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .payment-box { background: white; padding: 20px; border-radius: 8px; }
+          .payment-box.deposit { border: 2px solid #F5C518; }
+          .payment-box.balance { border: 1px solid #ddd; }
+          .payment-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+          .payment-amount { font-size: 24px; font-weight: bold; }
+          .payment-amount.yellow { color: #F5C518; }
+          .payment-note { font-size: 13px; color: #666; margin-top: 8px; }
+          .notes-section { padding: 30px 40px; border-top: 1px solid #eee; }
+          .notes-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+          .notes-text { color: #666; white-space: pre-wrap; }
+          .footer {
+            padding: 30px 40px;
+            background: #1a1714;
+            color: white;
+            text-align: center;
+          }
+          .footer p { font-size: 14px; margin-bottom: 8px; }
+          .footer .secondary { color: #9C9690; font-size: 13px; }
+          @media print {
+            .no-print { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo-section">
+              <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32">
+                  <circle cx="16" cy="16" r="15" fill="#1a1714" stroke="#F5C518" stroke-width="2"/>
+                  <circle cx="16" cy="16" r="12" fill="none" stroke="#F5C518" stroke-width="2.5"/>
+                  <circle cx="16" cy="16" r="4" fill="#F5C518"/>
+                  <line x1="16" y1="2" x2="16" y2="8" stroke="#F5C518" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="16" y1="24" x2="16" y2="30" stroke="#F5C518" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="2" y1="16" x2="8" y2="16" stroke="#F5C518" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="24" y1="16" x2="30" y2="16" stroke="#F5C518" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div class="business-name">${config.businessName}</div>
+                <div class="business-contact">${config.phone}</div>
+                <div class="business-contact">${config.email}</div>
+              </div>
+            </div>
+            <div>
+              <div class="estimate-title">ESTIMATE</div>
+              <div class="estimate-number">#DRAFT</div>
+              <div class="estimate-date">Date: ${formatDate(new Date())}</div>
+              <div class="estimate-date">Valid Until: ${formatDate(dueDate)}</div>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <div>
+              <div class="info-label">Prepared For</div>
+              <div class="info-value">${invoice.customer_name}</div>
+              ${invoice.customer_phone ? `<div class="info-secondary">${invoice.customer_phone}</div>` : ''}
+              ${invoice.customer_email ? `<div class="info-secondary">${invoice.customer_email}</div>` : ''}
+            </div>
+            <div>
+              <div class="info-label">Service Location</div>
+              <div style="font-size: 16px;">${invoice.service_address || 'TBD'}</div>
+            </div>
+          </div>
+
+          ${selectedServices || invoice.square_feet ? `
+          <div class="service-section">
+            <div class="info-label">Service Description</div>
+            <div style="font-size: 16px;">${selectedServices || ''}</div>
+            ${invoice.square_feet ? `<div class="info-secondary">Estimated Area: ${parseInt(invoice.square_feet).toLocaleString()} sq ft</div>` : ''}
+          </div>
+          ` : ''}
+
+          <div class="line-items">
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th style="width: 80px;">Qty</th>
+                  <th style="width: 100px;">Unit Price</th>
+                  <th style="width: 120px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.line_items
+                  .filter(item => item.description && item.amount_cents > 0)
+                  .map(item => `
+                    <tr>
+                      <td>${item.description}</td>
+                      <td>${item.quantity || 1}</td>
+                      <td>${item.unit_price_cents ? formatCurrency(item.unit_price_cents) : '-'}</td>
+                      <td style="font-weight: 500;">${formatCurrency(item.amount_cents)}</td>
+                    </tr>
+                  `).join('')}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <div class="totals-box">
+                <div class="total-row">
+                  <span class="total-label">Subtotal</span>
+                  <span class="total-value">${formatCurrency(subtotal)}</span>
+                </div>
+                <div class="total-row final">
+                  <span style="font-size: 18px; font-weight: 600;">Total</span>
+                  <span class="total-value large">${formatCurrency(subtotal)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="payment-terms">
+            <h3>Payment Terms</h3>
+            <div class="payment-grid">
+              <div class="payment-box deposit">
+                <div class="payment-label">Deposit Due (50%)</div>
+                <div class="payment-amount yellow">${formatCurrency(depositAmount)}</div>
+                <div class="payment-note">Due upon acceptance</div>
+              </div>
+              <div class="payment-box balance">
+                <div class="payment-label">Balance Due</div>
+                <div class="payment-amount">${formatCurrency(balanceAfterDeposit)}</div>
+                <div class="payment-note">Due upon completion</div>
+              </div>
+            </div>
+          </div>
+
+          ${invoice.notes ? `
+          <div class="notes-section">
+            <h3>Notes</h3>
+            <p class="notes-text">${invoice.notes}</p>
+          </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>Thank you for considering ${config.businessName}!</p>
+            <p class="secondary">This estimate is valid for 30 days from the date of issue.</p>
+            <p class="secondary" style="margin-top: 16px;">${config.phone} | ${config.email}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+    }, 250)
+  }, [invoice, subtotal, formatCurrency, formatDate])
 
   const handleSubmit = async (sendNow = false) => {
     if (!invoice.customer_name) {
@@ -1083,7 +1338,25 @@ function CreateInvoiceContent() {
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowPreview(true)}
+            disabled={!canPreview}
+            style={{
+              padding: '14px 24px',
+              backgroundColor: canPreview ? '#1a1714' : '#302d2a',
+              color: canPreview ? '#F5C518' : '#666',
+              border: canPreview ? '2px solid #F5C518' : '1px solid #3A3733',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: canPreview ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            Preview
+          </button>
           <button
             onClick={() => handleSubmit(false)}
             disabled={saving}
@@ -1124,6 +1397,306 @@ function CreateInvoiceContent() {
           style={{ position: 'fixed', inset: 0, zIndex: 10 }}
           onClick={() => setShowCustomerSearch(false)}
         />
+      )}
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Modal Header */}
+          <div style={{
+            backgroundColor: '#1a1714',
+            borderBottom: '2px solid #F5C518',
+            padding: '16px 24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <PinpointLogo />
+              <h2 style={{ color: '#F5C518', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                Estimate Preview
+              </h2>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handlePrint}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#F5C518',
+                  color: '#1a1714',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                Download PDF
+              </button>
+              <button
+                onClick={() => setShowPreview(false)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#302d2a',
+                  color: 'white',
+                  border: '1px solid #3A3733',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Preview Content */}
+          <div style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '40px 20px',
+            backgroundColor: '#f5f5f5',
+          }}>
+            <div
+              ref={previewRef}
+              style={{
+                maxWidth: '800px',
+                margin: '0 auto',
+                backgroundColor: 'white',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                borderRadius: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Estimate Header */}
+              <div style={{
+                backgroundColor: '#1a1714',
+                color: 'white',
+                padding: '40px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <PinpointLogo />
+                    <div>
+                      <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#F5C518' }}>
+                        {config.businessName}
+                      </h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#9C9690', fontSize: '14px' }}>{config.phone}</p>
+                      <p style={{ margin: '4px 0 0 0', color: '#9C9690', fontSize: '14px' }}>{config.email}</p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#F5C518' }}>
+                      ESTIMATE
+                    </h2>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '18px', color: 'white' }}>
+                      #DRAFT
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', color: '#9C9690' }}>
+                      Date: {formatDate(new Date())}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', color: '#9C9690' }}>
+                      Valid Until: {formatDate(new Date(Date.now() + invoice.payment_terms * 24 * 60 * 60 * 1000))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer & Service Info */}
+              <div style={{ padding: '30px 40px', borderBottom: '1px solid #eee' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Prepared For
+                    </h3>
+                    <p style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>{invoice.customer_name}</p>
+                    {invoice.customer_phone && (
+                      <p style={{ margin: '4px 0 0 0', color: '#666' }}>{invoice.customer_phone}</p>
+                    )}
+                    {invoice.customer_email && (
+                      <p style={{ margin: '4px 0 0 0', color: '#666' }}>{invoice.customer_email}</p>
+                    )}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Service Location
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '16px' }}>{invoice.service_address || 'TBD'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service Description */}
+              {(invoice.services.striping || invoice.services.sealing || invoice.services.paving || invoice.square_feet) && (
+                <div style={{ padding: '20px 40px', backgroundColor: '#f9f9f9', borderBottom: '1px solid #eee' }}>
+                  <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Service Description
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '16px' }}>
+                    {Object.entries(invoice.services)
+                      .filter(([, selected]) => selected)
+                      .map(([service]) => {
+                        const labels: Record<string, string> = {
+                          striping: 'Line Striping',
+                          sealing: 'Sealcoating',
+                          paving: 'Asphalt Paving',
+                        }
+                        return labels[service] || service
+                      })
+                      .join(', ')}
+                  </p>
+                  {invoice.square_feet && (
+                    <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+                      Estimated Area: {parseInt(invoice.square_feet).toLocaleString()} sq ft
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Line Items */}
+              <div style={{ padding: '30px 40px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #1a1714' }}>
+                      <th style={{ textAlign: 'left', padding: '12px 0', fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase' }}>
+                        Description
+                      </th>
+                      <th style={{ textAlign: 'center', padding: '12px 0', fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', width: '80px' }}>
+                        Qty
+                      </th>
+                      <th style={{ textAlign: 'right', padding: '12px 0', fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', width: '100px' }}>
+                        Unit Price
+                      </th>
+                      <th style={{ textAlign: 'right', padding: '12px 0', fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', width: '120px' }}>
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoice.line_items
+                      .filter(item => item.description && item.amount_cents > 0)
+                      .map((item, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                          <td style={{ padding: '16px 0', fontSize: '15px' }}>{item.description}</td>
+                          <td style={{ padding: '16px 0', textAlign: 'center', color: '#666' }}>
+                            {item.quantity || 1}
+                          </td>
+                          <td style={{ padding: '16px 0', textAlign: 'right', color: '#666' }}>
+                            {item.unit_price_cents ? formatCurrency(item.unit_price_cents) : '-'}
+                          </td>
+                          <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: '500' }}>
+                            {formatCurrency(item.amount_cents)}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+
+                {/* Totals */}
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ width: '280px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                      <span style={{ color: '#666' }}>Subtotal</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '16px 0',
+                      borderTop: '2px solid #1a1714',
+                      marginTop: '8px',
+                    }}>
+                      <span style={{ fontSize: '18px', fontWeight: '600' }}>Total</span>
+                      <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatCurrency(subtotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Terms */}
+              <div style={{
+                padding: '30px 40px',
+                backgroundColor: '#f9f9f9',
+                borderTop: '1px solid #eee',
+              }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>Payment Terms</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div style={{
+                    backgroundColor: 'white',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    border: '2px solid #F5C518',
+                  }}>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '0 0 4px 0', textTransform: 'uppercase' }}>
+                      Deposit Due (50%)
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#F5C518' }}>
+                      {formatCurrency(Math.round(subtotal * 0.5))}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '8px 0 0 0' }}>
+                      Due upon acceptance
+                    </p>
+                  </div>
+                  <div style={{
+                    backgroundColor: 'white',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                  }}>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '0 0 4px 0', textTransform: 'uppercase' }}>
+                      Balance Due
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+                      {formatCurrency(subtotal - Math.round(subtotal * 0.5))}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '8px 0 0 0' }}>
+                      Due upon completion
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {invoice.notes && (
+                <div style={{ padding: '30px 40px', borderTop: '1px solid #eee' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Notes</h3>
+                  <p style={{ margin: 0, color: '#666', whiteSpace: 'pre-wrap' }}>{invoice.notes}</p>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div style={{
+                padding: '30px 40px',
+                backgroundColor: '#1a1714',
+                color: 'white',
+                textAlign: 'center',
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+                  Thank you for considering {config.businessName}!
+                </p>
+                <p style={{ margin: 0, fontSize: '13px', color: '#9C9690' }}>
+                  This estimate is valid for 30 days from the date of issue.
+                </p>
+                <p style={{ margin: '16px 0 0 0', fontSize: '13px', color: '#9C9690' }}>
+                  {config.phone} | {config.email}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
