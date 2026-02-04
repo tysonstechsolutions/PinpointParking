@@ -523,6 +523,10 @@ function CreateInvoiceContent() {
           .notes-section { padding: 30px 40px; border-top: 1px solid #eee; }
           .notes-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
           .notes-text { color: #666; white-space: pre-wrap; }
+          .pay-online-section { padding: 30px 40px; background: #f9f9f9; border-top: 1px solid #eee; text-align: center; }
+          .pay-online-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+          .pay-online-btn { display: inline-block; padding: 16px 40px; background: #F5C518; color: #1a1714; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 18px; }
+          .pay-online-url { margin-top: 12px; font-size: 13px; color: #666; word-break: break-all; }
           .footer {
             padding: 30px 40px;
             background: #1a1714;
@@ -559,7 +563,6 @@ function CreateInvoiceContent() {
             </div>
             <div>
               <div class="estimate-title">ESTIMATE</div>
-              <div class="estimate-number">#DRAFT</div>
               <div class="estimate-date">Date: ${formatDate(new Date())}</div>
               <div class="estimate-date">Valid Until: ${formatDate(dueDate)}</div>
             </div>
@@ -646,6 +649,12 @@ function CreateInvoiceContent() {
             <p class="notes-text">${invoice.notes}</p>
           </div>
           ` : ''}
+
+          <div class="pay-online-section">
+            <h3>Ready to Get Started?</h3>
+            <a href="${config.websiteUrl}/pay" class="pay-online-btn">Pay Online</a>
+            <p class="pay-online-url">${config.websiteUrl}/pay</p>
+          </div>
 
           <div class="footer">
             <p>Thank you for considering ${config.businessName}!</p>
@@ -1442,9 +1451,6 @@ function CreateInvoiceContent() {
                     <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#F5C518' }}>
                       ESTIMATE
                     </h2>
-                    <p style={{ margin: '8px 0 0 0', fontSize: '18px', color: 'white' }}>
-                      #DRAFT
-                    </p>
                     <p style={{ margin: '8px 0 0 0', color: '#9C9690' }}>
                       Date: {formatDate(new Date())}
                     </p>
@@ -1616,6 +1622,34 @@ function CreateInvoiceContent() {
                   <p style={{ margin: 0, color: '#666', whiteSpace: 'pre-wrap' }}>{invoice.notes}</p>
                 </div>
               )}
+
+              {/* Pay Online Section */}
+              <div style={{
+                padding: '30px 40px',
+                backgroundColor: '#f9f9f9',
+                borderTop: '1px solid #eee',
+                textAlign: 'center',
+              }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Ready to Get Started?</h3>
+                <a
+                  href={`${config.websiteUrl}/pay`}
+                  style={{
+                    display: 'inline-block',
+                    padding: '16px 40px',
+                    backgroundColor: '#F5C518',
+                    color: '#1a1714',
+                    textDecoration: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '18px',
+                  }}
+                >
+                  Pay Online
+                </a>
+                <p style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>
+                  {config.websiteUrl}/pay
+                </p>
+              </div>
 
               {/* Footer */}
               <div style={{
