@@ -1151,66 +1151,6 @@ function CreateInvoiceContent() {
           </p>
         </div>
 
-        {/* Manual Total Entry (Alternative) */}
-        <div style={{
-          backgroundColor: '#252220',
-          borderRadius: '12px',
-          border: '1px solid #302d2a',
-          padding: '20px',
-          marginBottom: '20px',
-        }}>
-          <h2 style={{ color: '#F5C518', fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
-            Or Enter Total Manually
-          </h2>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', color: '#9C9690', fontSize: '13px', marginBottom: '6px' }}>
-                Total estimate amount
-              </label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9C9690' }}>$</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={invoice.total_amount}
-                  onChange={(e) => setInvoice({ ...invoice, total_amount: e.target.value })}
-                  placeholder="0.00"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 28px',
-                    border: '1px solid #3A3733',
-                    borderRadius: '8px',
-                    backgroundColor: '#302d2a',
-                    color: 'white',
-                    fontSize: '18px',
-                  }}
-                />
-              </div>
-            </div>
-            <button
-              onClick={generateLineItems}
-              disabled={generating}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: generating ? '#4a4538' : '#F5C518',
-                color: generating ? '#9C9690' : '#1a1714',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: generating ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {generating ? 'Generating...' : 'Generate Line Items'}
-            </button>
-          </div>
-
-          <p style={{ color: '#9C9690', fontSize: '13px', marginTop: '8px' }}>
-            AI will automatically create line items that add up to your total based on the selected services.
-          </p>
-        </div>
-
         {/* Line Items */}
         <div style={{
           backgroundColor: '#252220',
