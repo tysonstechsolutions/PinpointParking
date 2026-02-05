@@ -41,13 +41,146 @@ async function generateInvoiceNumber(): Promise<string> {
 }
 
 // ============================================
+// FIND OR CREATE CUSTOMER
+// ============================================
+async function findOrCreateCustomer(customerData: {
+  name: string
+  phone?: string
+  email?: string
+  address?: string
+}): Promise<number | null> {
+  const { name, phone, email, address } = customerData
+
+  // First, try to find existing customer by phone or email
+  let existingCustomer = null
+
+  if (phone) {
+    const phoneResponse = await fetch(
+      `${supabaseUrl}/rest/v1/customers?phone=eq.${encodeURIComponent(phone)}&limit=1`,
+      {
+        headers: {
+          'apikey': getSupabaseKey(),
+          'Authorization': `Bearer ${getSupabaseKey()}`,
+        },
+      }
+    )
+    if (phoneResponse.ok) {
+      const data = await phoneResponse.json()
+      if (data.length > 0) {
+        existingCustomer = data[0]
+      }
+    }
+  }
+
+  if (!existingCustomer && email) {
+    const emailResponse = await fetch(
+      `${supabaseUrl}/rest/v1/customers?email=eq.${encodeURIComponent(email)}&limit=1`,
+      {
+        headers: {
+          'apikey': getSupabaseKey(),
+          'Authorization': `Bearer ${getSupabaseKey()}`,
+        },
+      }
+    )
+    if (emailResponse.ok) {
+      const data = await emailResponse.json()
+      if (data.length > 0) {
+        existingCustomer = data[0]
+      }
+    }
+  }
+
+  // If found, return existing customer ID
+  if (existingCustomer) {
+    console.log(`Found existing customer: ${existingCustomer.name} (ID: ${existingCustomer.id})`)
+    return existingCustomer.id
+  }
+
+  // Create new customer
+  const newCustomerData = {
+    name,
+    phone: phone || null,
+    email: email || null,
+    address: address || null,
+    total_jobs: 0,
+    total_spent_cents: 0,
+    outstanding_balance_cents: 0,
+  }
+
+  const createResponse = await fetch(
+    `${supabaseUrl}/rest/v1/customers`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': getSupabaseKey(),
+        'Authorization': `Bearer ${getSupabaseKey()}`,
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(newCustomerData),
+    }
+  )
+
+  if (createResponse.ok) {
+    const [newCustomer] = await createResponse.json()
+    console.log(`Created new customer: ${name} (ID: ${newCustomer.id})`)
+    return newCustomer.id
+  }
+
+  console.error('Failed to create customer:', await createResponse.text())
+  return null
+}
+
+// ============================================
+// UPDATE CUSTOMER STATS
+// ============================================
+async function updateCustomerStats(customerId: number, invoiceTotalCents: number): Promise<void> {
+  // Get current customer data
+  const customerResponse = await fetch(
+    `${supabaseUrl}/rest/v1/customers?id=eq.${customerId}`,
+    {
+      headers: {
+        'apikey': getSupabaseKey(),
+        'Authorization': `Bearer ${getSupabaseKey()}`,
+      },
+    }
+  )
+
+  if (!customerResponse.ok) return
+
+  const [customer] = await customerResponse.json()
+  if (!customer) return
+
+  // Update customer stats
+  const updatedData = {
+    total_jobs: (customer.total_jobs || 0) + 1,
+    outstanding_balance_cents: (customer.outstanding_balance_cents || 0) + invoiceTotalCents,
+  }
+
+  await fetch(
+    `${supabaseUrl}/rest/v1/customers?id=eq.${customerId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': getSupabaseKey(),
+        'Authorization': `Bearer ${getSupabaseKey()}`,
+      },
+      body: JSON.stringify(updatedData),
+    }
+  )
+
+  console.log(`Updated customer ${customerId} stats: jobs=${updatedData.total_jobs}, outstanding=${updatedData.outstanding_balance_cents}`)
+}
+
+// ============================================
 // CREATE INVOICE
 // ============================================
 export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    const {
+    let {
       customer_id,
       job_id,
       customer_name,
@@ -78,8 +211,20 @@ export async function POST(request: Request) {
       )
     }
 
+    // If no customer_id provided, find or create customer
+    if (!customer_id) {
+      customer_id = await findOrCreateCustomer({
+        name: customer_name,
+        phone: customer_phone,
+        email: customer_email,
+        address: service_address || customer_address,
+      })
+    }
+
     // Generate invoice number
     const invoice_number = await generateInvoiceNumber()
+
+    const finalTotalCents = total_cents || subtotal_cents
 
     const invoiceData = {
       invoice_number,
@@ -99,7 +244,7 @@ export async function POST(request: Request) {
       subtotal_cents,
       tax_cents,
       discount_cents,
-      total_cents: total_cents || subtotal_cents,
+      total_cents: finalTotalCents,
       amount_paid_cents: 0,
       due_date,
       notes,
@@ -132,6 +277,11 @@ export async function POST(request: Request) {
 
     const [invoice] = await response.json()
 
+    // Update customer stats (add to outstanding balance)
+    if (customer_id) {
+      await updateCustomerStats(customer_id, finalTotalCents)
+    }
+
     // If linked to a job, update the job
     if (job_id) {
       await fetch(
@@ -151,12 +301,13 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log(`Invoice created: ${invoice_number}`)
+    console.log(`Invoice created: ${invoice_number} for customer ${customer_id}`)
 
     return NextResponse.json({
       success: true,
       invoice,
       invoice_number,
+      customer_id,
     })
 
   } catch (error) {
