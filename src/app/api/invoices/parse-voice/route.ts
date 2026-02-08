@@ -77,55 +77,70 @@ Go through the ENTIRE transcript and tally every item mentioned. The person adds
 Count EVERY mention. Do not miss any.
 
 ===== STEP 3: PRICE THE ITEMS =====
-If a total price was stated in Step 1:
-- Distribute the total across all items proportionally
-- The largest quantity item (usually parking stalls) gets the bulk
-- ADA spaces: NEVER more than $35 each
-- Stencils: NEVER more than $35 each
-- Adjust the unit price of the largest-quantity item to make the math work exactly
+Price items using this EXACT method. Do it in order:
 
-If NO total price was stated, use these typical rates:
-- Parking stalls: $${PRICING_RULES.parking_space.typical} each
-- ADA accessible spaces: $${PRICING_RULES.handicap_space.typical} each (MAX $35)
-- Cross-hatch/loading zones: $${PRICING_RULES.hash_zone.typical} each
+FIXED-PRICE ITEMS (these have hard caps - price them FIRST):
+- ADA/handicap spaces: $${PRICING_RULES.handicap_space.typical} each (NEVER more than $35)
+- Cross-hatch/access zones: $${PRICING_RULES.hash_zone.typical} each (NEVER more than $35)
 - Directional arrows: $${PRICING_RULES.arrow.typical} each
-- Stencil markings: $${PRICING_RULES.stencil.typical} each (MAX $35)
 - Stop bars: $${PRICING_RULES.stop_bar.typical} each
 - Walkways/crosswalks: $${PRICING_RULES.crosswalk.typical} each
+- Stencil markings: $${PRICING_RULES.stencil.typical} each (NEVER more than $35)
 - Curb painting: $${PRICING_RULES.curb_paint.typical}/LF
 - Fire lane: $${PRICING_RULES.fire_lane.typical}/LF
+
+THEN calculate the remainder:
+  remainder = totalPrice - (sum of all fixed-price items above)
+
+ABSORB THE REMAINDER into parking stalls:
+  parking_stall_unit_price = remainder / number_of_parking_stalls
+
+If parking stalls end up at a reasonable price ($3-$20 each), put it all there.
+If parking stalls would be more than $20 each, cap them at $${PRICING_RULES.parking_space.typical} each and put the excess into ONE additional line item:
+  "Fuel, Labor & Equipment Operating Costs (Graco LineLazer 3400)"
+
+If NO total price was stated, use $${PRICING_RULES.parking_space.typical}/stall and add up all items for the total.
 
 ===== STEP 4: GENERATE LINE ITEMS =====
 Descriptions to use:
 - "4\\" Parking Stall Striping (waterborne TTP-1952E)" for regular spaces
 - "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle" for handicap spots
-- "Cross-Hatch Loading Zone Marking" for hash zones
+- "Cross-Hatch Access Zone Marking" for hash/access zones
 - "Directional Arrow Pavement Marking" for arrows
 - "24\\" Stop Bar Marking (white)" for stop bars
 - "Pedestrian Walkway Marking (white)" for walkways/crosswalks
 - "Fire Lane Curb & Pavement Marking" for fire lanes
 - "Curb Paint Application" for curb painting
+- "Fuel, Labor & Equipment Operating Costs (Graco LineLazer 3400)" ONLY if needed to absorb excess
 
-DO NOT add items that were NOT mentioned:
-- No mobilization/setup fees, traffic control, cleanup, labor, material costs, or glass beads
+DO NOT add items that were NOT mentioned in the transcript.
 
 ===== RESPOND WITH JSON ONLY =====
-Example where user said "total is $9500" with 800 spots, 85 ADA, 81 hash, 24 walkways, 4 stop bars, 12 arrows:
+Example: user said "total is $9500" with 800 spots, 85 ADA, 81 hash, 24 walkways, 4 stop bars, 12 arrows:
+
+Fixed items first:
+  85 ADA × $35 = $2,975
+  81 hash × $25 = $2,025
+  12 arrows × $20 = $240
+  4 stop bars × $20 = $80
+  24 walkways × $50 = $1,200
+  Fixed total = $6,520
+  Remainder = $9,500 - $6,520 = $2,980
+  Per stall = $2,980 / 800 = $3.73 (reasonable, under $20, so absorb it all)
+
 {
   "lineItems": [
-    {"description": "4\\" Parking Stall Striping (waterborne TTP-1952E)", "quantity": 800, "unit_price_cents": 650, "amount_cents": 520000},
-    {"description": "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle", "quantity": 85, "unit_price_cents": 2500, "amount_cents": 212500},
-    {"description": "Cross-Hatch Loading Zone Marking", "quantity": 81, "unit_price_cents": 1500, "amount_cents": 121500},
-    {"description": "Pedestrian Walkway Marking (white)", "quantity": 24, "unit_price_cents": 2500, "amount_cents": 60000},
-    {"description": "24\\" Stop Bar Marking (white)", "quantity": 4, "unit_price_cents": 2000, "amount_cents": 8000},
-    {"description": "Directional Arrow Pavement Marking", "quantity": 12, "unit_price_cents": 1500, "amount_cents": 18000}
+    {"description": "4\\" Parking Stall Striping (waterborne TTP-1952E)", "quantity": 800, "unit_price_cents": 373, "amount_cents": 298000},
+    {"description": "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle", "quantity": 85, "unit_price_cents": 3500, "amount_cents": 297500},
+    {"description": "Cross-Hatch Access Zone Marking", "quantity": 81, "unit_price_cents": 2500, "amount_cents": 202500},
+    {"description": "Pedestrian Walkway Marking (white)", "quantity": 24, "unit_price_cents": 5000, "amount_cents": 120000},
+    {"description": "Directional Arrow Pavement Marking", "quantity": 12, "unit_price_cents": 2000, "amount_cents": 24000},
+    {"description": "24\\" Stop Bar Marking (white)", "quantity": 4, "unit_price_cents": 2000, "amount_cents": 8000}
   ],
   "totalCents": 950000,
   "services": {"striping": true, "sealing": false, "paving": false},
   "summary": "800 stalls, 85 ADA, 81 hash zones, 24 walkways, 4 stop bars, 12 arrows - Total: $9,500"
 }
-
-Notice: unit prices were adjusted DOWN from typical rates so all items add up to exactly $9,500. The stated total always wins.
 
 RULES:
 - All amounts in CENTS ($9,500 = 950000 cents)
