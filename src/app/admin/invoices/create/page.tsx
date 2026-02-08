@@ -539,10 +539,11 @@ function CreateInvoiceContent() {
       <head>
         <title>Estimate - ${invoice.customer_name}</title>
         <style>
-          @page { margin: 0.5in; }
+          @page { margin: 0.35in 0.4in; }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -550,61 +551,60 @@ function CreateInvoiceContent() {
           .header {
             background: #1a1714;
             color: white;
-            padding: 40px;
+            padding: 20px 28px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
           }
-          .logo-section { display: flex; align-items: center; gap: 16px; }
-          .logo svg { width: 48px; height: 48px; }
-          .business-name { font-size: 28px; font-weight: bold; color: #F5C518; }
-          .business-contact { color: #9C9690; font-size: 14px; margin-top: 4px; }
-          .estimate-title { font-size: 28px; font-weight: bold; color: #F5C518; text-align: right; }
-          .estimate-number { font-size: 18px; color: white; margin-top: 8px; }
-          .estimate-date { color: #9C9690; margin-top: 8px; }
-          .info-section { padding: 30px 40px; border-bottom: 1px solid #eee; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-          .info-label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; margin-bottom: 8px; }
-          .info-value { font-size: 18px; font-weight: 600; }
-          .info-secondary { color: #666; margin-top: 4px; }
-          .service-section { padding: 20px 40px; background: #f9f9f9; border-bottom: 1px solid #eee; }
-          .line-items { padding: 30px 40px; }
+          .logo-section { display: flex; align-items: center; gap: 12px; }
+          .logo svg { width: 36px; height: 36px; }
+          .business-name { font-size: 22px; font-weight: bold; color: #F5C518; }
+          .business-contact { color: #9C9690; font-size: 12px; margin-top: 2px; }
+          .estimate-title { font-size: 22px; font-weight: bold; color: #F5C518; text-align: right; }
+          .estimate-date { color: #9C9690; font-size: 12px; margin-top: 4px; }
+          .info-section { padding: 14px 28px; border-bottom: 1px solid #eee; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+          .info-label { font-size: 10px; font-weight: 600; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+          .info-value { font-size: 15px; font-weight: 600; }
+          .info-secondary { color: #666; font-size: 12px; margin-top: 2px; }
+          .service-section { padding: 10px 28px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 13px; }
+          .line-items { padding: 14px 28px 10px; }
           table { width: 100%; border-collapse: collapse; }
-          th { text-align: left; padding: 12px 0; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; border-bottom: 2px solid #1a1714; }
+          th { text-align: left; padding: 6px 0; font-size: 10px; font-weight: 600; color: #666; text-transform: uppercase; border-bottom: 2px solid #1a1714; }
           th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: right; }
-          td { padding: 16px 0; border-bottom: 1px solid #eee; }
+          td { padding: 7px 0; border-bottom: 1px solid #eee; font-size: 12px; }
           td:nth-child(2), td:nth-child(3), td:nth-child(4) { text-align: right; }
-          .totals { margin-top: 24px; display: flex; justify-content: flex-end; }
-          .totals-box { width: 280px; }
-          .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-          .total-row.final { border-top: 2px solid #1a1714; margin-top: 8px; padding-top: 16px; }
+          .totals { margin-top: 10px; display: flex; justify-content: flex-end; }
+          .totals-box { width: 240px; }
+          .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+          .total-row.final { border-top: 2px solid #1a1714; margin-top: 4px; padding-top: 8px; }
           .total-label { color: #666; }
           .total-value { font-weight: 600; }
-          .total-value.large { font-size: 24px; font-weight: bold; }
-          .payment-terms { padding: 30px 40px; background: #f9f9f9; border-top: 1px solid #eee; }
-          .payment-terms h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
-          .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-          .payment-box { background: white; padding: 20px; border-radius: 8px; }
+          .total-value.large { font-size: 20px; font-weight: bold; }
+          .payment-terms { padding: 14px 28px; background: #f9f9f9; border-top: 1px solid #eee; }
+          .payment-terms h3 { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+          .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .payment-box { background: white; padding: 12px; border-radius: 6px; }
           .payment-box.deposit { border: 2px solid #F5C518; }
           .payment-box.balance { border: 1px solid #ddd; }
-          .payment-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-          .payment-amount { font-size: 24px; font-weight: bold; }
+          .payment-label { font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 2px; }
+          .payment-amount { font-size: 18px; font-weight: bold; }
           .payment-amount.yellow { color: #F5C518; }
-          .payment-note { font-size: 13px; color: #666; margin-top: 8px; }
-          .notes-section { padding: 30px 40px; border-top: 1px solid #eee; }
-          .notes-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-          .notes-text { color: #666; white-space: pre-wrap; }
-          .pay-online-section { padding: 30px 40px; background: #f9f9f9; border-top: 1px solid #eee; text-align: center; }
-          .pay-online-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
-          .pay-online-btn { display: inline-block; padding: 16px 40px; background: #F5C518; color: #1a1714; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 18px; }
-          .pay-online-url { margin-top: 12px; font-size: 13px; color: #666; word-break: break-all; }
+          .payment-note { font-size: 11px; color: #666; margin-top: 4px; }
+          .notes-section { padding: 12px 28px; border-top: 1px solid #eee; }
+          .notes-section h3 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+          .notes-text { color: #666; white-space: pre-wrap; font-size: 12px; }
+          .pay-online-section { padding: 14px 28px; background: #f9f9f9; border-top: 1px solid #eee; text-align: center; }
+          .pay-online-section h3 { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+          .pay-online-btn { display: inline-block; padding: 10px 28px; background: #F5C518; color: #1a1714; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; }
+          .pay-online-url { margin-top: 6px; font-size: 11px; color: #666; word-break: break-all; }
           .footer {
-            padding: 30px 40px;
+            padding: 14px 28px;
             background: #1a1714;
             color: white;
             text-align: center;
           }
-          .footer p { font-size: 14px; margin-bottom: 8px; }
-          .footer .secondary { color: #9C9690; font-size: 13px; }
+          .footer p { font-size: 12px; margin-bottom: 4px; }
+          .footer .secondary { color: #9C9690; font-size: 11px; }
           @media print {
             .no-print { display: none !important; }
           }
@@ -615,7 +615,7 @@ function CreateInvoiceContent() {
           <div class="header">
             <div class="logo-section">
               <div class="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 32 32">
                   <circle cx="16" cy="16" r="15" fill="#1a1714" stroke="#F5C518" stroke-width="2"/>
                   <circle cx="16" cy="16" r="12" fill="none" stroke="#F5C518" stroke-width="2.5"/>
                   <circle cx="16" cy="16" r="4" fill="#F5C518"/>
@@ -627,8 +627,7 @@ function CreateInvoiceContent() {
               </div>
               <div>
                 <div class="business-name">${config.businessName}</div>
-                <div class="business-contact">${config.phone}</div>
-                <div class="business-contact">${config.email}</div>
+                <div class="business-contact">${config.phone} | ${config.email}</div>
               </div>
             </div>
             <div>
@@ -647,26 +646,19 @@ function CreateInvoiceContent() {
             </div>
             <div>
               <div class="info-label">Service Location</div>
-              <div style="font-size: 16px;">${invoice.service_address || 'TBD'}</div>
+              <div style="font-size: 14px;">${invoice.service_address || 'TBD'}</div>
+              ${selectedServices ? `<div class="info-secondary" style="margin-top: 6px;">${selectedServices}${invoice.square_feet ? ` &mdash; ${parseInt(invoice.square_feet).toLocaleString()} sq ft` : ''}</div>` : ''}
             </div>
           </div>
-
-          ${selectedServices || invoice.square_feet ? `
-          <div class="service-section">
-            <div class="info-label">Service Description</div>
-            <div style="font-size: 16px;">${selectedServices || ''}</div>
-            ${invoice.square_feet ? `<div class="info-secondary">Estimated Area: ${parseInt(invoice.square_feet).toLocaleString()} sq ft</div>` : ''}
-          </div>
-          ` : ''}
 
           <div class="line-items">
             <table>
               <thead>
                 <tr>
                   <th>Description</th>
-                  <th style="width: 80px;">Qty</th>
-                  <th style="width: 100px;">Unit Price</th>
-                  <th style="width: 120px;">Amount</th>
+                  <th style="width: 60px;">Qty</th>
+                  <th style="width: 80px;">Unit Price</th>
+                  <th style="width: 90px;">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -685,12 +677,8 @@ function CreateInvoiceContent() {
 
             <div class="totals">
               <div class="totals-box">
-                <div class="total-row">
-                  <span class="total-label">Subtotal</span>
-                  <span class="total-value">${formatCurrency(subtotal)}</span>
-                </div>
                 <div class="total-row final">
-                  <span style="font-size: 18px; font-weight: 600;">Total</span>
+                  <span style="font-size: 15px; font-weight: 600;">Total</span>
                   <span class="total-value large">${formatCurrency(subtotal)}</span>
                 </div>
               </div>
@@ -721,15 +709,13 @@ function CreateInvoiceContent() {
           ` : ''}
 
           <div class="pay-online-section">
-            <h3>Ready to Get Started?</h3>
             <a href="${config.websiteUrl}/portal" class="pay-online-btn">Pay Online</a>
             <p class="pay-online-url">${config.websiteUrl}/portal</p>
           </div>
 
           <div class="footer">
             <p>Thank you for considering ${config.businessName}!</p>
-            <p class="secondary">This estimate is valid for 30 days from the date of issue.</p>
-            <p class="secondary" style="margin-top: 16px;">${config.phone} | ${config.email}</p>
+            <p class="secondary">Estimate valid for 30 days. | ${config.phone} | ${config.email}</p>
           </div>
         </div>
       </body>
