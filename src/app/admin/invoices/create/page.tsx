@@ -718,8 +718,8 @@ function CreateInvoiceContent() {
 
           <div class="pay-online-section">
             <h3>Ready to Get Started?</h3>
-            <a href="${config.websiteUrl}/pay" class="pay-online-btn">Pay Online</a>
-            <p class="pay-online-url">${config.websiteUrl}/pay</p>
+            <a href="${config.websiteUrl}/portal" class="pay-online-btn">Pay Online</a>
+            <p class="pay-online-url">${config.websiteUrl}/portal</p>
           </div>
 
           <div class="footer">
@@ -1427,7 +1427,7 @@ function CreateInvoiceContent() {
             position: 'fixed',
             inset: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -1704,7 +1704,7 @@ function CreateInvoiceContent() {
               }}>
                 <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Ready to Get Started?</h3>
                 <a
-                  href={`${config.websiteUrl}/pay`}
+                  href={`${config.websiteUrl}/portal`}
                   style={{
                     display: 'inline-block',
                     padding: '16px 40px',
@@ -1719,7 +1719,7 @@ function CreateInvoiceContent() {
                   Pay Online
                 </a>
                 <p style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>
-                  {config.websiteUrl}/pay
+                  {config.websiteUrl}/portal
                 </p>
               </div>
 
