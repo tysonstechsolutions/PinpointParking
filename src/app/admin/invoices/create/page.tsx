@@ -284,11 +284,13 @@ function CreateInvoiceContent() {
     setGenerating(true)
 
     try {
+      const totalCents = invoice.total_amount ? Math.round(parseFloat(invoice.total_amount) * 100) : null
       const response = await fetch('/api/invoices/parse-voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transcript,
+          totalCents,
           services: Object.entries(invoice.services)
             .filter(([, selected]) => selected)
             .map(([service]) => service),

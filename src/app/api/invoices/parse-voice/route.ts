@@ -36,7 +36,7 @@ const PRICING_RULES = {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { transcript, services } = body
+    const { transcript, services, totalCents: formTotalCents } = body
 
     if (!transcript || typeof transcript !== 'string') {
       return NextResponse.json(
@@ -45,84 +45,93 @@ export async function POST(request: Request) {
       )
     }
 
-    const prompt = `You are an estimator for a parking lot pavement marking and maintenance company. Parse the following job site description into invoice line items.
+    // If a total was entered in the form field, tell the AI about it
+    const formTotalNote = formTotalCents && formTotalCents > 0
+      ? `\n\nNOTE: The user entered a total of $${(formTotalCents / 100).toFixed(2)} in the form. If no total is found in the transcript, use this as the total.`
+      : ''
 
-EQUIPMENT: Graco LineLazer 3400 line striper, waterborne traffic paint (TTP-1952E).
+    const prompt = `You are an estimator for a parking lot pavement marking company. Parse this job site walk description into invoice line items.
+
+EQUIPMENT: Graco LineLazer 3400, waterborne traffic paint (TTP-1952E).
 
 TRANSCRIPT:
-"${transcript}"
+"${transcript}"${formTotalNote}
 
-PRICING RULES (you MUST follow these exactly):
-- Parking stalls: $${PRICING_RULES.parking_space.min}-$${PRICING_RULES.parking_space.max} each (typical: $${PRICING_RULES.parking_space.typical})
-- ADA accessible spaces (with ISA symbol & access aisle): $${PRICING_RULES.handicap_space.min}-$${PRICING_RULES.handicap_space.max} each (NEVER more than $35)
-- Cross-hatch/loading zones: $${PRICING_RULES.hash_zone.min}-$${PRICING_RULES.hash_zone.max} each
-- Directional arrows: $${PRICING_RULES.arrow.min}-$${PRICING_RULES.arrow.max} each
-- Stencil markings: MAX $${PRICING_RULES.stencil.max} each (NEVER more than $35)
-- Stop bars (24" white): $${PRICING_RULES.stop_bar.min}-$${PRICING_RULES.stop_bar.max} each
-- Crosswalks/walkways (white paint): $${PRICING_RULES.crosswalk.min}-$${PRICING_RULES.crosswalk.max} each
-- Curb painting: $${PRICING_RULES.curb_paint.min}-$${PRICING_RULES.curb_paint.max} per LF
-- Fire lane marking: $${PRICING_RULES.fire_lane.min}-$${PRICING_RULES.fire_lane.max} per LF
-- Crack sealing: $${PRICING_RULES.crack_fill.min}-$${PRICING_RULES.crack_fill.max} per LF
-- Pothole repair: $${PRICING_RULES.pothole_small.min}-$${PRICING_RULES.pothole_large.max} depending on size
+===== STEP 1: FIND THE TOTAL PRICE =====
+Search the transcript for any dollar amount mentioned as the total/price for the job. Look for patterns like:
+- "$9500" or "$10,000" or "ten thousand"
+- "total is..." or "price it at..." or "I want to charge..." or "total" followed by a number
+- "eleven fifty" = $1,150 (NOT $11.50)
+- Any dollar figure stated as the job price
 
-CRITICAL COUNTING RULES:
-1. Count ALL items mentioned throughout the ENTIRE transcript. The person adds items as they walk, so you MUST add them all up.
-   Example: "76 handicap spots... 9 handicap spots" = 85 handicap spots total
-   Example: "19 spots, 4 more parking spots, 13 more parking spots" = 36 parking spots total
-2. Go through the transcript line by line and tally every mention of each item type before generating line items.
-3. If a total price is mentioned ("$1150" or "eleven fifty" or "total is..."), the line items MUST add up to EXACTLY that amount. Adjust per-item prices within the allowed ranges to hit the total.
-4. If NO total price is mentioned, price each item at the typical rate.
+If a total price IS found: That is the FINAL total. All line items MUST add up to EXACTLY that amount. You will distribute that total across the items by adjusting unit prices. This is the #1 rule - the stated total is SACRED and cannot be ignored or overridden.
 
-LINE ITEM DESCRIPTIONS - Use professional but concise descriptions:
-- "4" Parking Stall Striping (waterborne TTP-1952E)" for regular spaces
+If NO total price is found: Use typical pricing rates to calculate the total.
+
+===== STEP 2: COUNT ALL ITEMS =====
+Go through the ENTIRE transcript and tally every item mentioned. The person adds items as they walk:
+- "76 handicap spots" then later "9 handicap spots" = 85 total handicap spots
+- "19 spots, 4 more spots, 13 more spots" = 36 total parking spots
+- "2 arrows, 2 arrows, 2 arrows, 4 arrows, 2 arrows" = 12 total arrows
+- "stop bar, stop bar, stop bar" = 3 stop bars
+Count EVERY mention. Do not miss any.
+
+===== STEP 3: PRICE THE ITEMS =====
+If a total price was stated in Step 1:
+- Distribute the total across all items proportionally
+- The largest quantity item (usually parking stalls) gets the bulk
+- ADA spaces: NEVER more than $35 each
+- Stencils: NEVER more than $35 each
+- Adjust the unit price of the largest-quantity item to make the math work exactly
+
+If NO total price was stated, use these typical rates:
+- Parking stalls: $${PRICING_RULES.parking_space.typical} each
+- ADA accessible spaces: $${PRICING_RULES.handicap_space.typical} each (MAX $35)
+- Cross-hatch/loading zones: $${PRICING_RULES.hash_zone.typical} each
+- Directional arrows: $${PRICING_RULES.arrow.typical} each
+- Stencil markings: $${PRICING_RULES.stencil.typical} each (MAX $35)
+- Stop bars: $${PRICING_RULES.stop_bar.typical} each
+- Walkways/crosswalks: $${PRICING_RULES.crosswalk.typical} each
+- Curb painting: $${PRICING_RULES.curb_paint.typical}/LF
+- Fire lane: $${PRICING_RULES.fire_lane.typical}/LF
+
+===== STEP 4: GENERATE LINE ITEMS =====
+Descriptions to use:
+- "4\\" Parking Stall Striping (waterborne TTP-1952E)" for regular spaces
 - "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle" for handicap spots
 - "Cross-Hatch Loading Zone Marking" for hash zones
 - "Directional Arrow Pavement Marking" for arrows
-- "24" Stop Bar Marking (white)" for stop bars
+- "24\\" Stop Bar Marking (white)" for stop bars
 - "Pedestrian Walkway Marking (white)" for walkways/crosswalks
 - "Fire Lane Curb & Pavement Marking" for fire lanes
 - "Curb Paint Application" for curb painting
 
-DO NOT include any of these - only include what was actually described:
-- Do NOT add mobilization/setup fees unless the person mentioned it
-- Do NOT add traffic control unless mentioned
-- Do NOT add cleanup fees unless mentioned
-- Do NOT add labor as a separate line item unless mentioned
-- Do NOT add material costs as separate line items
-- Do NOT guess quantities for anything not mentioned
-- Do NOT add glass beads or reflective materials - we do not use them
+DO NOT add items that were NOT mentioned:
+- No mobilization/setup fees, traffic control, cleanup, labor, material costs, or glass beads
 
-RESPOND WITH JSON ONLY in this exact format:
+===== RESPOND WITH JSON ONLY =====
+Example where user said "total is $9500" with 800 spots, 85 ADA, 81 hash, 24 walkways, 4 stop bars, 12 arrows:
 {
   "lineItems": [
-    {
-      "description": "4\\" Parking Stall Striping (waterborne TTP-1952E)",
-      "quantity": 800,
-      "unit_price_cents": 800,
-      "amount_cents": 640000
-    },
-    {
-      "description": "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle",
-      "quantity": 85,
-      "unit_price_cents": 3500,
-      "amount_cents": 297500
-    }
+    {"description": "4\\" Parking Stall Striping (waterborne TTP-1952E)", "quantity": 800, "unit_price_cents": 650, "amount_cents": 520000},
+    {"description": "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle", "quantity": 85, "unit_price_cents": 2500, "amount_cents": 212500},
+    {"description": "Cross-Hatch Loading Zone Marking", "quantity": 81, "unit_price_cents": 1500, "amount_cents": 121500},
+    {"description": "Pedestrian Walkway Marking (white)", "quantity": 24, "unit_price_cents": 2500, "amount_cents": 60000},
+    {"description": "24\\" Stop Bar Marking (white)", "quantity": 4, "unit_price_cents": 2000, "amount_cents": 8000},
+    {"description": "Directional Arrow Pavement Marking", "quantity": 12, "unit_price_cents": 1500, "amount_cents": 18000}
   ],
-  "totalCents": 937500,
-  "services": {
-    "striping": true,
-    "sealing": false,
-    "paving": false
-  },
-  "summary": "800 parking stalls, 85 ADA spaces, 81 cross-hatch zones"
+  "totalCents": 950000,
+  "services": {"striping": true, "sealing": false, "paving": false},
+  "summary": "800 stalls, 85 ADA, 81 hash zones, 24 walkways, 4 stop bars, 12 arrows - Total: $9,500"
 }
 
-IMPORTANT:
-- All amounts in CENTS (e.g., $11.50 = 1150 cents)
-- The sum of all line item amount_cents MUST equal totalCents
-- amount_cents = quantity * unit_price_cents (verify this for each item)
-- If a total was mentioned, use that exact total and adjust unit prices to match
-- Never exceed max pricing rules (ADA spaces and stencils at $35 max)
+Notice: unit prices were adjusted DOWN from typical rates so all items add up to exactly $9,500. The stated total always wins.
+
+RULES:
+- All amounts in CENTS ($9,500 = 950000 cents)
+- amount_cents = quantity × unit_price_cents (verify each row)
+- Sum of all amount_cents MUST equal totalCents EXACTLY
+- If a total was stated, totalCents MUST equal that stated amount
 - Return ONLY valid JSON, no markdown or explanation`
 
     const message = await anthropic.messages.create({
