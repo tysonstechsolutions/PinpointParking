@@ -3,8 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 // ============================================
 // AI LINE ITEM GENERATION API
-// Generates professional federal-project-grade
-// line items for asphalt/pavement services
+// Generates professional line items for invoices
 // ============================================
 
 const anthropic = new Anthropic()
@@ -33,67 +32,34 @@ const PRICING_RULES = {
   asphalt_patch_per_sqft: { min: 4, max: 8, typical: 6 },
 }
 
-// Equipment & Material Specs
-const EQUIPMENT_SPECS = {
-  striper: 'Graco LineLazer 3400',
-  paintType: 'waterborne acrylic traffic paint (TTP-1952E Type I)',
-  paintApplication: '15 wet mils DFT',
-  beadType: 'Type I retroreflective glass beads (AASHTO M247)',
-  beadRate: '6 lbs per gallon',
-  crackSealant: 'hot-applied rubberized asphalt (ASTM D6690 Type II)',
-  sealcoatMaterial: 'coal tar emulsion sealer (ASTM D5727)',
-  sealcoatRate: '0.10-0.15 gal/sq yd',
-}
-
 // Service-specific line item templates with professional descriptions
 const serviceTemplates = {
   striping: [
-    { description: 'Mobilization & Equipment Setup - Graco LineLazer 3400, Traffic Paint & Glass Beads', unitPrice: 150 },
-    { description: 'Traffic Control & Safety Setup (cones, barricades, signage per MUTCD)', unitPrice: 75 },
-    { description: 'Surface Preparation - Power Sweeping & Debris Removal', unitPrice: 75 },
-    { description: 'Layout & Staking - Chalk Line Layout, Measurement & Alignment per Plan', unitPrice: 100 },
-    { description: '4" Waterborne Pavement Marking - Parking Stall Delineation (TTP-1952E, 15 mil DFT, w/ Type I Glass Beads)', unitPrice: PRICING_RULES.parking_space.typical },
-    { description: 'ADA-Compliant Accessible Space Marking w/ ISA Symbol & Access Aisle (per MUTCD/ADA Standards)', unitPrice: PRICING_RULES.handicap_space.typical },
-    { description: 'Fire Lane Curb & Pavement Marking (red curb paint, white stencil per IFC 503.3)', unitPrice: 50 },
-    { description: 'Directional Arrow Pavement Legend (per MUTCD Fig. 3B-21, 8\' standard)', unitPrice: PRICING_RULES.arrow.typical },
-    { description: '24" Transverse Stop Bar Marking (retroreflective white, MUTCD 3B.16)', unitPrice: PRICING_RULES.stop_bar.typical },
-    { description: 'Continental Crosswalk Marking (24" bars, 12" spacing, retroreflective white)', unitPrice: PRICING_RULES.crosswalk.typical },
-    { description: 'Cross-Hatch/Loading Zone Marking (diagonal 4" lines, 36" O.C.)', unitPrice: PRICING_RULES.hash_zone.typical },
-    { description: 'Curb Paint Application (safety yellow/red per code)', unitPrice: 30 },
-    { description: 'Pavement Legend/Stencil Marking (per MUTCD standards)', unitPrice: PRICING_RULES.stencil.typical },
-    { description: 'Type I Retroreflective Glass Bead Application (AASHTO M247, 6 lbs/gal)', unitPrice: 50 },
-    { description: 'Waterborne Traffic Paint Material (TTP-1952E, white & yellow)', unitPrice: 50 },
-    { description: 'Labor - 2-Man Crew, Pavement Marking Operations', unitPrice: 85 },
-    { description: 'Cleanup & Demobilization', unitPrice: 50 },
+    { description: '4" Parking Stall Striping (waterborne TTP-1952E)', unitPrice: PRICING_RULES.parking_space.typical },
+    { description: 'ADA Accessible Space Marking w/ ISA Symbol & Access Aisle', unitPrice: PRICING_RULES.handicap_space.typical },
+    { description: 'Fire Lane Curb & Pavement Marking', unitPrice: 50 },
+    { description: 'Directional Arrow Pavement Marking', unitPrice: PRICING_RULES.arrow.typical },
+    { description: '24" Stop Bar Marking (white)', unitPrice: PRICING_RULES.stop_bar.typical },
+    { description: 'Pedestrian Walkway/Crosswalk Marking (white)', unitPrice: PRICING_RULES.crosswalk.typical },
+    { description: 'Cross-Hatch Loading Zone Marking', unitPrice: PRICING_RULES.hash_zone.typical },
+    { description: 'Curb Paint Application', unitPrice: 30 },
+    { description: 'Pavement Stencil Marking', unitPrice: PRICING_RULES.stencil.typical },
   ],
   sealing: [
-    { description: 'Mobilization & Equipment Setup - Sealcoat Sprayer, Squeegee Crew', unitPrice: 200 },
-    { description: 'Traffic Control & Safety Setup (cones, barricades, signage per MUTCD)', unitPrice: 75 },
-    { description: 'Surface Preparation - Power Sweeping, Oil Spot Treatment & Debris Removal', unitPrice: 100 },
-    { description: 'Hot-Applied Rubberized Crack Sealant (ASTM D6690 Type II, routed & sealed)', unitPrice: 125 },
-    { description: 'Coal Tar Emulsion Sealcoat Application - 1st Coat (ASTM D5727, 0.12 gal/SY)', unitPrice: 200 },
-    { description: 'Coal Tar Emulsion Sealcoat Application - 2nd Coat (ASTM D5727, 0.10 gal/SY)', unitPrice: 175 },
-    { description: 'Edge Sealing & Detail Work (curbs, catch basins, utility covers)', unitPrice: 50 },
-    { description: 'Sealcoat Material - Coal Tar Emulsion (ASTM D5727)', unitPrice: 100 },
-    { description: 'Silica Sand Aggregate Additive (3-5 lbs/gal for traction)', unitPrice: 40 },
-    { description: 'Barricade & Cure Time Management (24-48 hr cure)', unitPrice: 50 },
-    { description: 'Labor - Sealcoat Application Crew', unitPrice: 85 },
-    { description: 'Cleanup & Demobilization', unitPrice: 50 },
+    { description: 'Sealcoat Application (coal tar emulsion, 2-coat system)', unitPrice: 200 },
+    { description: 'Surface Preparation & Cleaning', unitPrice: 75 },
+    { description: 'Crack Sealing (hot-applied rubberized)', unitPrice: 100 },
+    { description: 'Oil Spot Priming & Treatment', unitPrice: 50 },
+    { description: 'Edge Sealing & Detail Work', unitPrice: 40 },
+    { description: 'Second Coat Application', unitPrice: 150 },
   ],
   paving: [
-    { description: 'Mobilization & Equipment Setup - Paving Crew & Equipment', unitPrice: 500 },
-    { description: 'Traffic Control & Safety Setup (cones, barricades, signage per MUTCD)', unitPrice: 150 },
-    { description: 'Existing Pavement Sawcutting & Removal (full-depth)', unitPrice: 200 },
-    { description: 'Subgrade Preparation & Compaction (95% Proctor density)', unitPrice: 200 },
-    { description: 'Aggregate Base Course Installation (6" compacted, AASHTO #57)', unitPrice: 175 },
-    { description: 'Tack Coat Application (SS-1h emulsified asphalt, 0.05 gal/SY)', unitPrice: 75 },
-    { description: 'Hot-Mix Asphalt Overlay (2" compacted depth, Superpave PG 64-22)', unitPrice: 400 },
-    { description: 'Asphalt Compaction (steel drum & pneumatic rollers, 92-96% density)', unitPrice: 125 },
-    { description: 'Cold-Mix Pothole Repair (saw-cut, clean, fill & compact)', unitPrice: PRICING_RULES.pothole_medium.typical },
-    { description: 'Asphalt Patch Repair (full-depth, 2" HMA, compacted)', unitPrice: 150 },
-    { description: 'Hot-Mix Asphalt Material (Superpave PG 64-22)', unitPrice: 200 },
-    { description: 'Labor - Paving Crew Operations', unitPrice: 200 },
-    { description: 'Site Cleanup, Grading & Demobilization', unitPrice: 75 },
+    { description: 'Hot-Mix Asphalt Overlay (2" compacted)', unitPrice: 500 },
+    { description: 'Subgrade Preparation & Compaction', unitPrice: 200 },
+    { description: 'Grading & Leveling', unitPrice: 150 },
+    { description: 'Asphalt Patching (full-depth)', unitPrice: 300 },
+    { description: 'Pothole Repair (saw-cut, clean, fill & compact)', unitPrice: PRICING_RULES.pothole_medium.typical },
+    { description: 'Tack Coat Application', unitPrice: 75 },
   ],
 }
 
@@ -132,7 +98,7 @@ export async function POST(request: Request) {
       const serviceNames = services.map((s: string) => {
         const names: Record<string, string> = {
           striping: 'Pavement Marking / Line Striping',
-          sealing: 'Sealcoating & Crack Sealing',
+          sealing: 'Sealcoating',
           paving: 'Asphalt Paving & Repair',
         }
         return names[s] || s
@@ -140,49 +106,33 @@ export async function POST(request: Request) {
 
       const itemList = availableItems.map(t => `- ${t.description} (typical: $${t.unitPrice})`).join('\n')
 
-      const prompt = `You are an expert estimator for a professional asphalt pavement marking and maintenance contractor. Generate detailed, federal-project-grade invoice line items.
-
-COMPANY EQUIPMENT:
-- Line Striper: ${EQUIPMENT_SPECS.striper}
-- Paint: ${EQUIPMENT_SPECS.paintType}
-- Application Rate: ${EQUIPMENT_SPECS.paintApplication}
-- Glass Beads: ${EQUIPMENT_SPECS.beadType} at ${EQUIPMENT_SPECS.beadRate}
-- Crack Sealant: ${EQUIPMENT_SPECS.crackSealant}
-- Sealcoat Material: ${EQUIPMENT_SPECS.sealcoatMaterial} at ${EQUIPMENT_SPECS.sealcoatRate}
+      const prompt = `Generate invoice line items for a parking lot service job. Equipment: Graco LineLazer 3400 striper, waterborne traffic paint (TTP-1952E).
 
 Services: ${serviceNames}
 Total Amount: $${(totalCents / 100).toFixed(2)}
 ${squareFeet ? `Square Footage: ${squareFeet.toLocaleString()} sq ft` : ''}
 
 PRICING RULES (you MUST follow these):
-- ADA-compliant accessible spaces: NEVER more than $35 each
-- Pavement legend/stencil markings: NEVER more than $35 each
+- ADA accessible spaces: NEVER more than $35 each
+- Stencil markings: NEVER more than $35 each
 - Crack sealing: $1.00-$1.50 per LF
-- Pothole repair: $75-$150 depending on size
+- Potholes: $75-$150 depending on size
 
 Available line items and typical prices:
 ${itemList}
 
 Requirements:
-1. Create 5-10 line items that add up EXACTLY to $${(totalCents / 100).toFixed(2)}
-2. ALWAYS include these federal-standard items:
-   - Mobilization & Equipment Setup (with specific equipment named)
-   - Traffic Control & Safety Setup
-   - Surface Preparation
-   - Layout & Staking (for striping jobs)
-   - The primary service work items with FULL material specifications (paint type, application rate, bead type, etc.)
-   - Material line items (paint, beads, sealcoat, asphalt, etc.)
-   - Labor hours as a separate item (e.g., "Labor - 2-Man Crew, X hours @ $Y/hr")
-   - Cleanup & Demobilization
-3. Use PROFESSIONAL descriptions with specs - reference MUTCD, ASTM, AASHTO, ADA standards where applicable
-4. The main service line item should be the largest dollar amount
-5. Round amounts to nearest dollar
-6. Make sure the total is EXACT - verify your math
-7. NEVER exceed the max pricing rules
-8. Include quantities and material specs in descriptions where relevant (e.g., "approx. 5 gal paint", "Type I glass beads")
+1. Create 3-6 line items that add up EXACTLY to $${(totalCents / 100).toFixed(2)}
+2. Use the professional descriptions from the list above
+3. The main service should be the largest dollar amount
+4. Round amounts to nearest dollar
+5. Verify your math - the total MUST be exact
+6. NEVER exceed the max pricing rules
+7. Do NOT add glass beads, reflective materials, mobilization fees, traffic control, cleanup, or labor as separate line items
+8. Only include items that make sense for the service type
 
 Return ONLY a JSON array with objects containing "description" and "amount_cents" (in cents, not dollars).
-Example: [{"description": "Mobilization & Equipment Setup - Graco LineLazer 3400, Traffic Paint & Glass Beads", "amount_cents": 15000}]
+Example: [{"description": "Sealcoat Application (coal tar emulsion, 2-coat system)", "amount_cents": 75000}]
 
 IMPORTANT: Return ONLY the JSON array, no explanation or markdown.`
 
@@ -239,7 +189,7 @@ IMPORTANT: Return ONLY the JSON array, no explanation or markdown.`
   }
 }
 
-// Fallback algorithmic line item generation with professional descriptions
+// Fallback algorithmic line item generation
 function generateAlgorithmicLineItems(
   services: string[],
   totalCents: number,
@@ -248,102 +198,54 @@ function generateAlgorithmicLineItems(
   const lineItems: { description: string; amount_cents: number }[] = []
   let remaining = totalCents
 
-  // Always include mobilization (8-12% of total)
-  const mobilizationPercent = 0.08 + Math.random() * 0.04
-  const mobilizationAmount = Math.round(totalCents * mobilizationPercent / 100) * 100
-  const primaryService = services[0]
+  // Determine number of line items (3-5)
+  const numItems = Math.min(5, Math.max(3, Math.floor(totalCents / 10000) + 2))
 
-  const mobilizationDescriptions: Record<string, string> = {
-    striping: 'Mobilization & Equipment Setup - Graco LineLazer 3400, Traffic Paint & Glass Beads',
-    sealing: 'Mobilization & Equipment Setup - Sealcoat Sprayer, Squeegee Crew',
-    paving: 'Mobilization & Equipment Setup - Paving Crew & Equipment',
-  }
-  lineItems.push({
-    description: mobilizationDescriptions[primaryService] || mobilizationDescriptions.striping,
-    amount_cents: mobilizationAmount,
-  })
-  remaining -= mobilizationAmount
-
-  // Traffic control (5-8%)
-  const trafficControlAmount = Math.round(totalCents * (0.05 + Math.random() * 0.03) / 100) * 100
-  lineItems.push({
-    description: 'Traffic Control & Safety Setup (cones, barricades, signage per MUTCD)',
-    amount_cents: trafficControlAmount,
-  })
-  remaining -= trafficControlAmount
-
-  // Surface preparation (5-8%)
-  const surfacePrepAmount = Math.round(totalCents * (0.05 + Math.random() * 0.03) / 100) * 100
-  const surfacePrepDescriptions: Record<string, string> = {
-    striping: 'Surface Preparation - Power Sweeping & Debris Removal',
-    sealing: 'Surface Preparation - Power Sweeping, Oil Spot Treatment & Debris Removal',
-    paving: 'Existing Pavement Sawcutting & Removal (full-depth)',
-  }
-  lineItems.push({
-    description: surfacePrepDescriptions[primaryService] || surfacePrepDescriptions.striping,
-    amount_cents: surfacePrepAmount,
-  })
-  remaining -= surfacePrepAmount
-
-  // Main service (40-50% of total)
-  const mainServicePercent = 0.40 + Math.random() * 0.10
+  // Main service gets 50-65% of total
+  const mainServicePercent = 0.50 + Math.random() * 0.15
   const mainServiceAmount = Math.round(totalCents * mainServicePercent / 100) * 100
 
+  // Get primary service description
+  const primaryService = services[0]
   const primaryDescriptions: Record<string, string> = {
-    striping: '4" Waterborne Pavement Marking - Parking Stall Delineation (TTP-1952E, 15 mil DFT, w/ Type I Glass Beads)',
-    sealing: 'Coal Tar Emulsion Sealcoat Application (ASTM D5727, 0.12 gal/SY, 2-coat system)',
-    paving: 'Hot-Mix Asphalt Overlay (2" compacted depth, Superpave PG 64-22)',
+    striping: '4" Parking Stall Striping (waterborne TTP-1952E)',
+    sealing: 'Sealcoat Application (coal tar emulsion, 2-coat system)',
+    paving: 'Hot-Mix Asphalt Overlay (2" compacted)',
   }
+
   lineItems.push({
     description: primaryDescriptions[primaryService] || availableItems[0]?.description || 'Service',
     amount_cents: mainServiceAmount,
   })
   remaining -= mainServiceAmount
 
-  // Material line item (10-15%)
-  const materialAmount = Math.round(totalCents * (0.10 + Math.random() * 0.05) / 100) * 100
-  const materialDescriptions: Record<string, string> = {
-    striping: 'Waterborne Traffic Paint Material (TTP-1952E, white & yellow) & Type I Glass Beads (AASHTO M247)',
-    sealing: 'Sealcoat Material - Coal Tar Emulsion (ASTM D5727) & Silica Sand Aggregate',
-    paving: 'Hot-Mix Asphalt Material (Superpave PG 64-22)',
-  }
-  lineItems.push({
-    description: materialDescriptions[primaryService] || materialDescriptions.striping,
-    amount_cents: materialAmount,
-  })
-  remaining -= materialAmount
+  // Remove used description
+  const usedDescriptions = new Set([primaryDescriptions[primaryService] || availableItems[0]?.description])
 
-  // Labor (remaining minus cleanup)
-  const cleanupAmount = Math.round(totalCents * 0.04 / 100) * 100
-  const laborAmount = remaining - cleanupAmount
+  // Add remaining items
+  for (let i = 1; i < numItems - 1 && remaining > 500; i++) {
+    const availableUnused = availableItems.filter(t => !usedDescriptions.has(t.description))
+    if (availableUnused.length === 0) break
 
-  const laborDescriptions: Record<string, string> = {
-    striping: 'Labor - 2-Man Crew, Pavement Marking Operations',
-    sealing: 'Labor - Sealcoat Application Crew',
-    paving: 'Labor - Paving Crew Operations',
+    const template = availableUnused[Math.floor(Math.random() * availableUnused.length)]
+    usedDescriptions.add(template.description)
+
+    // Random percentage of remaining (25-40%)
+    const percent = 0.25 + Math.random() * 0.15
+    const amount = Math.round(remaining * percent / 100) * 100
+
+    lineItems.push({ description: template.description, amount_cents: amount })
+    remaining -= amount
   }
 
-  if (laborAmount > 0) {
-    lineItems.push({
-      description: laborDescriptions[primaryService] || laborDescriptions.striping,
-      amount_cents: laborAmount,
-    })
-  }
+  // Last item gets the remainder
+  if (remaining > 0) {
+    const availableUnused = availableItems.filter(t => !usedDescriptions.has(t.description))
+    const description = availableUnused.length > 0
+      ? availableUnused[Math.floor(Math.random() * availableUnused.length)].description
+      : 'Additional Services'
 
-  // Cleanup & demobilization (remainder)
-  if (cleanupAmount > 0) {
-    lineItems.push({
-      description: 'Cleanup & Demobilization',
-      amount_cents: cleanupAmount,
-    })
-  }
-
-  // Verify total and adjust if needed
-  const currentTotal = lineItems.reduce((sum, item) => sum + item.amount_cents, 0)
-  if (currentTotal !== totalCents) {
-    const diff = totalCents - currentTotal
-    // Adjust the main service item (index 3)
-    lineItems[3].amount_cents += diff
+    lineItems.push({ description, amount_cents: remaining })
   }
 
   return lineItems

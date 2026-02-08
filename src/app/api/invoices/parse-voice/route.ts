@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 // ============================================
 // VOICE INPUT PARSER API
 // Parses natural language job descriptions into
-// professional federal-project-level line items
+// professional line items
 // ============================================
 
 const anthropic = new Anthropic()
@@ -33,20 +33,6 @@ const PRICING_RULES = {
   asphalt_patch: { min: 4, max: 8, typical: 6 },
 }
 
-// Equipment & Material Specs
-const EQUIPMENT_SPECS = {
-  striper: 'Graco LineLazer 3400',
-  paintType: 'waterborne acrylic traffic paint (TTP-1952E Type I)',
-  paintApplication: '15 wet mils DFT',
-  beadType: 'Type I retroreflective glass beads (AASHTO M247)',
-  beadRate: '6 lbs per gallon',
-  lineWidth4: '4-inch width',
-  lineWidth24: '24-inch width',
-  crackSealant: 'hot-applied rubberized asphalt (ASTM D6690 Type II)',
-  sealcoatMaterial: 'coal tar emulsion sealer (ASTM D5727)',
-  sealcoatRate: '0.10-0.15 gal/sq yd',
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -59,96 +45,84 @@ export async function POST(request: Request) {
       )
     }
 
-    const prompt = `You are an expert estimator for a professional asphalt pavement marking and maintenance contractor. You parse natural language job site walk descriptions into detailed, federal-project-grade invoice line items.
+    const prompt = `You are an estimator for a parking lot pavement marking and maintenance company. Parse the following job site description into invoice line items.
 
-COMPANY EQUIPMENT:
-- Line Striper: ${EQUIPMENT_SPECS.striper}
-- Paint: ${EQUIPMENT_SPECS.paintType}
-- Application Rate: ${EQUIPMENT_SPECS.paintApplication}
-- Glass Beads: ${EQUIPMENT_SPECS.beadType} at ${EQUIPMENT_SPECS.beadRate}
-- Crack Sealant: ${EQUIPMENT_SPECS.crackSealant}
-- Sealcoat Material: ${EQUIPMENT_SPECS.sealcoatMaterial}
+EQUIPMENT: Graco LineLazer 3400 line striper, waterborne traffic paint (TTP-1952E).
 
-TRANSCRIPT FROM JOB SITE WALK:
+TRANSCRIPT:
 "${transcript}"
 
-PRICING RULES (you MUST follow these):
-- Regular parking stalls: $${PRICING_RULES.parking_space.min}-$${PRICING_RULES.parking_space.max} each (typical: $${PRICING_RULES.parking_space.typical})
-- ADA-compliant accessible spaces (with ISA symbol & access aisle): $${PRICING_RULES.handicap_space.min}-$${PRICING_RULES.handicap_space.max} each (NEVER more than $35)
+PRICING RULES (you MUST follow these exactly):
+- Parking stalls: $${PRICING_RULES.parking_space.min}-$${PRICING_RULES.parking_space.max} each (typical: $${PRICING_RULES.parking_space.typical})
+- ADA accessible spaces (with ISA symbol & access aisle): $${PRICING_RULES.handicap_space.min}-$${PRICING_RULES.handicap_space.max} each (NEVER more than $35)
 - Cross-hatch/loading zones: $${PRICING_RULES.hash_zone.min}-$${PRICING_RULES.hash_zone.max} each
-- Directional arrows (per MUTCD Fig. 3B-21): $${PRICING_RULES.arrow.min}-$${PRICING_RULES.arrow.max} each
-- Pavement legend/stencil markings: MAX $${PRICING_RULES.stencil.max} each (NEVER more than $35)
-- Stop bars (24" width): $${PRICING_RULES.stop_bar.min}-$${PRICING_RULES.stop_bar.max} each
-- Crosswalks (continental/standard): $${PRICING_RULES.crosswalk.min}-$${PRICING_RULES.crosswalk.max} each
+- Directional arrows: $${PRICING_RULES.arrow.min}-$${PRICING_RULES.arrow.max} each
+- Stencil markings: MAX $${PRICING_RULES.stencil.max} each (NEVER more than $35)
+- Stop bars (24" white): $${PRICING_RULES.stop_bar.min}-$${PRICING_RULES.stop_bar.max} each
+- Crosswalks/walkways (white paint): $${PRICING_RULES.crosswalk.min}-$${PRICING_RULES.crosswalk.max} each
 - Curb painting: $${PRICING_RULES.curb_paint.min}-$${PRICING_RULES.curb_paint.max} per LF
 - Fire lane marking: $${PRICING_RULES.fire_lane.min}-$${PRICING_RULES.fire_lane.max} per LF
 - Crack sealing: $${PRICING_RULES.crack_fill.min}-$${PRICING_RULES.crack_fill.max} per LF
 - Pothole repair: $${PRICING_RULES.pothole_small.min}-$${PRICING_RULES.pothole_large.max} depending on size
 
-INSTRUCTIONS:
-1. Parse the transcript to identify all items mentioned (parking stalls, ADA spaces, cross-hatch zones, arrows, etc.)
-2. Count quantities carefully - the person may add items incrementally ("19 spots... 4 more spots... 13 more spots" = 36 total)
-3. If a total price is mentioned (like "$1150" or "eleven fifty" or "total is..."), the line items MUST add up to EXACTLY that amount
-4. Adjust per-item prices within the allowed ranges to match the total exactly
-5. Group similar items together
-6. For EVERY project, include these federal-standard line items as applicable:
-   - Mobilization & Equipment Setup (${EQUIPMENT_SPECS.striper})
-   - Traffic Control & Safety Setup (cones, barricades, signage per MUTCD)
-   - Surface Preparation (cleaning, sweeping, debris removal)
-   - Layout & Staking (chalk line layout, measurement per plan)
-   - The actual marking/service items with material specs
-   - Glass Bead Application (Type I retroreflective per AASHTO M247)
-   - Cleanup & Demobilization
-   - Labor (crew hours)
+CRITICAL COUNTING RULES:
+1. Count ALL items mentioned throughout the ENTIRE transcript. The person adds items as they walk, so you MUST add them all up.
+   Example: "76 handicap spots... 9 handicap spots" = 85 handicap spots total
+   Example: "19 spots, 4 more parking spots, 13 more parking spots" = 36 parking spots total
+2. Go through the transcript line by line and tally every mention of each item type before generating line items.
+3. If a total price is mentioned ("$1150" or "eleven fifty" or "total is..."), the line items MUST add up to EXACTLY that amount. Adjust per-item prices within the allowed ranges to hit the total.
+4. If NO total price is mentioned, price each item at the typical rate.
 
-7. Use PROFESSIONAL asphalt industry descriptions. Examples:
-   - NOT "Regular Parking Space Striping" → USE "4" Waterborne Pavement Marking - Parking Stall Delineation (TTP-1952E, 15 mil DFT)"
-   - NOT "Handicap Space Striping" → USE "ADA-Compliant Accessible Space Marking w/ ISA Symbol & Access Aisle (per MUTCD/ADA Standards)"
-   - NOT "Arrow" → USE "Directional Arrow Pavement Legend (per MUTCD Fig. 3B-21, 8' standard)"
-   - NOT "Stop Bar" → USE "24\" Transverse Stop Bar Marking (retroreflective white, MUTCD 3B.16)"
-   - NOT "Crosswalk" → USE "Continental Crosswalk Marking (24\" bars, 12\" spacing, retroreflective white)"
-   - NOT "Fire Lane" → USE "Fire Lane Curb & Pavement Marking (red curb paint, white stencil per IFC 503.3)"
-   - NOT "Sealcoating" → USE "Coal Tar Emulsion Sealcoat Application (ASTM D5727, 0.12 gal/SY, 2-coat system)"
-   - NOT "Crack Filling" → USE "Hot-Applied Rubberized Crack Sealant (ASTM D6690 Type II, routed & sealed)"
+LINE ITEM DESCRIPTIONS - Use professional but concise descriptions:
+- "4" Parking Stall Striping (waterborne TTP-1952E)" for regular spaces
+- "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle" for handicap spots
+- "Cross-Hatch Loading Zone Marking" for hash zones
+- "Directional Arrow Pavement Marking" for arrows
+- "24" Stop Bar Marking (white)" for stop bars
+- "Pedestrian Walkway Marking (white)" for walkways/crosswalks
+- "Fire Lane Curb & Pavement Marking" for fire lanes
+- "Curb Paint Application" for curb painting
+
+DO NOT include any of these - only include what was actually described:
+- Do NOT add mobilization/setup fees unless the person mentioned it
+- Do NOT add traffic control unless mentioned
+- Do NOT add cleanup fees unless mentioned
+- Do NOT add labor as a separate line item unless mentioned
+- Do NOT add material costs as separate line items
+- Do NOT guess quantities for anything not mentioned
+- Do NOT add glass beads or reflective materials - we do not use them
 
 RESPOND WITH JSON ONLY in this exact format:
 {
   "lineItems": [
     {
-      "description": "Mobilization & Equipment Setup - Graco LineLazer 3400 Striper, Traffic Paint, Glass Beads",
-      "quantity": 1,
-      "unit_price_cents": 15000,
-      "amount_cents": 15000
-    },
-    {
-      "description": "4\\" Waterborne Pavement Marking - Parking Stall Delineation (TTP-1952E, 15 mil DFT, w/ Type I Glass Beads)",
-      "quantity": 45,
+      "description": "4\\" Parking Stall Striping (waterborne TTP-1952E)",
+      "quantity": 800,
       "unit_price_cents": 800,
-      "amount_cents": 36000
+      "amount_cents": 640000
     },
     {
-      "description": "ADA-Compliant Accessible Space Marking w/ ISA Symbol & Access Aisle (per MUTCD/ADA Standards)",
-      "quantity": 4,
+      "description": "ADA Accessible Space Marking w/ ISA Symbol & Access Aisle",
+      "quantity": 85,
       "unit_price_cents": 3500,
-      "amount_cents": 14000
+      "amount_cents": 297500
     }
   ],
-  "totalCents": 115000,
+  "totalCents": 937500,
   "services": {
     "striping": true,
     "sealing": false,
     "paving": false
   },
-  "summary": "45 parking stalls, 4 ADA spaces, 4 cross-hatch zones - Graco 3400 application"
+  "summary": "800 parking stalls, 85 ADA spaces, 81 cross-hatch zones"
 }
 
 IMPORTANT:
-- All amounts must be in CENTS (e.g., $11.50 = 1150 cents)
+- All amounts in CENTS (e.g., $11.50 = 1150 cents)
 - The sum of all line item amount_cents MUST equal totalCents
-- If a total was mentioned, use that exact total
-- Never exceed the max pricing rules (especially ADA spaces and stencils at $35 max)
-- Include labor hours as a separate line item (e.g., "Labor - 2-Man Crew (X hours @ $Y/hr)")
-- Include material line items when significant (paint gallons, glass beads, etc.)
+- amount_cents = quantity * unit_price_cents (verify this for each item)
+- If a total was mentioned, use that exact total and adjust unit prices to match
+- Never exceed max pricing rules (ADA spaces and stencils at $35 max)
 - Return ONLY valid JSON, no markdown or explanation`
 
     const message = await anthropic.messages.create({

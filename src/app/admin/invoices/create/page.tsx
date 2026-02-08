@@ -436,11 +436,13 @@ function CreateInvoiceContent() {
   }
 
   const removeLineItem = (index: number) => {
-    if (invoice.line_items.length <= 1) return
-    setInvoice(prev => ({
-      ...prev,
-      line_items: prev.line_items.filter((_, i) => i !== index)
-    }))
+    setInvoice(prev => {
+      const filtered = prev.line_items.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        line_items: filtered.length > 0 ? filtered : [{ description: '', amount_cents: 0 }]
+      }
+    })
   }
 
   const generateLineItems = async () => {
@@ -1281,14 +1283,13 @@ function CreateInvoiceContent() {
                 </div>
                 <button
                   onClick={() => removeLineItem(index)}
-                  disabled={invoice.line_items.length <= 1}
                   style={{
                     padding: '10px 14px',
                     border: 'none',
                     borderRadius: '8px',
                     backgroundColor: 'transparent',
-                    color: invoice.line_items.length <= 1 ? '#4a4538' : '#dc2626',
-                    cursor: invoice.line_items.length <= 1 ? 'not-allowed' : 'pointer',
+                    color: '#dc2626',
+                    cursor: 'pointer',
                     fontSize: '18px',
                   }}
                 >
