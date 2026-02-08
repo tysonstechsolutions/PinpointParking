@@ -22,6 +22,7 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [categoryFilter, setCategoryFilter] = useState('all')
 
   const fetchExpenses = useCallback(async () => {
@@ -80,6 +81,25 @@ export default function ExpensesPage() {
   }))
 
   const grandTotal = expenses.reduce((sum, e) => sum + (e.amount_cents || 0), 0)
+
+  const deleteExpense = async (expenseId: number) => {
+    if (!confirm('Delete this expense? This cannot be undone.')) return
+    try {
+      await fetch(
+        `${config.supabase.url}/rest/v1/expenses?id=eq.${expenseId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': config.supabase.anonKey,
+            'Authorization': `Bearer ${config.supabase.anonKey}`,
+          },
+        }
+      )
+      fetchExpenses()
+    } catch (err) {
+      console.error('Error deleting expense:', err)
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#1a1714' }}>
@@ -164,7 +184,11 @@ export default function ExpensesPage() {
                     gap: '16px',
                     padding: '16px',
                     borderBottom: i < filteredExpenses.length - 1 ? '1px solid #302d2a' : 'none',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => setEditingExpense(expense)}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#302d2a'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <span style={{ fontSize: '24px' }}>{cat.icon}</span>
                   <div style={{ flex: 1 }}>
@@ -177,6 +201,7 @@ export default function ExpensesPage() {
                   <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#dc2626' }}>
                     -{formatCurrency(expense.amount_cents)}
                   </p>
+                  <span style={{ color: '#555' }}>›</span>
                 </div>
               )
             })
@@ -191,20 +216,36 @@ export default function ExpensesPage() {
           onSuccess={() => { setShowAddModal(false); fetchExpenses(); }}
         />
       )}
+
+      {/* Edit Expense Modal */}
+      {editingExpense && (
+        <AddExpenseModal
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSuccess={() => { setEditingExpense(null); fetchExpenses(); }}
+          onDelete={() => { deleteExpense(editingExpense.id); setEditingExpense(null); }}
+        />
+      )}
     </div>
   )
 }
 
-// Add Expense Modal
-function AddExpenseModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+// Add/Edit Expense Modal
+function AddExpenseModal({ expense, onClose, onSuccess, onDelete }: {
+  expense?: Expense
+  onClose: () => void
+  onSuccess: () => void
+  onDelete?: () => void
+}) {
+  const isEdit = !!expense
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    category: 'materials',
-    vendor: '',
-    description: '',
-    amount: '',
-    expense_date: new Date().toISOString().split('T')[0],
-    is_tax_deductible: true,
+    category: expense?.category || 'materials',
+    vendor: expense?.vendor || '',
+    description: expense?.description || '',
+    amount: expense ? (expense.amount_cents / 100).toString() : '',
+    expense_date: expense?.expense_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+    is_tax_deductible: expense?.is_tax_deductible ?? true,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,29 +253,30 @@ function AddExpenseModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     setLoading(true)
 
     try {
-      const response = await fetch(
-        `${config.supabase.url}/rest/v1/expenses`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': config.supabase.anonKey,
-            'Authorization': `Bearer ${config.supabase.anonKey}`,
-          },
-          body: JSON.stringify({
-            ...form,
-            amount_cents: Math.round(parseFloat(form.amount) * 100),
-          }),
-        }
-      )
+      const url = isEdit
+        ? `${config.supabase.url}/rest/v1/expenses?id=eq.${expense.id}`
+        : `${config.supabase.url}/rest/v1/expenses`
+
+      const response = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': config.supabase.anonKey,
+          'Authorization': `Bearer ${config.supabase.anonKey}`,
+        },
+        body: JSON.stringify({
+          ...form,
+          amount_cents: Math.round(parseFloat(form.amount) * 100),
+        }),
+      })
 
       if (response.ok) {
         onSuccess()
       } else {
-        alert('Failed to add expense')
+        alert(isEdit ? 'Failed to update expense' : 'Failed to add expense')
       }
     } catch {
-      alert('Error adding expense')
+      alert(isEdit ? 'Error updating expense' : 'Error adding expense')
     }
     setLoading(false)
   }
@@ -264,7 +306,7 @@ function AddExpenseModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           padding: '16px',
           borderBottom: '1px solid #302d2a',
         }}>
-          <h2 style={{ fontWeight: 'bold', fontSize: '18px', color: 'white' }}>Add Expense</h2>
+          <h2 style={{ fontWeight: 'bold', fontSize: '18px', color: 'white' }}>{isEdit ? 'Edit Expense' : 'Add Expense'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#9C9690' }}>✕</button>
         </div>
 
@@ -360,8 +402,27 @@ function AddExpenseModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               opacity: loading ? 0.5 : 1,
             }}
           >
-            {loading ? 'Adding...' : '+ Add Expense'}
+            {loading ? 'Saving...' : isEdit ? 'Update Expense' : '+ Add Expense'}
           </button>
+          {isEdit && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginTop: '8px',
+                backgroundColor: 'transparent',
+                color: '#dc2626',
+                border: '1px solid #dc2626',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Delete Expense
+            </button>
+          )}
         </form>
       </div>
     </div>

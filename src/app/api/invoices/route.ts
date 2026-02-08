@@ -383,3 +383,58 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
+
+// ============================================
+// UPDATE INVOICE
+// ============================================
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, ...updates } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Invoice ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // If line_items is provided as an array, stringify it
+    if (updates.line_items && Array.isArray(updates.line_items)) {
+      updates.line_items = JSON.stringify(updates.line_items)
+    }
+
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/invoices?id=eq.${id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': getSupabaseKey(),
+          'Authorization': `Bearer ${getSupabaseKey()}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(updates),
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Invoice update error:', errorText)
+      return NextResponse.json(
+        { error: 'Failed to update invoice' },
+        { status: 500 }
+      )
+    }
+
+    const [invoice] = await response.json()
+    return NextResponse.json({ success: true, invoice })
+
+  } catch (error) {
+    console.error('Invoice update error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}

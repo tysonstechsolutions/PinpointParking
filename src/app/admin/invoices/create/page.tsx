@@ -45,6 +45,7 @@ interface LineItem {
   quantity?: number
   unit_price_cents?: number
   amount_cents: number
+  _displayAmount?: string
 }
 
 // Speech recognition types
@@ -94,6 +95,8 @@ function CreateInvoiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const jobId = searchParams.get('job')
+  const editId = searchParams.get('edit')
+  const [isEditMode, setIsEditMode] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -133,12 +136,62 @@ function CreateInvoiceContent() {
     total_amount: '',
   })
 
+  const fetchEstimate = useCallback(async (id: string) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/invoices?id=${id}`)
+      if (response.ok) {
+        const data = await response.json()
+        const est = Array.isArray(data) ? data[0] : data
+        if (est) {
+          const lineItems = (est.line_items || []).map((item: LineItem) => ({
+            ...item,
+            _displayAmount: item.amount_cents ? (item.amount_cents / 100).toFixed(2) : '',
+          }))
+
+          // Determine services from job_type or service_description
+          const services = { striping: false, sealing: false, paving: false }
+          const jobType = (est.job_type || est.service_description || '').toLowerCase()
+          if (jobType.includes('strip')) services.striping = true
+          if (jobType.includes('seal')) services.sealing = true
+          if (jobType.includes('pav')) services.paving = true
+
+          setInvoice(prev => ({
+            ...prev,
+            customer_id: est.customer_id,
+            customer_name: est.customer_name || '',
+            customer_phone: est.customer_phone || '',
+            customer_email: est.customer_email || '',
+            customer_address: est.customer_address || '',
+            job_id: est.job_id,
+            service_address: est.service_address || '',
+            service_description: est.service_description || '',
+            services,
+            square_feet: est.square_feet?.toString() || '',
+            line_items: lineItems.length > 0 ? lineItems : [{ description: '', amount_cents: 0 }],
+            notes: est.notes || '',
+            payment_terms: est.due_date
+              ? Math.round((new Date(est.due_date).getTime() - new Date(est.created_at).getTime()) / (1000 * 60 * 60 * 24))
+              : 15,
+            total_amount: est.total_cents ? (est.total_cents / 100).toFixed(2) : '',
+          }))
+          setIsEditMode(true)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching estimate:', err)
+    }
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     fetchCustomers()
-    if (jobId) {
+    if (editId) {
+      fetchEstimate(editId)
+    } else if (jobId) {
       fetchJob(jobId)
     }
-  }, [jobId])
+  }, [jobId, editId, fetchEstimate])
 
   // Initialize speech recognition
   useEffect(() => {
@@ -361,11 +414,24 @@ function CreateInvoiceContent() {
   const updateLineItem = (index: number, field: keyof LineItem, value: string) => {
     setInvoice(prev => ({
       ...prev,
-      line_items: prev.line_items.map((item, i) =>
-        i === index
-          ? { ...item, [field]: field === 'amount_cents' ? Math.round(parseFloat(value || '0') * 100) : value }
-          : item
-      )
+      line_items: prev.line_items.map((item, i) => {
+        if (i !== index) return item
+        if (field === 'amount_cents') {
+          return { ...item, _displayAmount: value, amount_cents: Math.round(parseFloat(value || '0') * 100) }
+        }
+        return { ...item, [field]: value }
+      })
+    }))
+  }
+
+  const finalizeLineItemAmount = (index: number) => {
+    setInvoice(prev => ({
+      ...prev,
+      line_items: prev.line_items.map((item, i) => {
+        if (i !== index) return item
+        const cents = item.amount_cents || 0
+        return { ...item, _displayAmount: cents ? (cents / 100).toFixed(2) : '' }
+      })
     }))
   }
 
@@ -702,7 +768,12 @@ function CreateInvoiceContent() {
           return labels[service] || service
         })
 
+      const cleanedLineItems = invoice.line_items
+        .filter(item => item.description && item.amount_cents > 0)
+        .map(({ _displayAmount, ...item }) => item)
+
       const payload = {
+        ...(isEditMode && editId ? { id: parseInt(editId) } : {}),
         customer_id: invoice.customer_id,
         job_id: invoice.job_id,
         customer_name: invoice.customer_name,
@@ -716,7 +787,7 @@ function CreateInvoiceContent() {
           .map(([service]) => service)
           .join(','),
         square_feet: invoice.square_feet ? parseInt(invoice.square_feet) : null,
-        line_items: invoice.line_items.filter(item => item.description && item.amount_cents > 0),
+        line_items: cleanedLineItems,
         notes: invoice.notes,
         due_date: dueDate.toISOString().split('T')[0],
         subtotal_cents: subtotal,
@@ -726,7 +797,7 @@ function CreateInvoiceContent() {
       }
 
       const response = await fetch('/api/invoices', {
-        method: 'POST',
+        method: isEditMode ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
@@ -788,7 +859,7 @@ function CreateInvoiceContent() {
             &larr;
           </Link>
           <h1 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-            Create Estimate
+            {isEditMode ? 'Edit Estimate' : 'Create Estimate'}
           </h1>
         </div>
       </div>
@@ -1194,8 +1265,9 @@ function CreateInvoiceContent() {
                   <input
                     type="number"
                     step="0.01"
-                    value={item.amount_cents ? (item.amount_cents / 100).toFixed(2) : ''}
+                    value={item._displayAmount ?? (item.amount_cents ? (item.amount_cents / 100).toFixed(2) : '')}
                     onChange={(e) => updateLineItem(index, 'amount_cents', e.target.value)}
+                    onBlur={() => finalizeLineItemAmount(index)}
                     placeholder="0.00"
                     style={{
                       width: '100%',
@@ -1320,7 +1392,7 @@ function CreateInvoiceContent() {
               opacity: saving ? 0.6 : 1,
             }}
           >
-            Save Draft
+            {isEditMode ? 'Update Draft' : 'Save Draft'}
           </button>
           <button
             onClick={() => handleSubmit(true)}
@@ -1335,7 +1407,7 @@ function CreateInvoiceContent() {
               cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
-            {saving ? 'Saving...' : 'Save & Send'}
+            {saving ? 'Saving...' : isEditMode ? 'Update & Send' : 'Save & Send'}
           </button>
         </div>
       </div>

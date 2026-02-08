@@ -1,7 +1,5 @@
-@import "tailwindcss";
-
-/* Import Premium Fonts - Industrial/Professional Typography */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
 
 /* ============================================
    PINPOINT PARKING - Main Stylesheet
@@ -1873,18 +1871,6 @@ p {
 .mb-0 { margin-bottom: 0; }
 .my-4 { margin-top: 1rem; margin-bottom: 1rem; }
 .my-8 { margin-top: 2rem; margin-bottom: 2rem; }
-
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
 
 /* ============================================
    ENHANCED VISUAL ELEMENTS

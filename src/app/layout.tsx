@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Oswald, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import ClientSideComponents from "@/components/ClientSideComponents";
+import LayoutShell from "@/components/LayoutShell";
 
 const oswald = Oswald({
   variable: "--font-oswald",
@@ -436,10 +434,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${oswald.variable} ${sourceSans.variable}`} style={{ fontFamily: 'var(--font-source-sans), sans-serif' }}>
-        <Header />
-        <main id="main-content" role="main" style={{ position: 'relative', overflow: 'hidden' }}>{children}</main>
-        <Footer />
-        <ClientSideComponents />
+        <LayoutShell>{children}</LayoutShell>
       </body>
     </html>
   );

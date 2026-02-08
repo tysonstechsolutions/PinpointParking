@@ -591,6 +591,25 @@ export default function InvoicesPage() {
                 {selectedInvoice.status === 'draft' && (
                   <>
                     <button
+                      onClick={() => {
+                        setSelectedInvoice(null)
+                        window.location.href = `/admin/invoices/create?edit=${selectedInvoice.id}`
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#d97706',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit Estimate
+                    </button>
+                    <button
                       onClick={() => convertToInvoice(selectedInvoice.id)}
                       style={{
                         flex: 1,

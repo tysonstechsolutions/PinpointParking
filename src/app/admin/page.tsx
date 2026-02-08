@@ -915,21 +915,6 @@ export default function AdminPage() {
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => deleteJob(selectedJob.id)}
-                  style={{
-                    padding: '12px 20px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🗑 Delete
-                </button>
               </div>
             </div>
           </div>
