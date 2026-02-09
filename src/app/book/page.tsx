@@ -561,7 +561,11 @@ export default function BookingPage() {
         body: JSON.stringify(jobData),
       })
 
-      if (!jobResponse.ok) throw new Error('Failed to submit job')
+      if (!jobResponse.ok) {
+        const errBody = await jobResponse.text().catch(() => '')
+        console.error('Job creation failed:', jobResponse.status, errBody)
+        throw new Error(`Job creation failed (${jobResponse.status}): ${errBody}`)
+      }
       const [createdJob] = await jobResponse.json()
 
       // Create invoice for payment
@@ -608,7 +612,11 @@ export default function BookingPage() {
         body: JSON.stringify(invoiceData),
       })
 
-      if (!invoiceResponse.ok) throw new Error('Failed to create invoice')
+      if (!invoiceResponse.ok) {
+        const errBody = await invoiceResponse.text().catch(() => '')
+        console.error('Invoice creation failed:', invoiceResponse.status, errBody)
+        throw new Error(`Invoice creation failed (${invoiceResponse.status}): ${errBody}`)
+      }
       const [createdInvoice] = await invoiceResponse.json()
       setCreatedInvoiceId(createdInvoice.id)
 
@@ -653,8 +661,10 @@ export default function BookingPage() {
       }
 
       setSubmitSuccess(true)
-    } catch {
-      setSubmitError('Something went wrong. Please call us instead.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('Booking submission error:', message)
+      setSubmitError(`Something went wrong: ${message}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -1588,7 +1598,7 @@ export default function BookingPage() {
       </header>
 
       {/* Main */}
-      <main className="flex-1 flex flex-col justify-center py-10 pb-32">
+      <main className="flex-1 flex flex-col justify-center py-10 pb-40">
         {!submitSuccess && <ProgressBar />}
 
         <div className="flex-1 flex items-center justify-center animate-fadeIn">
@@ -1603,7 +1613,7 @@ export default function BookingPage() {
 
       {/* Fixed bottom nav */}
       {!submitSuccess && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-md border-t border-zinc-800 p-5 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-md border-t border-zinc-800 p-5 z-50" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto flex gap-4">
             {currentStep !== 'service' && (
               <button
