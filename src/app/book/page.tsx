@@ -26,12 +26,41 @@ interface FormData {
   addStriping: boolean
 }
 
-const STEPS: { id: Step; label: string; icon: string }[] = [
-  { id: 'service', label: 'Service', icon: '🎯' },
-  { id: 'location', label: 'Location', icon: '📍' },
-  { id: 'contact', label: 'Contact', icon: '👤' },
-  { id: 'schedule', label: 'Schedule', icon: '📅' },
-  { id: 'review', label: 'Review', icon: '✓' },
+const STEP_ICONS: Record<Step, React.ReactNode> = {
+  service: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+  ),
+  location: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  contact: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  ),
+  schedule: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
+  review: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+}
+
+const STEPS: { id: Step; label: string }[] = [
+  { id: 'service', label: 'Service' },
+  { id: 'location', label: 'Location' },
+  { id: 'contact', label: 'Contact' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'review', label: 'Review' },
 ]
 
 const INITIAL_FORM: FormData = {
@@ -636,16 +665,14 @@ export default function BookingPage() {
   // ============================================
 
   const ProgressBar = () => (
-    <div className="w-full max-w-4xl mx-auto mb-12 px-4">
-      {/* Progress line */}
+    <div className="w-full max-w-3xl mx-auto mb-14 px-8 sm:px-12">
       <div className="relative">
-        <div className="absolute top-6 left-0 right-0 h-1 bg-zinc-800 rounded-full" />
+        <div className="absolute top-6 left-0 right-0 h-0.5 bg-zinc-800 rounded-full" />
         <div
-          className="absolute top-6 left-0 h-1 bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-500"
+          className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-500 ease-out"
           style={{ width: `${(currentIdx / (steps.length - 1)) * 100}%` }}
         />
 
-        {/* Step circles */}
         <div className="relative flex justify-between">
           {steps.map((step, idx) => {
             const stepInfo = STEPS.find(s => s.id === step)!
@@ -656,21 +683,25 @@ export default function BookingPage() {
               <div key={step} className="flex flex-col items-center">
                 <div
                   className={`
-                    w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold
-                    transition-all duration-300 border-4
+                    w-12 h-12 rounded-full flex items-center justify-center
+                    transition-all duration-300 border-2
                     ${isActive
-                      ? 'bg-yellow-500 border-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/30'
+                      ? 'bg-yellow-500 border-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/25'
                       : isComplete
-                        ? 'bg-yellow-500 border-yellow-500 text-black'
+                        ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500'
                         : 'bg-zinc-900 border-zinc-700 text-zinc-500'
                     }
                   `}
                 >
-                  {isComplete ? '✓' : stepInfo.icon}
+                  {isComplete ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : STEP_ICONS[step]}
                 </div>
                 <span className={`
-                  mt-3 text-sm font-medium hidden sm:block
-                  ${isActive ? 'text-yellow-500' : isComplete ? 'text-zinc-400' : 'text-zinc-600'}
+                  mt-3 text-xs font-semibold tracking-wide uppercase hidden sm:block
+                  ${isActive ? 'text-yellow-500' : isComplete ? 'text-yellow-500/70' : 'text-zinc-600'}
                 `}>
                   {stepInfo.label}
                 </span>
@@ -715,7 +746,7 @@ export default function BookingPage() {
                 relative p-8 rounded-2xl text-left transition-all duration-300
                 ${isSelected
                   ? 'bg-yellow-500/10 border-2 border-yellow-500 shadow-xl shadow-yellow-500/10 scale-[1.02]'
-                  : 'bg-zinc-900/80 border-2 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
+                  : 'bg-zinc-900 border-2 border-zinc-700/50 hover:border-yellow-500/30 hover:bg-zinc-800/80'
                 }
               `}
             >
@@ -735,7 +766,7 @@ export default function BookingPage() {
 
               <div className="flex flex-wrap gap-2">
                 {service.bestFor.slice(0, 2).map((item, i) => (
-                  <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-400">
+                  <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700/50">
                     {item}
                   </span>
                 ))}
@@ -746,31 +777,17 @@ export default function BookingPage() {
       </div>
 
       {/* Trust badges */}
-      <div className="flex flex-wrap justify-center gap-8 text-zinc-500">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
+      <div className="flex flex-wrap justify-center gap-8 text-zinc-400">
+        {['Licensed & Insured', 'Free Estimates', 'Satisfaction Guaranteed'].map((badge) => (
+          <div key={badge} className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="font-medium">{badge}</span>
           </div>
-          <span>Licensed & Insured</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <span>Free Estimates</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-            <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <span>Satisfaction Guaranteed</span>
-        </div>
+        ))}
       </div>
     </div>
   )
@@ -1557,19 +1574,21 @@ export default function BookingPage() {
     <div className="min-h-screen bg-black flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-zinc-800">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <Link href="/" className="text-yellow-500 font-bold text-2xl hover:text-yellow-400 transition-colors">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="text-yellow-500 font-bold text-xl hover:text-yellow-400 transition-colors">
             {config.businessName}
           </Link>
-          <a href={`tel:${config.phoneRaw}`} className="text-zinc-400 hover:text-white transition-colors text-lg">
-            <span className="hidden sm:inline">{config.phone}</span>
-            <span className="sm:hidden text-2xl">📞</span>
+          <a href={`tel:${config.phoneRaw}`} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            <span className="hidden sm:inline text-sm">{config.phone}</span>
           </a>
         </div>
       </header>
 
       {/* Main */}
-      <main className="flex-1 flex flex-col py-12 pb-36">
+      <main className="flex-1 flex flex-col justify-center py-10 pb-32">
         {!submitSuccess && <ProgressBar />}
 
         <div className="flex-1 flex items-center justify-center animate-fadeIn">
@@ -1605,7 +1624,7 @@ export default function BookingPage() {
                 className={`flex-1 py-5 px-8 text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${
                   canProceed()
                     ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-lg shadow-yellow-500/30'
-                    : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                    : 'bg-zinc-800/60 text-zinc-600 cursor-not-allowed border border-zinc-700/30'
                 }`}
               >
                 Continue

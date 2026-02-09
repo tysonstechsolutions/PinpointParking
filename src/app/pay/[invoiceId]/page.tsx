@@ -9,7 +9,8 @@ interface LineItem {
   quantity?: number
   unit?: string
   unit_price_cents?: number
-  total_cents: number
+  amount_cents?: number
+  total_cents?: number
 }
 
 interface Invoice {
@@ -42,7 +43,7 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
 
   // Counter-offer state
   const [showCounterOffer, setShowCounterOffer] = useState(false)
-  const [counterOfferAmount, setCounterOfferAmount] = useState(500)
+  const [counterOfferAmount, setCounterOfferAmount] = useState(0)
   const [counterOfferSubmitting, setCounterOfferSubmitting] = useState(false)
   const [counterOfferSuccess, setCounterOfferSuccess] = useState(false)
   const [counterOfferMessage, setCounterOfferMessage] = useState('')
@@ -334,7 +335,7 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
                   )}
                 </div>
                 <span style={{ color: 'white', fontWeight: '500' }}>
-                  {formatCurrency(item.total_cents)}
+                  {formatCurrency(item.amount_cents ?? item.total_cents ?? 0)}
                 </span>
               </div>
             ))}
@@ -662,28 +663,26 @@ export default function PaymentPage({ params }: { params: Promise<{ invoiceId: s
               {/* Counter-offer option - only show if no payments made yet */}
               {invoice.amount_paid_cents === 0 && (
                 <div style={{
-                  marginTop: '24px',
-                  paddingTop: '24px',
+                  marginTop: '16px',
+                  paddingTop: '16px',
                   borderTop: '1px solid #302d2a',
                 }}>
-                  <p style={{ color: '#9C9690', fontSize: '14px', marginBottom: '12px' }}>
-                    Not happy with this price?
-                  </p>
                   <button
-                    onClick={() => setShowCounterOffer(true)}
+                    onClick={() => {
+                      setCounterOfferAmount(Math.floor(invoice.total_cents / 100))
+                      setShowCounterOffer(true)
+                    }}
                     style={{
-                      width: '100%',
-                      padding: '14px',
-                      backgroundColor: 'transparent',
-                      color: '#F5C518',
-                      border: '2px solid #F5C518',
-                      borderRadius: '8px',
-                      fontSize: '16px',
-                      fontWeight: '600',
+                      background: 'none',
+                      border: 'none',
+                      color: '#9C9690',
+                      fontSize: '13px',
                       cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
                     }}
                   >
-                    Make a Counter-Offer
+                    Competitor has a lower price or outside your budget? Make a counter-offer
                   </button>
                 </div>
               )}

@@ -105,6 +105,8 @@ export async function createCheckoutSession(
             currency: 'usd',
             product_data: {
               name: description || `Invoice #${invoiceId}`,
+              description: 'Professional Asphalt & Paving Services',
+              images: [`${baseUrl}/icons/icon.svg`],
             },
             unit_amount: amountCents,
           },
@@ -118,6 +120,11 @@ export async function createCheckoutSession(
       metadata: {
         invoiceId: invoiceId.toString(),
         paymentType: paymentType,
+      },
+      custom_text: {
+        submit: {
+          message: 'Pinpoint Parking — Thank you for your business! Your payment is secured by Stripe.',
+        },
       },
     })
 

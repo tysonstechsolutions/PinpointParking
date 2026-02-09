@@ -1717,69 +1717,136 @@ export default function PavingChatbot({ onClose, embedded = false }: PavingChatb
 
             {/* COUNTER OFFER */}
             {!isTyping && step === STEPS.COUNTER_OFFER && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
-                {/* Current price display */}
-                <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
-                  <div className="text-center">
-                    <p style={{ color: COLORS.gray, fontSize: '14px', marginBottom: '4px' }}>Estimated Price</p>
-                    <p className="font-black text-3xl" style={{ color: COLORS.yellow }}>${bookingData.estimateLow.toLocaleString()}</p>
-                  </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+                {/* Price + Accept */}
+                <div style={{
+                  borderRadius: '12px',
+                  padding: '20px',
+                  backgroundColor: COLORS.blackLight,
+                  border: `2px solid ${COLORS.yellow}`,
+                  textAlign: 'center',
+                }}>
+                  <p style={{ color: COLORS.gray, fontSize: '13px', marginBottom: '6px' }}>Your Estimated Price</p>
+                  <p style={{ color: COLORS.yellow, fontSize: '32px', fontWeight: '900', margin: '0 0 16px' }}>
+                    ${bookingData.estimateLow.toLocaleString()}
+                  </p>
+                  <button
+                    onClick={handleAcceptPrice}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      backgroundColor: COLORS.yellow,
+                      color: COLORS.black,
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Accept & Continue
+                  </button>
                 </div>
 
-                {/* Accept price button */}
-                <button
-                  onClick={handleAcceptPrice}
-                  className="w-full rounded-xl py-4 font-bold text-lg transition-all border-2"
-                  style={{ backgroundColor: COLORS.yellow, color: COLORS.black, borderColor: COLORS.yellow }}
-                >
-                  Accept This Price
-                </button>
-
-                {/* Divider */}
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: COLORS.blackMedium }} />
-                  <span style={{ color: COLORS.gray, fontSize: '12px' }}>OR</span>
-                  <div className="flex-1 h-px" style={{ backgroundColor: COLORS.blackMedium }} />
+                {/* Counter offer toggle */}
+                <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById('counter-offer-form')
+                      if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none'
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: COLORS.gray,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Have a lower quote or tight budget? Make a counter-offer
+                  </button>
                 </div>
 
-                {/* Counter offer form */}
-                <div style={{ borderRadius: '12px', padding: '16px', backgroundColor: COLORS.blackLight, border: `2px solid ${COLORS.blackMedium}` }}>
-                  <p className="font-bold text-white mb-3">Make an Offer</p>
-
-                  <div className="mb-3">
-                    <label style={{ color: COLORS.gray, fontSize: '12px', display: 'block', marginBottom: '4px' }}>Your Offer</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white font-bold">$</span>
+                {/* Counter offer form - hidden by default */}
+                <div id="counter-offer-form" style={{
+                  display: 'none',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  backgroundColor: COLORS.blackLight,
+                  border: `1px solid ${COLORS.blackMedium}`,
+                }}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ color: COLORS.gray, fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                      Your offer amount
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'white',
+                        fontWeight: '700',
+                        fontSize: '18px',
+                      }}>$</span>
                       <input
                         type="number"
                         min="500"
                         max={bookingData.estimateLow - 1}
                         value={counterOfferAmount || ''}
                         onChange={(e) => setCounterOfferAmount(parseInt(e.target.value) || 0)}
-                        className="w-full pl-8 pr-4 py-3 rounded-lg text-white font-bold text-lg"
-                        style={{ backgroundColor: COLORS.blackMedium, border: `1px solid ${COLORS.gray}` }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 12px 12px 28px',
+                          borderRadius: '8px',
+                          backgroundColor: COLORS.blackMedium,
+                          border: `1px solid ${COLORS.blackMedium}`,
+                          color: 'white',
+                          fontSize: '18px',
+                          fontWeight: '700',
+                          boxSizing: 'border-box',
+                        }}
                       />
                     </div>
-                    <p style={{ color: COLORS.gray, fontSize: '11px', marginTop: '4px' }}>Min $500 • Max ${(bookingData.estimateLow - 1).toLocaleString()}</p>
                   </div>
 
-                  <div className="mb-3">
-                    <label style={{ color: COLORS.gray, fontSize: '12px', display: 'block', marginBottom: '4px' }}>Why this price? (optional)</label>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ color: COLORS.gray, fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                      Reason (optional)
+                    </label>
                     <input
                       type="text"
                       value={counterOfferMessage}
                       onChange={(e) => setCounterOfferMessage(e.target.value)}
-                      placeholder="e.g., This is my budget, nonprofit..."
-                      className="w-full px-4 py-3 rounded-lg text-white"
-                      style={{ backgroundColor: COLORS.blackMedium, border: `1px solid ${COLORS.gray}` }}
+                      placeholder="Budget, competing quote, etc."
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: COLORS.blackMedium,
+                        border: `1px solid ${COLORS.blackMedium}`,
+                        color: 'white',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
                     />
                   </div>
 
                   <button
                     onClick={handleSubmitCounterOffer}
                     disabled={counterOfferAmount < 500 || counterOfferAmount >= bookingData.estimateLow}
-                    className="w-full rounded-xl py-3 font-bold transition-all disabled:opacity-50"
-                    style={{ backgroundColor: '#22c55e', color: 'white' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: counterOfferAmount >= 500 && counterOfferAmount < bookingData.estimateLow ? '#22c55e' : COLORS.blackMedium,
+                      color: counterOfferAmount >= 500 && counterOfferAmount < bookingData.estimateLow ? 'white' : COLORS.gray,
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      cursor: counterOfferAmount >= 500 && counterOfferAmount < bookingData.estimateLow ? 'pointer' : 'not-allowed',
+                    }}
                   >
                     Submit Offer
                   </button>
